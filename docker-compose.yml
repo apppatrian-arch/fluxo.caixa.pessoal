@@ -10,5 +10,12 @@ services:
     restart: unless-stopped
     ports:
       - "8085:80"
+    env_file:
+      - .env
+    environment:
+      - GH_TOKEN=${GH_TOKEN}
+      - GH_OWNER=${GH_OWNER}
+      - GH_REPO=${GH_REPO}
+      - GH_BRANCH=${GH_BRANCH:-main}
     labels:
       - "com.docker.compose.project=fluxo-caixa-pessoal"

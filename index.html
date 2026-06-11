@@ -15,6 +15,8 @@
   <link rel="apple-touch-icon" href="./icon-192.png" />
   <link rel="icon" type="image/svg+xml" href="./icon.svg" />
 
+  <!-- Config injetada pelo Docker via entrypoint.sh (.env → config.js) -->
+  <script src="./config.js" onerror="window.APP_CONFIG=null"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
     :root {
@@ -675,7 +677,7 @@
           <button onclick="abrirModalSenha()" style="display:flex;align-items:center;gap:10px;width:100%;padding:13px 14px;border:none;background:white;font-size:14px;cursor:pointer;color:var(--text);">
             🔑 Alterar senha
           </button>
-          <button onclick="abrirModalGitHub()" style="display:flex;align-items:center;gap:10px;width:100%;padding:13px 14px;border:none;background:white;font-size:14px;cursor:pointer;color:var(--text);border-top:1px solid var(--border);">
+          <button id="btn-menu-github" onclick="abrirModalGitHub()" style="display:flex;align-items:center;gap:10px;width:100%;padding:13px 14px;border:none;background:white;font-size:14px;cursor:pointer;color:var(--text);border-top:1px solid var(--border);">
             ☁️ Config. GitHub
           </button>
           <button onclick="abrirModalWhatsApp()" style="display:flex;align-items:center;gap:10px;width:100%;padding:13px 14px;border:none;background:white;font-size:14px;cursor:pointer;color:var(--text);border-top:1px solid var(--border);">
@@ -1053,8 +1055,8 @@
     const saved = localStorage.getItem('fc_session');
     if (saved) {
       currentUser = saved;
-      // Se nunca configurou GitHub, mostra tela de configuração
-      if (!ghConfig && !localStorage.getItem('fc_gh_skip')) {
+      // Config do .env tem prioridade — nunca pede configuração ao usuário
+      if (!ghConfig && !configVemDoEnv() && !localStorage.getItem('fc_gh_skip')) {
         mostrarTelaGitHub();
       } else {
         iniciarApp();
@@ -1072,7 +1074,13 @@
     document.getElementById('topbar-user').textContent = currentUser.split('@')[0];
     document.getElementById('menu-username').textContent = currentUser;
 
-    await carregarLancamentos(); // carrega tudo (lancamentos + pessoas + categorias) do GitHub ou local
+    // Esconde opção de configurar GitHub se as credenciais vêm do .env
+    if (configVemDoEnv()) {
+      const btnGh = document.getElementById('btn-menu-github');
+      if (btnGh) btnGh.style.display = 'none';
+    }
+
+    await carregarLancamentos();
     setTab('lancamentos');
 
     const hoje = new Date().toISOString().split('T')[0];
@@ -1086,8 +1094,23 @@
   let ghShas   = {};      // { [filePath]: sha } — necessário para atualizar arquivos
 
   function carregarGhConfig() {
+    // Prioridade 1: config.js gerado pelo Docker a partir do .env
+    if (window.APP_CONFIG && window.APP_CONFIG.ghToken) {
+      ghConfig = {
+        token:  window.APP_CONFIG.ghToken,
+        owner:  window.APP_CONFIG.ghOwner,
+        repo:   window.APP_CONFIG.ghRepo,
+        branch: window.APP_CONFIG.ghBranch || 'main',
+      };
+      return;
+    }
+    // Prioridade 2: config salva manualmente pelo usuário no localStorage
     const s = localStorage.getItem('fc_gh_config');
     ghConfig = s ? JSON.parse(s) : null;
+  }
+
+  function configVemDoEnv() {
+    return !!(window.APP_CONFIG && window.APP_CONFIG.ghToken);
   }
 
   function ghFilePath() {
@@ -1765,7 +1788,7 @@
     localStorage.setItem('fc_session', email);
 
     carregarGhConfig();
-    if (!ghConfig && !localStorage.getItem('fc_gh_skip')) {
+    if (!ghConfig && !configVemDoEnv() && !localStorage.getItem('fc_gh_skip')) {
       mostrarTelaGitHub();
     } else {
       iniciarApp();
