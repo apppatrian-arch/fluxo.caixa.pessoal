@@ -1,0 +1,5 @@
+# Credenciais — nunca subir para o GitHub
+.env
+
+# Gerado pelo Docker no startup
+config.js
