@@ -493,6 +493,7 @@
     }
 
     .modal-overlay.open { display: flex; }
+    .modal-overlay.open.sobre { z-index: 300; }
 
     .modal {
       background: var(--surface);
@@ -1431,7 +1432,10 @@
     document.getElementById('pessoa-nome').value = '';
     document.getElementById('pessoa-tel').value = '';
     document.getElementById('pessoa-erro').textContent = '';
-    document.getElementById('modal-pessoa').classList.add('open');
+    const el = document.getElementById('modal-pessoa');
+    el.classList.add('open');
+    // Se aberto de outro modal, sobe o z-index para ficar na frente
+    if (origem && origem !== 'lancamento') el.classList.add('sobre');
     setTimeout(() => document.getElementById('pessoa-nome').focus(), 100);
   }
 
@@ -1448,7 +1452,9 @@
   }
 
   function fecharModalPessoa() {
-    document.getElementById('modal-pessoa').classList.remove('open');
+    const el = document.getElementById('modal-pessoa');
+    el.classList.remove('open');
+    el.classList.remove('sobre');
   }
 
   function salvarPessoa() {
