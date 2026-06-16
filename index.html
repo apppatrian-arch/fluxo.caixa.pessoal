@@ -272,17 +272,44 @@
     }
 
     /* ── TABS ── */
+    .tabs-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+      margin-bottom: 16px;
+      gap: 4px;
+    }
+    .tabs-arrow {
+      flex-shrink: 0;
+      width: 28px;
+      height: 36px;
+      border: none;
+      border-radius: 8px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+      font-size: 14px;
+      cursor: pointer;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s;
+      user-select: none;
+    }
+    .tabs-arrow:hover { background: var(--border); }
+    .tabs-arrow:disabled { opacity: 0.3; cursor: default; }
     .tabs {
       display: flex;
+      flex: 1;
       background: var(--surface);
       border-radius: var(--radius);
       padding: 4px;
-      margin-bottom: 16px;
       box-shadow: var(--shadow);
       overflow-x: auto;
       -webkit-overflow-scrolling: touch;
       scrollbar-width: none;
       gap: 2px;
+      scroll-behavior: smooth;
     }
     .tabs::-webkit-scrollbar { display: none; }
 
@@ -662,13 +689,17 @@
     </div>
 
     <!-- TABS -->
-    <div class="tabs">
-      <button class="tab active" id="tab-lancamentos" onclick="setTab('lancamentos')">Lançamentos</button>
-      <button class="tab" id="tab-novo" onclick="setTab('novo')">+ Novo</button>
-      <button class="tab" id="tab-recorrentes" onclick="setTab('recorrentes')">🔁 Recorrentes</button>
-      <button class="tab" id="tab-pessoas" onclick="setTab('pessoas')">Pessoas</button>
-      <button class="tab" id="tab-historico" onclick="setTab('historico')">Histórico</button>
-      <button class="tab" id="tab-paulistinha" onclick="setTab('paulistinha')" style="white-space:nowrap;">🚬 Paulistinha</button>
+    <div class="tabs-wrapper">
+      <button class="tabs-arrow" id="tabs-prev" onclick="scrollTabs(-1)" title="Anterior">‹</button>
+      <div class="tabs" id="tabs-bar">
+        <button class="tab active" id="tab-lancamentos" onclick="setTab('lancamentos')">Lançamentos</button>
+        <button class="tab" id="tab-novo" onclick="setTab('novo')">+ Novo</button>
+        <button class="tab" id="tab-recorrentes" onclick="setTab('recorrentes')">🔁 Recorrentes</button>
+        <button class="tab" id="tab-pessoas" onclick="setTab('pessoas')">Pessoas</button>
+        <button class="tab" id="tab-historico" onclick="setTab('historico')">Histórico</button>
+        <button class="tab" id="tab-paulistinha" onclick="setTab('paulistinha')" style="white-space:nowrap;">🚬 Paulistinha</button>
+      </div>
+      <button class="tabs-arrow" id="tabs-next" onclick="scrollTabs(1)" title="Próximo">›</button>
     </div>
 
     <!-- ── PAINEL LANÇAMENTOS ── -->
@@ -2520,6 +2551,28 @@
       });
     }).catch(() => {});
   }
+
+  // ── SETAS DE NAVEGAÇÃO DAS TABS ──
+  function scrollTabs(dir) {
+    const bar = document.getElementById('tabs-bar');
+    bar.scrollLeft += dir * 120;
+    atualizarSetasTabs();
+  }
+  function atualizarSetasTabs() {
+    const bar  = document.getElementById('tabs-bar');
+    const prev = document.getElementById('tabs-prev');
+    const next = document.getElementById('tabs-next');
+    if (!bar) return;
+    prev.disabled = bar.scrollLeft <= 0;
+    next.disabled = bar.scrollLeft + bar.clientWidth >= bar.scrollWidth - 2;
+  }
+  document.addEventListener('DOMContentLoaded', function() {
+    const bar = document.getElementById('tabs-bar');
+    if (bar) {
+      bar.addEventListener('scroll', atualizarSetasTabs);
+      atualizarSetasTabs();
+    }
+  });
 
   // ══════════════════════════════════════════
   //  CONTROLE PAULISTINHA — API
