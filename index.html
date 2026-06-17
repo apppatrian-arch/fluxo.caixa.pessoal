@@ -1052,6 +1052,30 @@
   </div>
 </div>
 
+<!-- MODAL EDITAR AÇÃO DA CARTEIRA -->
+<div class="modal-overlay" id="modal-acao-edit">
+  <div class="modal">
+    <h2>Alterar Ação</h2>
+    <div style="background:var(--bg);border-radius:8px;padding:10px 14px;margin-bottom:14px;">
+      <span style="font-size:18px;font-weight:800;" id="mae-ticker-label"></span>
+    </div>
+    <div class="form-group">
+      <label>Quantidade <span style="color:var(--danger)">*</span></label>
+      <input type="number" id="mae-qtd" min="0.001" step="any" placeholder="0" />
+    </div>
+    <div class="form-group">
+      <label>Custo Unitário (R$) <span style="color:var(--danger)">*</span></label>
+      <input type="number" id="mae-custo" min="0.01" step="0.01" placeholder="0,00" />
+    </div>
+    <input type="hidden" id="mae-carteira-id" />
+    <input type="hidden" id="mae-acao-id" />
+    <div style="display:flex;gap:10px;margin-top:6px;">
+      <button class="btn-secondary" onclick="fecharModalAcaoEdit()" style="flex:1;">Cancelar</button>
+      <button class="btn-primary" onclick="salvarEdicaoAcao()" style="flex:1;">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
   </div>
 </div>
 
@@ -2895,16 +2919,35 @@
     if (!c) return;
     const a = c.acoes.find(x => x.id === acaoId);
     if (!a) return;
-    // Preenche o form de adicionar com os dados e guarda o id para substituir
-    document.getElementById('ci-ticker-' + carteiraId).value = a.ticker;
-    document.getElementById('ci-qtd-'    + carteiraId).value = a.qtd;
-    document.getElementById('ci-custo-'  + carteiraId).value = a.custo;
-    // Marca o form como edição
-    const btn = document.getElementById('ci-btn-' + carteiraId);
-    if (btn) { btn.textContent = '💾'; btn.style.background = '#f59e0b'; btn.setAttribute('data-edit-id', acaoId); }
-    // Scroll até o form
-    const formEl = document.getElementById('ci-form-' + carteiraId);
-    if (formEl) formEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    document.getElementById('mae-ticker-label').textContent = a.ticker;
+    document.getElementById('mae-qtd').value        = a.qtd;
+    document.getElementById('mae-custo').value      = a.custo;
+    document.getElementById('mae-carteira-id').value = carteiraId;
+    document.getElementById('mae-acao-id').value     = acaoId;
+    document.getElementById('modal-acao-edit').classList.add('open');
+    setTimeout(() => document.getElementById('mae-qtd').focus(), 100);
+  }
+
+  function fecharModalAcaoEdit() {
+    document.getElementById('modal-acao-edit').classList.remove('open');
+  }
+
+  function salvarEdicaoAcao() {
+    const carteiraId = document.getElementById('mae-carteira-id').value;
+    const acaoId     = document.getElementById('mae-acao-id').value;
+    const qtd        = parseFloat(document.getElementById('mae-qtd').value);
+    const custo      = parseFloat(document.getElementById('mae-custo').value);
+    if (!qtd || qtd <= 0)    { alert('Informe a quantidade.'); return; }
+    if (!custo || custo <= 0){ alert('Informe o custo unitário.'); return; }
+    const c = carteiras.find(x => x.id === carteiraId);
+    if (!c) return;
+    const idx = c.acoes.findIndex(a => a.id === acaoId);
+    if (idx === -1) return;
+    c.acoes[idx].qtd   = qtd;
+    c.acoes[idx].custo = custo;
+    salvarCarteiras();
+    fecharModalAcaoEdit();
+    renderCarteiras();
   }
 
   async function atualizarCotacoesCarteira(carteiraId) {
