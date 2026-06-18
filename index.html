@@ -2817,13 +2817,36 @@
     renderCarteiras();
   }
 
+  // Controla seleção Compra / Venda no formulário de cada carteira
+  function setTipoMovCart(carteiraId, tipo) {
+    const btnC = document.getElementById('ci-tipo-compra-' + carteiraId);
+    const btnV = document.getElementById('ci-tipo-venda-'  + carteiraId);
+    const wrap = document.getElementById('ci-custo-wrap-'  + carteiraId);
+    if (!btnC || !btnV) return;
+    if (tipo === 'compra') {
+      btnC.style.background = 'var(--success)'; btnC.style.borderColor = 'var(--success)'; btnC.style.color = 'white';
+      btnV.style.background = 'var(--surface)'; btnV.style.borderColor = 'var(--border)';  btnV.style.color = 'var(--text)';
+      if (wrap) wrap.style.display = '';
+    } else {
+      btnV.style.background = 'var(--danger)';  btnV.style.borderColor = 'var(--danger)';  btnV.style.color = 'white';
+      btnC.style.background = 'var(--surface)'; btnC.style.borderColor = 'var(--border)';  btnC.style.color = 'var(--text)';
+      if (wrap) wrap.style.display = 'none';
+    }
+    if (btnC) btnC.setAttribute('data-tipo', tipo === 'compra' ? 'compra' : '');
+    if (btnV) btnV.setAttribute('data-tipo', tipo === 'venda'  ? 'venda'  : '');
+  }
+
+  function getTipoMovCart(carteiraId) {
+    const btnV = document.getElementById('ci-tipo-venda-' + carteiraId);
+    return (btnV && btnV.getAttribute('data-tipo') === 'venda') ? 'venda' : 'compra';
+  }
+
   function adicionarAcaoCarteira(carteiraId) {
     const ticker = document.getElementById('ci-ticker-' + carteiraId).value.trim().toUpperCase();
     const qtd    = parseFloat(document.getElementById('ci-qtd-' + carteiraId).value);
-    const custo  = parseFloat(document.getElementById('ci-custo-' + carteiraId).value);
-    if (!ticker)              { alert('Informe o ticker.'); return; }
-    if (!qtd || qtd <= 0)     { alert('Informe a quantidade.'); return; }
-    if (!custo || custo <= 0) { alert('Informe o custo unitário.'); return; }
+    if (!ticker)          { alert('Informe o ticker.'); return; }
+    if (!qtd || qtd <= 0) { alert('Informe a quantidade.'); return; }
+
     const c = carteiras.find(x => x.id === carteiraId);
     if (!c) return;
 
@@ -2831,7 +2854,9 @@
     const editId = btn ? btn.getAttribute('data-edit-id') : null;
 
     if (editId) {
-      // Edição: atualiza o registro existente mantendo precoAtual
+      // Modo edição manual — mantém comportamento original
+      const custo = parseFloat(document.getElementById('ci-custo-' + carteiraId).value);
+      if (!custo || custo <= 0) { alert('Informe o custo unitário.'); return; }
       const idx = c.acoes.findIndex(a => a.id === editId);
       if (idx !== -1) {
         const precoAtual = c.acoes[idx].precoAtual;
@@ -2839,7 +2864,32 @@
       }
       if (btn) { btn.textContent = '+'; btn.style.background = 'var(--primary)'; btn.removeAttribute('data-edit-id'); }
     } else {
-      c.acoes.push({ id: Date.now().toString(), ticker, qtd, custo });
+      const tipo = getTipoMovCart(carteiraId);
+      const existente = c.acoes.find(a => a.ticker === ticker);
+
+      if (tipo === 'compra') {
+        const custo = parseFloat(document.getElementById('ci-custo-' + carteiraId).value);
+        if (!custo || custo <= 0) { alert('Informe o custo unitário para compra.'); return; }
+        if (existente) {
+          // Custo médio ponderado: (qtdAnt * custoAnt + qtdNova * custoNovo) / (qtdAnt + qtdNova)
+          const novaQtd   = existente.qtd + qtd;
+          const novoCusto = ((existente.qtd * existente.custo) + (qtd * custo)) / novaQtd;
+          existente.qtd   = novaQtd;
+          existente.custo = Math.round(novoCusto * 100) / 100;
+        } else {
+          c.acoes.push({ id: Date.now().toString(), ticker, qtd, custo });
+        }
+      } else {
+        // Venda: só diminui quantidade
+        if (!existente) { alert('Ticker "' + ticker + '" não encontrado nesta carteira.'); return; }
+        if (qtd > existente.qtd) { alert('Quantidade vendida (' + qtd + ') maior que o saldo (' + existente.qtd + ').'); return; }
+        existente.qtd = Math.round((existente.qtd - qtd) * 1000) / 1000;
+        if (existente.qtd === 0) {
+          if (confirm('Saldo zerado. Deseja remover "' + ticker + '" da carteira?')) {
+            c.acoes = c.acoes.filter(a => a.ticker !== ticker);
+          }
+        }
+      }
     }
 
     salvarCarteiras();
@@ -3010,12 +3060,16 @@
         // Form adicionar / editar ação
         '<div id="ci-form-' + c.id + '" style="padding:12px 14px;background:var(--bg);border-top:1px solid var(--border);">' +
           '<div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:8px;">+ Adicionar / Editar ação</div>' +
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px;">' +
+            '<button id="ci-tipo-compra-' + c.id + '" onclick="setTipoMovCart(\'' + c.id + '\',\'compra\')" style="padding:7px;border:2px solid var(--success);border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;background:var(--success);color:white;">📈 Compra</button>' +
+            '<button id="ci-tipo-venda-' + c.id + '" onclick="setTipoMovCart(\'' + c.id + '\',\'venda\')" style="padding:7px;border:2px solid var(--border);border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;background:var(--surface);color:var(--text);">📉 Venda</button>' +
+          '</div>' +
           '<div style="display:grid;grid-template-columns:2fr 1.5fr 1.5fr auto;gap:6px;align-items:end;">' +
             '<div><label style="font-size:10px;color:var(--text-muted);">Ticker</label>' +
               '<input type="text" id="ci-ticker-' + c.id + '" placeholder="BBAS3" maxlength="10" oninput="this.value=this.value.toUpperCase()" style="width:100%;margin-top:3px;padding:8px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;font-weight:700;background:var(--surface);color:var(--text);"/></div>' +
             '<div><label style="font-size:10px;color:var(--text-muted);">Quantidade</label>' +
               '<input type="number" id="ci-qtd-' + c.id + '" placeholder="0" min="0.001" step="any" style="width:100%;margin-top:3px;padding:8px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text);"/></div>' +
-            '<div><label style="font-size:10px;color:var(--text-muted);">Custo Unit. R$</label>' +
+            '<div id="ci-custo-wrap-' + c.id + '"><label style="font-size:10px;color:var(--text-muted);">Custo Unit. R$</label>' +
               '<input type="number" id="ci-custo-' + c.id + '" placeholder="0,00" min="0.01" step="0.01" style="width:100%;margin-top:3px;padding:8px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text);"/></div>' +
             '<button id="ci-btn-' + c.id + '" onclick="adicionarAcaoCarteira(\'' + c.id + '\')" style="padding:8px 12px;background:var(--primary);color:white;border:none;border-radius:7px;font-size:16px;font-weight:700;cursor:pointer;white-space:nowrap;margin-top:13px;">+</button>' +
           '</div>' +
