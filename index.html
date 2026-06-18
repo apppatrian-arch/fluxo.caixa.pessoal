@@ -1006,25 +1006,6 @@
         <div id="acoes-resultado"></div>
       </div>
 
-      <!-- Consulta por data -->
-      <div style="background:var(--card);border-radius:14px;padding:16px;margin-bottom:14px;">
-        <div style="font-size:13px;font-weight:700;margin-bottom:12px;">Preço em Data Anterior</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
-          <div>
-            <label style="font-size:11px;color:var(--text-muted);font-weight:600;">Ticker</label>
-            <input type="text" id="acoes-ticker-hist" placeholder="Ex: BBAS3" maxlength="10"
-              style="width:100%;margin-top:4px;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-weight:700;text-transform:uppercase;background:var(--bg);color:var(--text);"
-              oninput="this.value=this.value.toUpperCase()" />
-          </div>
-          <div>
-            <label style="font-size:11px;color:var(--text-muted);font-weight:600;">Data</label>
-            <input type="date" id="acoes-data-hist" style="width:100%;margin-top:4px;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg);color:var(--text);" />
-          </div>
-        </div>
-        <button onclick="buscarCotacaoHistorica()" style="width:100%;padding:12px;background:var(--primary);color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">Consultar</button>
-        <div id="acoes-resultado-hist" style="margin-top:12px;"></div>
-      </div>
-
       <!-- Minhas Carteiras -->
       <div style="background:var(--card);border-radius:14px;padding:16px;margin-bottom:14px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
@@ -2782,87 +2763,6 @@
         '</div>';
     } catch(e) {
       acoesErro('acoes-resultado', e.message);
-    }
-  }
-
-  async function buscarCotacaoHistorica() {
-    const ticker = document.getElementById('acoes-ticker-hist').value.trim().toUpperCase();
-    const data   = document.getElementById('acoes-data-hist').value;
-    if (!ticker) { alert('Informe o ticker.'); return; }
-    if (!data)   { alert('Informe a data.'); return; }
-    acoesLoading('acoes-resultado-hist');
-    try {
-      // Calcula range mínimo necessário com base na data solicitada
-      const hoje     = new Date();
-      const alvoDate = new Date(data + 'T12:00:00');
-      const diasAtras = Math.ceil((hoje - alvoDate) / (1000 * 60 * 60 * 24));
-      let range = '1mo';
-      if (diasAtras > 25)   range = '3mo';
-      if (diasAtras > 85)   range = '6mo';
-      if (diasAtras > 175)  range = '1y';
-      if (diasAtras > 350)  range = '2y';
-      if (diasAtras > 700)  range = '5y';
-
-      // Tenta o range calculado; se der erro 400, tenta ranges menores progressivamente
-      const ranges = [range, '1y', '2y', '5y', 'max'];
-      let json = null;
-      for (const rng of ranges) {
-        const r = await fetch(brapiUrl('/quote/' + ticker + '?range=' + rng + '&interval=1d&fundamental=false'));
-        if (r.ok) { json = await r.json(); break; }
-        if (r.status !== 400) throw new Error('Erro ' + r.status + ' — verifique o token ou o ticker informado.');
-      }
-      if (!json) throw new Error('Não foi possível buscar o histórico. Verifique o token ou tente um período menor.');
-
-      const q = json.results && json.results[0];
-      if (!q || !q.historicalDataPrice || !q.historicalDataPrice.length)
-        throw new Error('Histórico não disponível para "' + ticker + '". O plano gratuito pode não cobrir esta data.');
-
-      const hist = q.historicalDataPrice;
-      const alvo = new Date(data + 'T12:00:00').getTime() / 1000;
-
-      // Encontra o registro mais próximo da data solicitada
-      let melhor = hist[0];
-      let menorDiff = Math.abs(hist[0].date - alvo);
-      hist.forEach(function(h) {
-        const diff = Math.abs(h.date - alvo);
-        if (diff < menorDiff) { menorDiff = diff; melhor = h; }
-      });
-
-      const dataReal = new Date(melhor.date * 1000).toLocaleDateString('pt-BR');
-      const preco    = Number(melhor.close || melhor.open || 0);
-      const min      = Number(melhor.low   || 0);
-      const max      = Number(melhor.high  || 0);
-      const abertura = Number(melhor.open  || 0);
-      const volume   = Number(melhor.volume|| 0);
-      const nome     = q.longName || q.shortName || ticker;
-
-      document.getElementById('acoes-resultado-hist').innerHTML =
-        '<div style="background:var(--bg);border-radius:12px;padding:16px;">' +
-          '<div style="font-size:11px;color:var(--text-muted);font-weight:700;margin-bottom:2px;">' + ticker + ' · ' + dataReal + '</div>' +
-          '<div style="font-size:13px;margin-bottom:10px;color:var(--text);">' + nome + '</div>' +
-          '<div style="font-size:30px;font-weight:800;color:var(--text);margin-bottom:14px;">R$ ' + preco.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</div>' +
-          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">' +
-            '<div style="background:var(--surface);border-radius:8px;padding:8px 10px;">' +
-              '<div style="font-size:10px;color:var(--text-muted);">Abertura</div>' +
-              '<div style="font-size:13px;font-weight:700;">R$ ' + abertura.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</div>' +
-            '</div>' +
-            '<div style="background:var(--surface);border-radius:8px;padding:8px 10px;">' +
-              '<div style="font-size:10px;color:var(--text-muted);">Fechamento</div>' +
-              '<div style="font-size:13px;font-weight:700;">R$ ' + preco.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</div>' +
-            '</div>' +
-            '<div style="background:var(--surface);border-radius:8px;padding:8px 10px;">' +
-              '<div style="font-size:10px;color:var(--text-muted);">Mínima</div>' +
-              '<div style="font-size:13px;font-weight:700;">R$ ' + min.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</div>' +
-            '</div>' +
-            '<div style="background:var(--surface);border-radius:8px;padding:8px 10px;">' +
-              '<div style="font-size:10px;color:var(--text-muted);">Máxima</div>' +
-              '<div style="font-size:13px;font-weight:700;">R$ ' + max.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</div>' +
-            '</div>' +
-          '</div>' +
-          (volume ? '<div style="margin-top:8px;font-size:11px;color:var(--text-muted);text-align:right;">Volume: ' + volume.toLocaleString('pt-BR') + '</div>' : '') +
-        '</div>';
-    } catch(e) {
-      acoesErro('acoes-resultado-hist', e.message);
     }
   }
 
