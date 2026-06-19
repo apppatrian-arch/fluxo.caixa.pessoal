@@ -666,8 +666,8 @@
             🚪 Sair
           </button>
           <div style="padding:10px 14px;background:var(--bg);border-top:1px solid var(--border);text-align:center;">
-            <div style="font-size:11px;color:var(--text-muted);">Versão <strong style="color:var(--text);">v46</strong></div>
-            <div style="font-size:10px;color:var(--text-muted);margin-top:2px;">19/06/2026 às 09:20</div>
+            <div style="font-size:11px;color:var(--text-muted);">Versão <strong style="color:var(--text);">v47</strong></div>
+            <div style="font-size:10px;color:var(--text-muted);margin-top:2px;">19/06/2026 às 09:50</div>
           </div>
         </div>
       </div>
@@ -3031,6 +3031,18 @@
     renderCarteiras();
   }
 
+  // Estado de ordenação: { carteiraId: { col, dir } }
+  const carteiraSortState = {};
+
+  function sortCarteira(carteiraId, col) {
+    const cur = carteiraSortState[carteiraId] || { col: null, dir: 'asc' };
+    carteiraSortState[carteiraId] = {
+      col,
+      dir: cur.col === col && cur.dir === 'asc' ? 'desc' : 'asc'
+    };
+    renderCarteiras();
+  }
+
   function renderCarteiras() {
     const el = document.getElementById('carteiras-lista');
     if (!el) return;
@@ -3048,7 +3060,34 @@
       const fmt          = v => 'R$ ' + Number(v).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
       const fmtPct       = v => (v >= 0 ? '+' : '') + Number(v).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}) + '%';
 
-      const linhasAcoes = c.acoes.length ? c.acoes.map(a => {
+      // Ordena ações conforme estado de sort desta carteira
+      const ss = carteiraSortState[c.id];
+      const acoesOrd = ss && ss.col ? [...c.acoes].sort((a, b) => {
+        const valFn = x => {
+          if (ss.col === 'ticker')    return x.ticker;
+          if (ss.col === 'qtd')       return x.qtd;
+          if (ss.col === 'custo')     return x.custo;
+          if (ss.col === 'atual')     return x.precoAtual || 0;
+          if (ss.col === 'saldo')     return x.qtd * (x.precoAtual || x.custo);
+          if (ss.col === 'part')      return totalAtual > 0 ? x.qtd * (x.precoAtual || x.custo) / totalAtual : 0;
+          if (ss.col === 'lucro')     return x.qtd * (x.precoAtual || x.custo) - x.qtd * x.custo;
+          if (ss.col === 'var')       return x.qtd * x.custo > 0 ? ((x.qtd * (x.precoAtual || x.custo) - x.qtd * x.custo) / (x.qtd * x.custo) * 100) : 0;
+          if (ss.col === 'vardiapct') return x.varDiaPct != null ? x.varDiaPct : -Infinity;
+          if (ss.col === 'vardiav')   return x.varDiaVal != null ? x.varDiaVal : -Infinity;
+          if (ss.col === 'saldodia')  return x.varDiaVal != null ? x.qtd * x.varDiaVal : -Infinity;
+          return 0;
+        };
+        const va = valFn(a), vb = valFn(b);
+        const cmp = typeof va === 'string' ? va.localeCompare(vb) : va - vb;
+        return ss.dir === 'asc' ? cmp : -cmp;
+      }) : c.acoes;
+
+      const thStyle  = 'padding:7px 8px;font-size:10px;color:var(--text-muted);font-weight:700;cursor:pointer;user-select:none;white-space:nowrap;';
+      const thActive = 'padding:7px 8px;font-size:10px;color:var(--primary);font-weight:700;cursor:pointer;user-select:none;white-space:nowrap;';
+      const arrow = col => !ss || ss.col !== col ? ' ↕' : ss.dir === 'asc' ? ' ↑' : ' ↓';
+      const th = (col, label, align) => '<th onclick="sortCarteira(\'' + c.id + '\',\'' + col + '\')" style="' + (ss && ss.col === col ? thActive : thStyle) + 'text-align:' + align + ';">' + label + arrow(col) + '</th>';
+
+      const linhasAcoes = acoesOrd.length ? acoesOrd.map(a => {
         const tCusto  = a.qtd * a.custo;
         const tAtual  = a.qtd * (a.precoAtual || a.custo);
         const varAcao = tCusto > 0 ? ((tAtual - tCusto) / tCusto * 100) : 0;
@@ -3132,17 +3171,17 @@
         '<div style="overflow-x:auto;">' +
         '<table style="width:100%;border-collapse:collapse;">' +
           '<thead><tr style="background:var(--bg);">' +
-            '<th style="padding:7px 8px;font-size:10px;color:var(--text-muted);text-align:left;font-weight:700;">Ticker</th>' +
-            '<th style="padding:7px 8px;font-size:10px;color:var(--text-muted);text-align:right;font-weight:700;">Qtd</th>' +
-            '<th style="padding:7px 8px;font-size:10px;color:var(--text-muted);text-align:right;font-weight:700;">Custo</th>' +
-            '<th style="padding:7px 8px;font-size:10px;color:var(--text-muted);text-align:right;font-weight:700;">Atual</th>' +
-            '<th style="padding:7px 8px;font-size:10px;color:var(--text-muted);text-align:right;font-weight:700;">Saldo</th>' +
-            '<th style="padding:7px 8px;font-size:10px;color:var(--text-muted);text-align:right;font-weight:700;">Part.%</th>' +
-            '<th style="padding:7px 8px;font-size:10px;color:var(--text-muted);text-align:right;font-weight:700;">Lucro/Prej.</th>' +
-            '<th style="padding:7px 8px;font-size:10px;color:var(--text-muted);text-align:right;font-weight:700;">Var%</th>' +
-            '<th style="padding:7px 8px;font-size:10px;color:var(--text-muted);text-align:right;font-weight:700;">Var.Dia%</th>' +
-            '<th style="padding:7px 8px;font-size:10px;color:var(--text-muted);text-align:right;font-weight:700;">Var.Dia R$</th>' +
-            '<th style="padding:7px 8px;font-size:10px;color:var(--text-muted);text-align:right;font-weight:700;">Saldo Dia</th>' +
+            th('ticker',    'Ticker',     'left') +
+            th('qtd',       'Qtd',        'right') +
+            th('custo',     'Custo',      'right') +
+            th('atual',     'Atual',      'right') +
+            th('saldo',     'Saldo',      'right') +
+            th('part',      'Part.%',     'right') +
+            th('lucro',     'Lucro/Prej.','right') +
+            th('var',       'Var%',       'right') +
+            th('vardiapct', 'Var.Dia%',   'right') +
+            th('vardiav',   'Var.Dia R$', 'right') +
+            th('saldodia',  'Saldo Dia',  'right') +
             '<th style="padding:7px 8px;font-size:10px;color:var(--text-muted);text-align:center;font-weight:700;">Ações</th>' +
           '</tr></thead>' +
           '<tbody>' + linhasAcoes + rodape + '</tbody>' +
