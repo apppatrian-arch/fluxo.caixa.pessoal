@@ -666,8 +666,8 @@
             🚪 Sair
           </button>
           <div style="padding:10px 14px;background:var(--bg);border-top:1px solid var(--border);text-align:center;">
-            <div style="font-size:11px;color:var(--text-muted);">Versão <strong style="color:var(--text);">v51</strong></div>
-            <div style="font-size:10px;color:var(--text-muted);margin-top:2px;">19/06/2026 às 12:00</div>
+            <div style="font-size:11px;color:var(--text-muted);">Versão <strong style="color:var(--text);">v52</strong></div>
+            <div style="font-size:10px;color:var(--text-muted);margin-top:2px;">19/06/2026 às 12:20</div>
           </div>
         </div>
       </div>
@@ -3435,7 +3435,9 @@
 
     try {
       if (paulFinEditId) {
-        await paulFetch('PUT', '/paulistinha/financeiro/' + paulFinEditId, { data, tipo, descricao: desc, valor });
+        // API não suporta PUT — exclui e recria
+        await paulFetch('DELETE', '/paulistinha/financeiro/' + paulFinEditId);
+        await paulFetch('POST', '/paulistinha/financeiro', { data, tipo, descricao: desc, valor });
         cancelarEditLancFin();
       } else {
         await paulFetch('POST', '/paulistinha/financeiro', { data, tipo, descricao: desc, valor });
