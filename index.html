@@ -666,8 +666,8 @@
             🚪 Sair
           </button>
           <div style="padding:10px 14px;background:var(--bg);border-top:1px solid var(--border);text-align:center;">
-            <div style="font-size:11px;color:var(--text-muted);">Versão <strong style="color:var(--text);">v48</strong></div>
-            <div style="font-size:10px;color:var(--text-muted);margin-top:2px;">19/06/2026 às 10:30</div>
+            <div style="font-size:11px;color:var(--text-muted);">Versão <strong style="color:var(--text);">v49</strong></div>
+            <div style="font-size:10px;color:var(--text-muted);margin-top:2px;">19/06/2026 às 11:00</div>
           </div>
         </div>
       </div>
@@ -3093,7 +3093,7 @@
       const arrow = col => !ss || ss.col !== col ? ' ↕' : ss.dir === 'asc' ? ' ↑' : ' ↓';
       const th = (col, label, align) => '<th onclick="sortCarteira(\'' + c.id + '\',\'' + col + '\')" style="' + (ss && ss.col === col ? thActive : thStyle) + 'text-align:' + align + ';">' + label + arrow(col) + '</th>';
 
-      const linhasAcoes = acoesOrd.length ? acoesOrd.map(a => {
+      const linhasAcoes = acoesOrd.length ? acoesOrd.map((a, idx) => {
         const tCusto  = a.qtd * a.custo;
         const tAtual  = a.qtd * (a.precoAtual || a.custo);
         const varAcao = tCusto > 0 ? ((tAtual - tCusto) / tCusto * 100) : 0;
@@ -3113,7 +3113,8 @@
         const saldoDia    = temDia ? a.qtd * a.varDiaVal : null;
         const corSaldoDia = saldoDia != null ? (saldoDia >= 0 ? 'var(--success)' : 'var(--danger)') : 'var(--text-muted)';
         const prefSaldoDia= saldoDia != null && saldoDia >= 0 ? '+' : '';
-        return '<tr style="border-bottom:1px solid var(--border);">' +
+        const bgLinha = idx % 2 === 0 ? 'var(--bg)' : 'var(--surface)';
+        return '<tr style="border-bottom:1px solid var(--border);background:' + bgLinha + ';">' +
           '<td style="padding:8px;font-size:12px;font-weight:700;white-space:nowrap;">' + a.ticker + '</td>' +
           '<td style="padding:8px;font-size:12px;text-align:right;">' + Number(a.qtd).toLocaleString('pt-BR') + '</td>' +
           '<td style="padding:8px;font-size:12px;text-align:right;">' + fmt(a.custo) + '</td>' +
