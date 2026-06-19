@@ -666,8 +666,8 @@
             🚪 Sair
           </button>
           <div style="padding:10px 14px;background:var(--bg);border-top:1px solid var(--border);text-align:center;">
-            <div style="font-size:11px;color:var(--text-muted);">Versão <strong style="color:var(--text);">v45</strong></div>
-            <div style="font-size:10px;color:var(--text-muted);margin-top:2px;">19/06/2026 às 09:00</div>
+            <div style="font-size:11px;color:var(--text-muted);">Versão <strong style="color:var(--text);">v46</strong></div>
+            <div style="font-size:10px;color:var(--text-muted);margin-top:2px;">19/06/2026 às 09:20</div>
           </div>
         </div>
       </div>
@@ -3058,6 +3058,7 @@
           '<button onclick="removerAcaoCarteira(\'' + c.id + '\',\'' + a.id + '\')" title="Excluir" style="background:#fee2e2;border:none;border-radius:6px;color:#dc2626;font-size:13px;cursor:pointer;padding:4px 7px;">🗑</button>' +
           '</div>';
         const saldoAcao   = a.qtd * (a.precoAtual || a.custo);
+        const partPct     = totalAtual > 0 ? (saldoAcao / totalAtual * 100) : 0;
         const lucroAcao   = tAtual - tCusto;
         const corLucro    = lucroAcao >= 0 ? 'var(--success)' : 'var(--danger)';
         const prefLucro   = lucroAcao >= 0 ? '+' : '';
@@ -3073,6 +3074,7 @@
           '<td style="padding:8px;font-size:12px;text-align:right;">' + fmt(a.custo) + '</td>' +
           '<td style="padding:8px;font-size:12px;text-align:right;color:' + (a.precoAtual ? 'var(--text)' : 'var(--text-muted)') + ';">' + (a.precoAtual ? fmt(a.precoAtual) : '—') + '</td>' +
           '<td style="padding:8px;font-size:12px;font-weight:700;text-align:right;color:' + (a.precoAtual ? 'var(--text)' : 'var(--text-muted)') + ';">' + fmt(saldoAcao) + '</td>' +
+          '<td style="padding:8px;font-size:12px;font-weight:700;text-align:right;color:var(--text-muted);">' + Number(partPct).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}) + '%</td>' +
           '<td style="padding:8px;font-size:12px;font-weight:700;text-align:right;color:' + (a.precoAtual ? corLucro : 'var(--text-muted)') + ';">' + (a.precoAtual ? prefLucro + fmt(lucroAcao) : '—') + '</td>' +
           '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + corAcao + ';">' + fmtPct(varAcao) + '</td>' +
           '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + corDia + ';">' + (temDia ? prefDia + fmtPct(a.varDiaPct) : '—') + '</td>' +
@@ -3080,7 +3082,7 @@
           '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + corSaldoDia + ';">' + (saldoDia != null ? prefSaldoDia + fmt(saldoDia) : '—') + '</td>' +
           '<td style="padding:8px;">' + acoes + '</td>' +
         '</tr>';
-      }).join('') : '<tr><td colspan="11" style="padding:12px;text-align:center;color:var(--text-muted);font-size:12px;">Nenhuma ação. Adicione abaixo.</td></tr>';
+      }).join('') : '<tr><td colspan="12" style="padding:12px;text-align:center;color:var(--text-muted);font-size:12px;">Nenhuma ação. Adicione abaixo.</td></tr>';
 
       const lucroTotal   = totalAtual - totalCusto;
       const corLucroTot  = lucroTotal >= 0 ? 'var(--success)' : 'var(--danger)';
@@ -3094,6 +3096,7 @@
         '<td style="padding:8px;font-size:11px;color:var(--text-muted);text-align:right;">' + fmt(totalCusto) + '</td>' +
         '<td style="padding:8px;font-size:11px;color:var(--text-muted);text-align:right;">' + fmt(totalAtual) + '</td>' +
         '<td style="padding:8px;font-size:12px;font-weight:800;text-align:right;">' + fmt(totalAtual) + '</td>' +
+        '<td style="padding:8px;font-size:12px;font-weight:800;text-align:right;color:var(--text-muted);">100%</td>' +
         '<td style="padding:8px;font-size:12px;font-weight:800;text-align:right;color:' + corLucroTot + ';">' + prefLucroTot + fmt(lucroTotal) + '</td>' +
         '<td style="padding:8px;font-size:12px;font-weight:800;text-align:right;color:' + corVar + ';">' + fmtPct(varTotal) + '</td>' +
         '<td colspan="2" style="padding:8px;font-size:11px;color:var(--text-muted);text-align:right;">—</td>' +
@@ -3134,6 +3137,7 @@
             '<th style="padding:7px 8px;font-size:10px;color:var(--text-muted);text-align:right;font-weight:700;">Custo</th>' +
             '<th style="padding:7px 8px;font-size:10px;color:var(--text-muted);text-align:right;font-weight:700;">Atual</th>' +
             '<th style="padding:7px 8px;font-size:10px;color:var(--text-muted);text-align:right;font-weight:700;">Saldo</th>' +
+            '<th style="padding:7px 8px;font-size:10px;color:var(--text-muted);text-align:right;font-weight:700;">Part.%</th>' +
             '<th style="padding:7px 8px;font-size:10px;color:var(--text-muted);text-align:right;font-weight:700;">Lucro/Prej.</th>' +
             '<th style="padding:7px 8px;font-size:10px;color:var(--text-muted);text-align:right;font-weight:700;">Var%</th>' +
             '<th style="padding:7px 8px;font-size:10px;color:var(--text-muted);text-align:right;font-weight:700;">Var.Dia%</th>' +
