@@ -666,8 +666,8 @@
             🚪 Sair
           </button>
           <div style="padding:10px 14px;background:var(--bg);border-top:1px solid var(--border);text-align:center;">
-            <div style="font-size:11px;color:var(--text-muted);">Versão <strong style="color:var(--text);">v47</strong></div>
-            <div style="font-size:10px;color:var(--text-muted);margin-top:2px;">19/06/2026 às 09:50</div>
+            <div style="font-size:11px;color:var(--text-muted);">Versão <strong style="color:var(--text);">v48</strong></div>
+            <div style="font-size:10px;color:var(--text-muted);margin-top:2px;">19/06/2026 às 10:30</div>
           </div>
         </div>
       </div>
@@ -3031,8 +3031,14 @@
     renderCarteiras();
   }
 
-  // Estado de ordenação: { carteiraId: { col, dir } }
+  // Estado de ordenação e modo de visualização por carteira
   const carteiraSortState = {};
+  const carteiraViewMode = {};  // 'table' | 'chart'
+
+  function toggleCarteiraView(carteiraId) {
+    carteiraViewMode[carteiraId] = carteiraViewMode[carteiraId] === 'chart' ? 'table' : 'chart';
+    renderCarteiras();
+  }
 
   function sortCarteira(carteiraId, col) {
     const cur = carteiraSortState[carteiraId] || { col: null, dir: 'asc' };
@@ -3142,12 +3148,39 @@
         '<td style="padding:8px;font-size:12px;font-weight:800;text-align:right;color:' + (temDiaTot ? corDiaTot : 'var(--text-muted)') + ';">' + (temDiaTot ? prefDiaTot + fmt(saldoDiaTotal) : '—') + '</td>' +
         '<td></td></tr>' : '';
 
+      const viewMode = carteiraViewMode[c.id] || 'table';
+
+      // Gráfico de barras horizontais CSS
+      const maxSaldo = c.acoes.length ? Math.max(...c.acoes.map(a => a.qtd * (a.precoAtual || a.custo))) : 1;
+      const cores = ['#3b82f6','#22c55e','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899','#14b8a6','#f97316','#6366f1'];
+      const grafico = c.acoes.length ?
+        '<div style="padding:14px 16px;">' +
+          [...c.acoes]
+            .sort((a,b) => (b.qtd*(b.precoAtual||b.custo)) - (a.qtd*(a.precoAtual||a.custo)))
+            .map((a, i) => {
+              const saldo = a.qtd * (a.precoAtual || a.custo);
+              const pct   = maxSaldo > 0 ? (saldo / maxSaldo * 100) : 0;
+              const part  = totalAtual > 0 ? (saldo / totalAtual * 100) : 0;
+              const cor   = cores[i % cores.length];
+              return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">' +
+                '<div style="width:52px;font-size:11px;font-weight:700;text-align:right;flex-shrink:0;">' + a.ticker + '</div>' +
+                '<div style="flex:1;background:var(--bg);border-radius:4px;overflow:hidden;height:22px;">' +
+                  '<div style="width:' + pct.toFixed(1) + '%;background:' + cor + ';height:100%;border-radius:4px;transition:width 0.3s;"></div>' +
+                '</div>' +
+                '<div style="width:90px;font-size:11px;font-weight:700;flex-shrink:0;">' + fmt(saldo) + '</div>' +
+                '<div style="width:38px;font-size:10px;color:var(--text-muted);flex-shrink:0;text-align:right;">' + part.toFixed(1) + '%</div>' +
+              '</div>';
+            }).join('') +
+        '</div>'
+        : '<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:12px;">Nenhuma ação.</div>';
+
       return '<div style="border:1.5px solid var(--border);border-radius:12px;margin-bottom:14px;overflow:hidden;">' +
         // Header da carteira
         '<div style="background:var(--primary);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;">' +
           '<div style="color:white;font-size:13px;font-weight:700;">💼 ' + c.nome + '</div>' +
           '<div style="display:flex;gap:6px;">' +
             '<button id="cbtn-atualizar-' + c.id + '" onclick="atualizarCotacoesCarteira(\'' + c.id + '\')" style="background:rgba(255,255,255,0.2);border:none;border-radius:6px;color:white;font-size:12px;padding:4px 10px;cursor:pointer;" title="Atualizar cotações">🔄</button>' +
+            '<button onclick="toggleCarteiraView(\'' + c.id + '\')" style="background:' + (viewMode==='chart' ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.2)') + ';border:none;border-radius:6px;color:white;font-size:12px;padding:4px 10px;cursor:pointer;" title="Alternar gráfico/tabela">📊</button>' +
             '<button onclick="abrirModalCarteira(\'' + c.id + '\')" style="background:rgba(255,255,255,0.2);border:none;border-radius:6px;color:white;font-size:12px;padding:4px 10px;cursor:pointer;">✏️</button>' +
             '<button onclick="excluirCarteira(\'' + c.id + '\')" style="background:rgba(255,255,255,0.2);border:none;border-radius:6px;color:white;font-size:12px;padding:4px 10px;cursor:pointer;">🗑</button>' +
           '</div>' +
@@ -3167,7 +3200,8 @@
             '<div style="font-size:13px;font-weight:800;color:' + corVar + ';">' + fmtPct(varTotal) + '</div>' +
           '</div>' +
         '</div>' : '') +
-        // Tabela de ações
+        // Tabela ou gráfico
+        (viewMode === 'chart' ? grafico :
         '<div style="overflow-x:auto;">' +
         '<table style="width:100%;border-collapse:collapse;">' +
           '<thead><tr style="background:var(--bg);">' +
@@ -3185,7 +3219,7 @@
             '<th style="padding:7px 8px;font-size:10px;color:var(--text-muted);text-align:center;font-weight:700;">Ações</th>' +
           '</tr></thead>' +
           '<tbody>' + linhasAcoes + rodape + '</tbody>' +
-        '</table></div>' +
+        '</table></div>') +
         // Form adicionar / editar ação
         '<div id="ci-form-' + c.id + '" style="padding:12px 14px;background:var(--bg);border-top:1px solid var(--border);">' +
           '<div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:8px;">+ Adicionar / Editar ação</div>' +
