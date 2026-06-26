@@ -333,6 +333,17 @@
       color: white;
     }
 
+    .tab.tab-destaque {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: white;
+      box-shadow: 0 2px 8px rgba(245,158,11,0.4);
+      font-weight: 700;
+    }
+    .tab.tab-destaque.active {
+      background: linear-gradient(135deg, #d97706, #b45309);
+      box-shadow: 0 2px 12px rgba(180,83,9,0.5);
+    }
+
     /* ── FORM CARD ── */
     .card {
       background: var(--surface);
@@ -666,8 +677,8 @@
             🚪 Sair
           </button>
           <div style="padding:10px 14px;background:var(--bg);border-top:1px solid var(--border);text-align:center;">
-            <div style="font-size:11px;color:var(--text-muted);">Versão <strong style="color:var(--text);">v57</strong></div>
-            <div style="font-size:10px;color:var(--text-muted);margin-top:2px;">26/06/2026 às 10:00</div>
+            <div style="font-size:11px;color:var(--text-muted);">Versão <strong style="color:var(--text);">v58</strong></div>
+            <div style="font-size:10px;color:var(--text-muted);margin-top:2px;">26/06/2026 às 11:30</div>
           </div>
         </div>
       </div>
@@ -696,16 +707,24 @@
     <div class="tabs-wrapper">
       <button class="tabs-arrow" id="tabs-prev" onclick="scrollTabs(-1)" title="Anterior">‹</button>
       <div class="tabs" id="tabs-bar">
-        <button class="tab" id="tab-paulistinha" onclick="setTab('paulistinha')" style="white-space:nowrap;">🚬 Paulistinha</button>
-        <button class="tab active" id="tab-lancamentos" onclick="setTab('lancamentos')">Lançamentos</button>
-        <button class="tab" id="tab-novo" onclick="setTab('novo')">+ Novo</button>
-        <button class="tab" id="tab-recorrentes" onclick="setTab('recorrentes')">🔁 Recorrentes</button>
-        <button class="tab" id="tab-pessoas" onclick="setTab('pessoas')">Pessoas</button>
-        <button class="tab" id="tab-historico" onclick="setTab('historico')">Histórico</button>
+        <button class="tab tab-destaque" id="tab-paulistinha" onclick="setTab('paulistinha')" style="white-space:nowrap;">🚬 Paulistinha</button>
+        <button class="tab active" id="tab-pessoal" onclick="setTab('pessoal')" style="white-space:nowrap;">💼 Financeiro</button>
         <button class="tab" id="tab-acoes" onclick="setTab('acoes')" style="white-space:nowrap;">📈 Ações</button>
       </div>
       <button class="tabs-arrow" id="tabs-next" onclick="scrollTabs(1)" title="Próximo">›</button>
     </div>
+
+    <!-- ── PAINEL PESSOAL (wrapper das sub-abas financeiras pessoais) ── -->
+    <div id="painel-pessoal">
+
+      <!-- Sub-abas internas do Financeiro Pessoal -->
+      <div style="display:flex;gap:6px;margin-bottom:14px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px;">
+        <button id="fptab-lancamentos" onclick="setFPTab('lancamentos')" style="flex:0 0 auto;padding:8px 14px;border:none;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;background:var(--primary);color:white;white-space:nowrap;">📋 Lançamentos</button>
+        <button id="fptab-novo" onclick="setFPTab('novo')" style="flex:0 0 auto;padding:8px 14px;border:none;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;background:var(--surface);color:var(--text-muted);border:1.5px solid var(--border);white-space:nowrap;">+ Novo</button>
+        <button id="fptab-recorrentes" onclick="setFPTab('recorrentes')" style="flex:0 0 auto;padding:8px 14px;border:none;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;background:var(--surface);color:var(--text-muted);border:1.5px solid var(--border);white-space:nowrap;">🔁 Recorrentes</button>
+        <button id="fptab-pessoas" onclick="setFPTab('pessoas')" style="flex:0 0 auto;padding:8px 14px;border:none;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;background:var(--surface);color:var(--text-muted);border:1.5px solid var(--border);white-space:nowrap;">👥 Pessoas</button>
+        <button id="fptab-historico" onclick="setFPTab('historico')" style="flex:0 0 auto;padding:8px 14px;border:none;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;background:var(--surface);color:var(--text-muted);border:1.5px solid var(--border);white-space:nowrap;">📊 Histórico</button>
+      </div>
 
     <!-- ── PAINEL LANÇAMENTOS ── -->
     <div id="painel-lancamentos">
@@ -840,6 +859,8 @@
         <div id="historico-lista"></div>
       </div>
     </div>
+
+    </div><!-- /painel-pessoal -->
 
     <!-- ── PAINEL PAULISTINHA ── -->
     <div id="painel-paulistinha" style="display:none;">
@@ -1395,7 +1416,7 @@
     document.getElementById('menu-username').textContent = currentUser;
 
     await carregarLancamentos();
-    setTab('lancamentos');
+    setTab('pessoal');
 
     const hoje = new Date().toISOString().split('T')[0];
     document.getElementById('novo-data').value = hoje;
@@ -1568,24 +1589,41 @@
   // ══════════════════════════════════════════
   //  NAVEGAÇÃO
   // ══════════════════════════════════════════
-  function setTab(tab) {
-    ['lancamentos', 'novo', 'recorrentes', 'pessoas', 'historico', 'paulistinha', 'acoes'].forEach(t => {
-      document.getElementById('painel-' + t).style.display = (t === tab) ? 'block' : 'none';
-      document.getElementById('tab-' + t).classList.toggle('active', t === tab);
-    });
+  let fpTabAtual = 'lancamentos';
 
-    if (tab === 'lancamentos') renderLancamentos();
-    if (tab === 'historico') renderHistorico();
-    if (tab === 'pessoas') renderPessoas();
-    if (tab === 'recorrentes') renderRecorrentes();
-    if (tab === 'paulistinha') initPaulistinha();
-    if (tab === 'acoes') initAcoes();
-    if (tab === 'novo') {
+  function setFPTab(sub) {
+    fpTabAtual = sub;
+    ['lancamentos','novo','recorrentes','pessoas','historico'].forEach(t => {
+      const p = document.getElementById('painel-' + t);
+      const b = document.getElementById('fptab-' + t);
+      if (p) p.style.display = t === sub ? 'block' : 'none';
+      if (b) {
+        b.style.background = t === sub ? 'var(--primary)' : 'var(--surface)';
+        b.style.color      = t === sub ? 'white'          : 'var(--text-muted)';
+        b.style.border     = t === sub ? 'none'           : '1.5px solid var(--border)';
+      }
+    });
+    if (sub === 'lancamentos') renderLancamentos();
+    if (sub === 'historico')   renderHistorico();
+    if (sub === 'pessoas')     renderPessoas();
+    if (sub === 'recorrentes') renderRecorrentes();
+    if (sub === 'novo') {
       setTipo(tipoAtual);
       popularSelectPessoa();
       document.getElementById('novo-descricao').value = '';
       document.getElementById('novo-valor').value = '';
     }
+  }
+
+  function setTab(tab) {
+    ['pessoal', 'paulistinha', 'acoes'].forEach(t => {
+      document.getElementById('painel-' + t).style.display = (t === tab) ? 'block' : 'none';
+      const btn = document.getElementById('tab-' + t);
+      if (btn) btn.classList.toggle('active', t === tab);
+    });
+    if (tab === 'paulistinha') initPaulistinha();
+    if (tab === 'acoes')       initAcoes();
+    if (tab === 'pessoal')     setFPTab(fpTabAtual);
   }
 
   // ══════════════════════════════════════════
@@ -1648,7 +1686,7 @@
     lancamentos.unshift(lancamento);
     salvarLancamentos();
     toast(tipoAtual === 'rec' ? '✅ Recebimento registrado!' : '✅ Pagamento registrado!');
-    setTab('lancamentos');
+    setFPTab('lancamentos');
   }
 
   // ══════════════════════════════════════════
@@ -2512,7 +2550,7 @@
     setTimeout(() => {
       const aviso = document.createElement('div');
       aviso.style.cssText = `position:fixed;top:70px;left:50%;transform:translateX(-50%);width:calc(100% - 32px);max-width:420px;background:#fff3cd;border:1.5px solid #ffc107;border-radius:12px;padding:14px 16px;z-index:500;font-size:13px;line-height:1.6;box-shadow:0 4px 16px rgba(0,0,0,0.15);`;
-      aviso.innerHTML = `<strong>⚠️ Pagamentos pendentes:</strong><br><pre style="margin:6px 0 10px;font-family:inherit;white-space:pre-wrap;">${nomes}</pre><div style="display:flex;gap:8px;"><button onclick="setTab('recorrentes');this.closest('div').parentElement.remove();" style="flex:1;padding:8px;background:#ffc107;border:none;border-radius:8px;font-weight:700;cursor:pointer;">Ver recorrentes</button><button onclick="this.closest('div').parentElement.remove();" style="padding:8px 14px;background:none;border:1.5px solid #ffc107;border-radius:8px;cursor:pointer;">Fechar</button></div>`;
+      aviso.innerHTML = `<strong>⚠️ Pagamentos pendentes:</strong><br><pre style="margin:6px 0 10px;font-family:inherit;white-space:pre-wrap;">${nomes}</pre><div style="display:flex;gap:8px;"><button onclick="setFPTab('recorrentes');this.closest('div').parentElement.remove();" style="flex:1;padding:8px;background:#ffc107;border:none;border-radius:8px;font-weight:700;cursor:pointer;">Ver recorrentes</button><button onclick="this.closest('div').parentElement.remove();" style="padding:8px 14px;background:none;border:1.5px solid #ffc107;border-radius:8px;cursor:pointer;">Fechar</button></div>`;
       document.body.appendChild(aviso);
     }, 800);
   }
@@ -2621,7 +2659,7 @@
 
     // Muda para a aba "+ Novo" já com tipo pagamento
     tipoAtual = 'pag';
-    setTab('novo');
+    setFPTab('novo');
 
     // Preenche os campos com os dados do recorrente
     setTipo('pag');
