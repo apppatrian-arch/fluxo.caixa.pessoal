@@ -677,8 +677,8 @@
             🚪 Sair
           </button>
           <div style="padding:10px 14px;background:var(--bg);border-top:1px solid var(--border);text-align:center;">
-            <div style="font-size:11px;color:var(--text-muted);">Versão <strong style="color:var(--text);">v62</strong></div>
-            <div style="font-size:10px;color:var(--text-muted);margin-top:2px;">26/06/2026 às 16:00</div>
+            <div style="font-size:11px;color:var(--text-muted);">Versão <strong style="color:var(--text);">v63</strong></div>
+            <div style="font-size:10px;color:var(--text-muted);margin-top:2px;">26/06/2026 às 17:45</div>
           </div>
         </div>
       </div>
@@ -876,19 +876,20 @@
       <!-- SUB-PAINEL FINANCEIRO -->
       <div id="ppainel-financeiro">
         <!-- Saldo -->
-        <div style="background:var(--card);border-radius:14px;padding:16px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;">
-          <div>
-            <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Saldo Atual</div>
-            <div id="pfin-saldo" style="font-size:24px;font-weight:800;margin-top:2px;">R$ 0,00</div>
-          </div>
-          <div style="display:flex;gap:8px;">
-            <div style="text-align:center;">
-              <div style="font-size:10px;color:var(--success);">↑ Crédito</div>
-              <div id="pfin-total-cred" style="font-size:13px;font-weight:700;color:var(--success);">R$ 0,00</div>
+        <div style="background:rgba(99,102,241,0.08);border:1.5px solid #6366f1;border-radius:12px;padding:14px;margin-bottom:14px;">
+          <div style="font-size:12px;font-weight:700;color:#6366f1;margin-bottom:10px;">📊 Resumo Financeiro</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+            <div>
+              <div style="font-size:9px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;">Saldo Atual</div>
+              <div id="pfin-saldo" style="font-size:15px;font-weight:800;margin-top:3px;">R$ 0,00</div>
             </div>
-            <div style="text-align:center;">
-              <div style="font-size:10px;color:var(--danger);">↓ Débito</div>
-              <div id="pfin-total-deb" style="font-size:13px;font-weight:700;color:var(--danger);">R$ 0,00</div>
+            <div>
+              <div style="font-size:9px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;">↑ Crédito</div>
+              <div id="pfin-total-cred" style="font-size:15px;font-weight:800;color:var(--success);margin-top:3px;">R$ 0,00</div>
+            </div>
+            <div>
+              <div style="font-size:9px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;">↓ Débito</div>
+              <div id="pfin-total-deb" style="font-size:15px;font-weight:800;color:var(--danger);margin-top:3px;">R$ 0,00</div>
             </div>
           </div>
         </div>
