@@ -690,7 +690,7 @@
             🚪 Sair
           </button>
           <div style="padding:10px 14px;background:var(--bg);border-top:1px solid var(--border);text-align:center;">
-            <div style="font-size:11px;color:var(--text-muted);">Versão <strong style="color:var(--text);">v82</strong></div>
+            <div style="font-size:11px;color:var(--text-muted);">Versão <strong style="color:var(--text);">v83</strong></div>
             <div style="font-size:10px;color:var(--text-muted);margin-top:2px;">29/06/2026 às 11:00</div>
           </div>
         </div>
@@ -988,6 +988,22 @@
           <button onclick="renderFinanceiro()" style="width:100%;padding:10px;background:var(--primary);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:12px;">🔍 Filtrar</button>
           <div id="pfin-lista"></div>
         </div>
+        <!-- Gráfico Evolução Mensal Financeiro -->
+        <div style="background:var(--card);border-radius:14px;padding:16px;margin-top:14px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <div style="font-size:13px;font-weight:700;">📈 Evolução Mensal</div>
+            <div style="display:flex;gap:6px;">
+              <button id="pfin-chart-btn-area" onclick="pfinSetVista('area')" style="font-size:11px;padding:4px 10px;border-radius:20px;border:1.5px solid var(--primary);background:var(--primary);color:white;cursor:pointer;font-weight:600;">Área</button>
+              <button id="pfin-chart-btn-bar" onclick="pfinSetVista('bar')" style="font-size:11px;padding:4px 10px;border-radius:20px;border:1.5px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-weight:600;">Barras</button>
+            </div>
+          </div>
+          <div style="height:160px;"><canvas id="pfin-chart-evo"></canvas></div>
+        </div>
+        <!-- Resumo Mensal Financeiro -->
+        <div style="background:var(--card);border-radius:14px;padding:16px;margin-top:14px;margin-bottom:4px;">
+          <div style="font-size:13px;font-weight:700;margin-bottom:10px;">📋 Resumo Mensal</div>
+          <div id="pfin-resumo-mensal"></div>
+        </div>
       </div>
 
       <!-- SUB-PAINEL ESTOQUE -->
@@ -1092,6 +1108,22 @@
           <button onclick="renderEstoque()" style="width:100%;padding:10px;background:var(--primary);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:12px;">🔍 Filtrar</button>
           <div id="pest-lista"></div>
         </div>
+        <!-- Gráfico Evolução Mensal Produtos -->
+        <div style="background:var(--card);border-radius:14px;padding:16px;margin-top:14px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <div style="font-size:13px;font-weight:700;">📈 Evolução Mensal</div>
+            <div style="display:flex;gap:6px;">
+              <button id="pest-chart-btn-area" onclick="pestSetVista('area')" style="font-size:11px;padding:4px 10px;border-radius:20px;border:1.5px solid var(--primary);background:var(--primary);color:white;cursor:pointer;font-weight:600;">Área</button>
+              <button id="pest-chart-btn-bar" onclick="pestSetVista('bar')" style="font-size:11px;padding:4px 10px;border-radius:20px;border:1.5px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-weight:600;">Barras</button>
+            </div>
+          </div>
+          <div style="height:160px;"><canvas id="pest-chart-evo"></canvas></div>
+        </div>
+        <!-- Resumo Mensal Produtos -->
+        <div style="background:var(--card);border-radius:14px;padding:16px;margin-top:14px;margin-bottom:4px;">
+          <div style="font-size:13px;font-weight:700;margin-bottom:10px;">📋 Resumo Mensal</div>
+          <div id="pest-resumo-mensal"></div>
+        </div>
       </div>
 
       <!-- Painel Vendas -->
@@ -1137,9 +1169,25 @@
           </div>
           <!-- Totais agrupados por tipo -->
           <div id="pvend-por-tipo"></div>
+          <!-- Gráfico Evolução Mensal Vendas -->
+          <div style="background:var(--card);border-radius:14px;padding:16px;margin-top:10px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+              <div style="font-size:13px;font-weight:700;">📈 Evolução Mensal</div>
+              <div style="display:flex;gap:6px;">
+                <button id="pvend-chart-btn-area" onclick="pvendSetVista('area')" style="font-size:11px;padding:4px 10px;border-radius:20px;border:1.5px solid var(--primary);background:var(--primary);color:white;cursor:pointer;font-weight:600;">Área</button>
+                <button id="pvend-chart-btn-bar" onclick="pvendSetVista('bar')" style="font-size:11px;padding:4px 10px;border-radius:20px;border:1.5px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-weight:600;">Barras</button>
+              </div>
+            </div>
+            <div style="height:160px;"><canvas id="pvend-chart-evo"></canvas></div>
+          </div>
+          <!-- Resumo Mensal Vendas -->
+          <div style="background:var(--card);border-radius:14px;padding:16px;margin-top:10px;">
+            <div style="font-size:13px;font-weight:700;margin-bottom:10px;">📋 Resumo Mensal</div>
+            <div id="pvend-resumo-mensal"></div>
+          </div>
         </div>
         <!-- Lista -->
-        <div style="background:var(--card);border-radius:14px;padding:16px;">
+        <div style="background:var(--card);border-radius:14px;padding:16px;margin-top:10px;">
           <div id="pvend-lista"><div style="text-align:center;color:var(--text-muted);padding:20px;font-size:13px;">Selecione um período e clique em Buscar.</div></div>
         </div>
       </div>
@@ -1857,6 +1905,168 @@
   let chartPizza = null;
   let chartArea  = null;
   let histVista  = 'area';
+
+  // ── GRÁFICOS PAULISTINHA ──
+  let pfin_chart = null, pest_chart = null, pvend_chart = null;
+  let pfin_vista = 'area', pest_vista = 'area', pvend_vista = 'area';
+
+  function paulChartOpts() {
+    const dark = document.body.classList.contains('dark');
+    return {
+      grid:    dark ? '#2d3139' : '#e5e7eb',
+      tick:    dark ? '#9aa0a6' : '#6b7280',
+      tipBg:   dark ? '#1e2128' : '#ffffff',
+      tipBord: dark ? '#3c4043' : '#dadce0',
+      tipTxt:  dark ? '#e8eaed' : '#202124',
+    };
+  }
+
+  function _paulMesLabel(m) {
+    const [y, mo] = m.split('-');
+    return ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][parseInt(mo)-1] + '/' + y.slice(2);
+  }
+  function _paulMesLongo(m) {
+    const [y, mo] = m.split('-');
+    return ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][parseInt(mo)-1] + ' ' + y;
+  }
+
+  function _paulBuildChart(canvasId, meses, ds1, ds2, vista, fmtTip) {
+    const c   = paulChartOpts();
+    const ctx = document.getElementById(canvasId).getContext('2d');
+    const isA = vista === 'area';
+    const g1  = ctx.createLinearGradient(0,0,0,140);
+    g1.addColorStop(0, ds1.gradTop); g1.addColorStop(1, 'rgba(0,0,0,0)');
+    const g2  = ctx.createLinearGradient(0,0,0,140);
+    g2.addColorStop(0, ds2.gradTop); g2.addColorStop(1, 'rgba(0,0,0,0)');
+    return new Chart(ctx, {
+      type: isA ? 'line' : 'bar',
+      data: {
+        labels: meses.map(_paulMesLabel),
+        datasets: [
+          { label: ds1.label, data: ds1.data, borderColor: ds1.color, backgroundColor: isA ? g1 : ds1.bgBar,
+            borderWidth: isA?2:0, borderRadius: isA?0:6, fill: isA, tension: 0.4, pointRadius: isA?3:0, pointBackgroundColor: ds1.color },
+          { label: ds2.label, data: ds2.data, borderColor: ds2.color, backgroundColor: isA ? g2 : ds2.bgBar,
+            borderWidth: isA?2:0, borderRadius: isA?0:6, fill: isA, tension: 0.4, pointRadius: isA?3:0, pointBackgroundColor: ds2.color },
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { position:'bottom', labels:{ color:c.tick, font:{size:11}, padding:14, boxWidth:10, usePointStyle:true } },
+          tooltip: { backgroundColor:c.tipBg, borderColor:c.tipBord, borderWidth:1, titleColor:c.tipTxt, bodyColor:c.tick,
+            callbacks: { label: ctx2 => ' ' + ctx2.dataset.label + ': ' + fmtTip(ctx2.raw) } }
+        },
+        scales: {
+          x: { grid:{color:c.grid}, ticks:{color:c.tick, font:{size:10}} },
+          y: { grid:{color:c.grid}, ticks:{color:c.tick, font:{size:10}, callback: v => v>=1000?(v/1000).toFixed(0)+'k':v} }
+        }
+      }
+    });
+  }
+
+  function _paulResumoMensal(elId, meses, grupos, fmtVal, label1, label2, color1, color2) {
+    const el = document.getElementById(elId);
+    if (!el) return;
+    if (!meses.length) { el.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:12px;font-size:13px;">Sem dados no período.</div>'; return; }
+    el.innerHTML = [...meses].reverse().map(m => {
+      const g = grupos[m];
+      const saldo = g.v1 - g.v2;
+      return '<div style="padding:10px 0;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">' +
+        '<div style="font-size:13px;font-weight:600;color:var(--text);">' + _paulMesLongo(m) + '</div>' +
+        '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">' +
+          '<div style="font-size:11px;display:flex;gap:10px;">' +
+            '<span style="color:' + color1 + ';">↑ ' + fmtVal(g.v1) + '</span>' +
+            '<span style="color:' + color2 + ';">↓ ' + fmtVal(g.v2) + '</span>' +
+          '</div>' +
+          '<div style="font-size:13px;font-weight:700;color:' + (saldo>=0?color1:color2) + ';">' + fmtVal(saldo) + '</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  function _paulSetVista(tipo, vista) {
+    const btnArea = document.getElementById(tipo + '-chart-btn-area');
+    const btnBar  = document.getElementById(tipo + '-chart-btn-bar');
+    if (!btnArea) return;
+    const ativo = vista === 'area';
+    btnArea.style.cssText = 'font-size:11px;padding:4px 10px;border-radius:20px;cursor:pointer;font-weight:600;border:1.5px solid var(--primary);background:' + (ativo?'var(--primary)':'transparent') + ';color:' + (ativo?'white':'var(--text-muted)') + ';';
+    btnBar.style.cssText  = 'font-size:11px;padding:4px 10px;border-radius:20px;cursor:pointer;font-weight:600;border:1.5px solid ' + (!ativo?'var(--primary)':'var(--border)') + ';background:' + (!ativo?'var(--primary)':'transparent') + ';color:' + (!ativo?'white':'var(--text-muted)') + ';';
+  }
+
+  function renderPfinChart(lancamentos) {
+    const grupos = {};
+    lancamentos.forEach(l => {
+      const mes = String(l.data).slice(0,7);
+      if (!grupos[mes]) grupos[mes] = { v1: 0, v2: 0 };
+      if (l.tipo === 'cred') grupos[mes].v1 += Number(l.valor);
+      else grupos[mes].v2 += Number(l.valor);
+    });
+    const meses = Object.keys(grupos).sort();
+    if (pfin_chart) { pfin_chart.destroy(); pfin_chart = null; }
+    if (!meses.length) { _paulResumoMensal('pfin-resumo-mensal', [], {}, fmtMoeda, '', '', '', ''); return; }
+    pfin_chart = _paulBuildChart('pfin-chart-evo', meses,
+      { label:'Entradas', data: meses.map(m=>grupos[m].v1), color:'#22c55e', bgBar:'rgba(34,197,94,0.6)',  gradTop:'rgba(34,197,94,0.35)' },
+      { label:'Saídas',   data: meses.map(m=>grupos[m].v2), color:'#ef4444', bgBar:'rgba(239,68,68,0.6)', gradTop:'rgba(239,68,68,0.30)' },
+      pfin_vista, fmtMoeda);
+    _paulResumoMensal('pfin-resumo-mensal', meses, grupos, fmtMoeda, '', '', '#22c55e', '#ef4444');
+  }
+
+  function pfinSetVista(v) {
+    pfin_vista = v; _paulSetVista('pfin', v);
+    if (window._pfinLanc) renderPfinChart(window._pfinLanc);
+  }
+
+  function renderPestChart(movs) {
+    const grupos = {};
+    movs.forEach(m => {
+      const mes = String(m.data).slice(0,7);
+      if (!grupos[mes]) grupos[mes] = { v1: 0, v2: 0 };
+      if (m.tipo === 'entrada') grupos[mes].v1 += Number(m.quantidade);
+      else grupos[mes].v2 += Number(m.quantidade);
+    });
+    const meses = Object.keys(grupos).sort();
+    if (pest_chart) { pest_chart.destroy(); pest_chart = null; }
+    if (!meses.length) { _paulResumoMensal('pest-resumo-mensal', [], {}, v => v + ' cx', '', '', '', ''); return; }
+    const fmtCx = v => Number(v).toLocaleString('pt-BR') + ' cx';
+    pest_chart = _paulBuildChart('pest-chart-evo', meses,
+      { label:'Entradas', data: meses.map(m=>grupos[m].v1), color:'#22c55e', bgBar:'rgba(34,197,94,0.6)',  gradTop:'rgba(34,197,94,0.35)' },
+      { label:'Saídas',   data: meses.map(m=>grupos[m].v2), color:'#ef4444', bgBar:'rgba(239,68,68,0.6)', gradTop:'rgba(239,68,68,0.30)' },
+      pest_vista, fmtCx);
+    _paulResumoMensal('pest-resumo-mensal', meses, grupos, fmtCx, '', '', '#22c55e', '#ef4444');
+  }
+
+  function pestSetVista(v) {
+    pest_vista = v; _paulSetVista('pest', v);
+    if (window._pestMovs) renderPestChart(window._pestMovs);
+  }
+
+  function renderPvendChart(dados) {
+    const grupos = {};
+    dados.forEach(v => {
+      const mes = String(v.data_pedido||'').slice(0,7);
+      if (!mes || mes.length < 7) return;
+      if (!grupos[mes]) grupos[mes] = { v1: 0, v2: 0 };
+      const isSale = (v.tipo||'').toLowerCase().startsWith('venda');
+      const val = Number(v.valdup || 0);
+      if (isSale) grupos[mes].v1 += val;
+      else grupos[mes].v2 += val;
+    });
+    const meses = Object.keys(grupos).sort();
+    if (pvend_chart) { pvend_chart.destroy(); pvend_chart = null; }
+    if (!meses.length) { _paulResumoMensal('pvend-resumo-mensal', [], {}, fmtMoeda, '', '', '', ''); return; }
+    const fmtR = v => 'R$ ' + Number(v).toLocaleString('pt-BR', {minimumFractionDigits:2});
+    pvend_chart = _paulBuildChart('pvend-chart-evo', meses,
+      { label:'Vendas',     data: meses.map(m=>grupos[m].v1), color:'#6366f1', bgBar:'rgba(99,102,241,0.6)', gradTop:'rgba(99,102,241,0.35)' },
+      { label:'Devoluções', data: meses.map(m=>grupos[m].v2), color:'#f59e0b', bgBar:'rgba(245,158,11,0.6)', gradTop:'rgba(245,158,11,0.30)' },
+      pvend_vista, fmtR);
+    _paulResumoMensal('pvend-resumo-mensal', meses, grupos, fmtR, '', '', '#6366f1', '#f59e0b');
+  }
+
+  function pvendSetVista(v) {
+    pvend_vista = v; _paulSetVista('pvend', v);
+    if (window._pvendDados) renderPvendChart(window._pvendDados);
+  }
 
   function setHistVista(v) {
     histVista = v;
@@ -3592,6 +3802,8 @@
       }).join('');
       document.getElementById('pvend-por-tipo').innerHTML = tiposHtml;
       document.getElementById('pvend-resumo').style.display = 'block';
+      window._pvendDados = dados;
+      renderPvendChart(dados);
 
       // Tabela
       const linhas = dados.map((v, i) => {
@@ -4227,6 +4439,9 @@
         return;
       }
 
+      window._pfinLanc = lancamentos;
+      renderPfinChart(lancamentos);
+
       const podeEditarFin = paulPodeEditar();
       lista.innerHTML = lancamentos.map(l => {
         const val    = Number(l.valor);
@@ -4362,6 +4577,9 @@
         lista.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:20px;font-size:13px;">Nenhuma movimentação no período.</div>';
         return;
       }
+      window._pestMovs = movs;
+      renderPestChart(movs);
+
       const podeEditarEst = paulPodeEditar();
       lista.innerHTML = movs.map(m => {
         const cod      = String(m.produto_cod);
