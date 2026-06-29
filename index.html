@@ -677,7 +677,7 @@
             🚪 Sair
           </button>
           <div style="padding:10px 14px;background:var(--bg);border-top:1px solid var(--border);text-align:center;">
-            <div style="font-size:11px;color:var(--text-muted);">Versão <strong style="color:var(--text);">v70</strong></div>
+            <div style="font-size:11px;color:var(--text-muted);">Versão <strong style="color:var(--text);">v71</strong></div>
             <div style="font-size:10px;color:var(--text-muted);margin-top:2px;">29/06/2026 às 11:00</div>
           </div>
         </div>
@@ -891,19 +891,43 @@
           </div>
         </div>
 
+        <!-- Gerenciador de Tipos de Lançamento Financeiro -->
+        <div style="background:var(--card);border-radius:14px;padding:16px;margin-bottom:14px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+            <div style="font-size:13px;font-weight:700;">⚙️ Tipos de Lançamento</div>
+            <button onclick="toggleGerenciarTiposFin()" id="btn-gerenciar-tipos-fin" style="font-size:11px;padding:5px 10px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text-muted);cursor:pointer;font-weight:600;">+ Gerenciar</button>
+          </div>
+          <div id="painel-gerenciar-tipos-fin" style="display:none;margin-top:10px;">
+            <div style="display:flex;gap:8px;margin-bottom:10px;">
+              <input type="text" id="novo-tipo-fin-label" placeholder="Nome do tipo (ex: Imposto, Salário...)" maxlength="40"
+                style="flex:1;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--bg);color:var(--text);" />
+              <button onclick="adicionarTipoFin()" style="padding:9px 14px;background:var(--primary);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">✓</button>
+            </div>
+            <div id="lista-tipos-fin" style="display:flex;flex-direction:column;gap:6px;"></div>
+          </div>
+        </div>
+
         <!-- Form novo lançamento financeiro -->
         <div style="background:var(--card);border-radius:14px;padding:16px;margin-bottom:14px;">
           <div style="font-size:13px;font-weight:700;margin-bottom:12px;">Novo Lançamento</div>
-          <div style="margin-bottom:10px;">
-            <label style="font-size:11px;color:var(--text-muted);font-weight:600;">Data</label>
-            <input type="date" id="pfin-data" style="width:100%;margin-top:4px;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg);color:var(--text);" />
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+            <div>
+              <label style="font-size:11px;color:var(--text-muted);font-weight:600;">Data</label>
+              <input type="date" id="pfin-data" style="width:100%;margin-top:4px;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg);color:var(--text);" />
+            </div>
+            <div>
+              <label style="font-size:11px;color:var(--text-muted);font-weight:600;">Tipo</label>
+              <select id="pfin-tipo" style="width:100%;margin-top:4px;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg);color:var(--text);">
+                <option value="">Selecione...</option>
+              </select>
+            </div>
           </div>
           <div style="margin-bottom:10px;">
-            <label style="font-size:11px;color:var(--text-muted);font-weight:600;">Descrição</label>
-            <input type="text" id="pfin-desc" placeholder="Ex: Pagamento cliente, Compra produto..." maxlength="100" style="width:100%;margin-top:4px;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg);color:var(--text);" />
+            <label style="font-size:11px;color:var(--text-muted);font-weight:600;">Descrição <span style="font-weight:400;">(opcional)</span></label>
+            <input type="text" id="pfin-desc" placeholder="Detalhe adicional..." maxlength="100" style="width:100%;margin-top:4px;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg);color:var(--text);" />
           </div>
           <div style="margin-bottom:14px;">
-            <label style="font-size:11px;color:var(--text-muted);font-weight:600;">Valor (R$) <span style="color:var(--text-muted);font-weight:400;">— positivo = Crédito &nbsp;·&nbsp; negativo = Débito</span></label>
+            <label style="font-size:11px;color:var(--text-muted);font-weight:600;">Valor (R$) <span style="font-weight:400;">— positivo = Crédito &nbsp;·&nbsp; negativo = Débito</span></label>
             <input type="number" id="pfin-valor" placeholder="Ex: 150,00 ou -80,00" step="0.01" style="width:100%;margin-top:4px;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg);color:var(--text);" />
           </div>
           <div style="display:flex;gap:8px;">
@@ -922,12 +946,36 @@
       <!-- SUB-PAINEL ESTOQUE -->
       <div id="ppainel-estoque" style="display:none;">
 
+        <!-- Gerenciador de Tipos de Movimentação Estoque -->
+        <div style="background:var(--card);border-radius:14px;padding:16px;margin-bottom:14px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+            <div style="font-size:13px;font-weight:700;">⚙️ Tipos de Movimentação</div>
+            <button onclick="toggleGerenciarTiposEst()" id="btn-gerenciar-tipos-est" style="font-size:11px;padding:5px 10px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text-muted);cursor:pointer;font-weight:600;">+ Gerenciar</button>
+          </div>
+          <div id="painel-gerenciar-tipos-est" style="display:none;margin-top:10px;">
+            <div style="display:flex;gap:8px;margin-bottom:10px;">
+              <input type="text" id="novo-tipo-est-label" placeholder="Nome do tipo (ex: Bonificação, Avaria...)" maxlength="40"
+                style="flex:1;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--bg);color:var(--text);" />
+              <button onclick="adicionarTipoEst()" style="padding:9px 14px;background:var(--primary);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">✓</button>
+            </div>
+            <div id="lista-tipos-est" style="display:flex;flex-direction:column;gap:6px;"></div>
+          </div>
+        </div>
+
         <!-- Form nova movimentação de estoque -->
         <div style="background:var(--card);border-radius:14px;padding:16px;margin-bottom:14px;">
           <div style="font-size:13px;font-weight:700;margin-bottom:12px;">Nova Movimentação</div>
-          <div style="margin-bottom:10px;">
-            <label style="font-size:11px;color:var(--text-muted);font-weight:600;">Data</label>
-            <input type="date" id="pest-data" style="width:100%;margin-top:4px;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg);color:var(--text);" />
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+            <div>
+              <label style="font-size:11px;color:var(--text-muted);font-weight:600;">Data</label>
+              <input type="date" id="pest-data" style="width:100%;margin-top:4px;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg);color:var(--text);" />
+            </div>
+            <div>
+              <label style="font-size:11px;color:var(--text-muted);font-weight:600;">Tipo</label>
+              <select id="pest-tipo" style="width:100%;margin-top:4px;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg);color:var(--text);">
+                <option value="">Selecione...</option>
+              </select>
+            </div>
           </div>
           <div style="margin-bottom:10px;">
             <label style="font-size:11px;color:var(--text-muted);font-weight:600;">Produto</label>
@@ -949,8 +997,8 @@
               <input type="number" id="pest-qtd" placeholder="Ex: 10 ou -5" step="1" style="width:100%;margin-top:4px;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg);color:var(--text);" />
             </div>
             <div>
-              <label style="font-size:11px;color:var(--text-muted);font-weight:600;">Observação</label>
-              <input type="text" id="pest-obs" placeholder="Opcional" maxlength="80" style="width:100%;margin-top:4px;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg);color:var(--text);" />
+              <label style="font-size:11px;color:var(--text-muted);font-weight:600;">Obs. <span style="font-weight:400;">(opcional)</span></label>
+              <input type="text" id="pest-obs" placeholder="Detalhe..." maxlength="80" style="width:100%;margin-top:4px;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg);color:var(--text);" />
             </div>
           </div>
           <div style="display:flex;gap:8px;">
@@ -3620,6 +3668,8 @@
     const sHoje = hoje.getFullYear() + '-' + String(hoje.getMonth()+1).padStart(2,'0') + '-' + String(hoje.getDate()).padStart(2,'0');
     document.getElementById('pfin-data').value = sHoje;
     document.getElementById('pest-data').value = sHoje;
+    popularSelectTiposFin();
+    popularSelectTiposEst();
 
     if (!paulToken) {
       const ok = await paulAuth();
@@ -3690,6 +3740,130 @@
     return 'R$ ' + Number(v).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
   }
 
+  // ── TIPOS DE LANÇAMENTO FINANCEIRO ──
+  const TIPOS_FIN_KEY = 'fc_paul_fin_tipos';
+
+  function tiposFinGet() {
+    return JSON.parse(localStorage.getItem(TIPOS_FIN_KEY) || '[]');
+  }
+  function tiposFinSet(t) {
+    localStorage.setItem(TIPOS_FIN_KEY, JSON.stringify(t));
+  }
+  function popularSelectTiposFin() {
+    const sel = document.getElementById('pfin-tipo');
+    if (!sel) return;
+    const atual = sel.value;
+    sel.innerHTML = '<option value="">Selecione...</option>';
+    tiposFinGet().forEach(t => {
+      const opt = document.createElement('option');
+      opt.value = t; opt.textContent = t;
+      sel.appendChild(opt);
+    });
+    if (atual) sel.value = atual;
+  }
+  function renderListaTiposFin() {
+    const tipos = tiposFinGet();
+    const el = document.getElementById('lista-tipos-fin');
+    if (!tipos.length) {
+      el.innerHTML = '<div style="font-size:12px;color:var(--text-muted);text-align:center;padding:8px;">Nenhum tipo cadastrado.</div>';
+      return;
+    }
+    el.innerHTML = tipos.map((t, i) =>
+      '<div style="display:flex;align-items:center;justify-content:space-between;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:8px 10px;">' +
+        '<span style="font-size:13px;font-weight:600;color:var(--text);">' + t + '</span>' +
+        '<button onclick="removerTipoFin(' + i + ')" style="background:none;border:none;color:var(--danger);font-size:16px;cursor:pointer;padding:2px 6px;">🗑</button>' +
+      '</div>'
+    ).join('');
+  }
+  function toggleGerenciarTiposFin() {
+    const p = document.getElementById('painel-gerenciar-tipos-fin');
+    const aberto = p.style.display !== 'none';
+    p.style.display = aberto ? 'none' : 'block';
+    if (!aberto) renderListaTiposFin();
+    document.getElementById('btn-gerenciar-tipos-fin').textContent = aberto ? '+ Gerenciar' : '✕ Fechar';
+  }
+  function adicionarTipoFin() {
+    const label = document.getElementById('novo-tipo-fin-label').value.trim();
+    if (!label) { alert('Informe o nome do tipo.'); return; }
+    const tipos = tiposFinGet();
+    if (tipos.some(t => t.toLowerCase() === label.toLowerCase())) { alert('Já existe um tipo com este nome.'); return; }
+    tipos.push(label);
+    tiposFinSet(tipos);
+    document.getElementById('novo-tipo-fin-label').value = '';
+    renderListaTiposFin();
+    popularSelectTiposFin();
+  }
+  function removerTipoFin(idx) {
+    if (!confirm('Remover este tipo?')) return;
+    const tipos = tiposFinGet();
+    tipos.splice(idx, 1);
+    tiposFinSet(tipos);
+    renderListaTiposFin();
+    popularSelectTiposFin();
+  }
+
+  // ── TIPOS DE MOVIMENTAÇÃO ESTOQUE ──
+  const TIPOS_EST_KEY = 'fc_paul_est_tipos';
+
+  function tiposEstGet() {
+    return JSON.parse(localStorage.getItem(TIPOS_EST_KEY) || '[]');
+  }
+  function tiposEstSet(t) {
+    localStorage.setItem(TIPOS_EST_KEY, JSON.stringify(t));
+  }
+  function popularSelectTiposEst() {
+    const sel = document.getElementById('pest-tipo');
+    if (!sel) return;
+    const atual = sel.value;
+    sel.innerHTML = '<option value="">Selecione...</option>';
+    tiposEstGet().forEach(t => {
+      const opt = document.createElement('option');
+      opt.value = t; opt.textContent = t;
+      sel.appendChild(opt);
+    });
+    if (atual) sel.value = atual;
+  }
+  function renderListaTiposEst() {
+    const tipos = tiposEstGet();
+    const el = document.getElementById('lista-tipos-est');
+    if (!tipos.length) {
+      el.innerHTML = '<div style="font-size:12px;color:var(--text-muted);text-align:center;padding:8px;">Nenhum tipo cadastrado.</div>';
+      return;
+    }
+    el.innerHTML = tipos.map((t, i) =>
+      '<div style="display:flex;align-items:center;justify-content:space-between;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:8px 10px;">' +
+        '<span style="font-size:13px;font-weight:600;color:var(--text);">' + t + '</span>' +
+        '<button onclick="removerTipoEst(' + i + ')" style="background:none;border:none;color:var(--danger);font-size:16px;cursor:pointer;padding:2px 6px;">🗑</button>' +
+      '</div>'
+    ).join('');
+  }
+  function toggleGerenciarTiposEst() {
+    const p = document.getElementById('painel-gerenciar-tipos-est');
+    const aberto = p.style.display !== 'none';
+    p.style.display = aberto ? 'none' : 'block';
+    if (!aberto) renderListaTiposEst();
+    document.getElementById('btn-gerenciar-tipos-est').textContent = aberto ? '+ Gerenciar' : '✕ Fechar';
+  }
+  function adicionarTipoEst() {
+    const label = document.getElementById('novo-tipo-est-label').value.trim();
+    if (!label) { alert('Informe o nome do tipo.'); return; }
+    const tipos = tiposEstGet();
+    if (tipos.some(t => t.toLowerCase() === label.toLowerCase())) { alert('Já existe um tipo com este nome.'); return; }
+    tipos.push(label);
+    tiposEstSet(tipos);
+    document.getElementById('novo-tipo-est-label').value = '';
+    renderListaTiposEst();
+    popularSelectTiposEst();
+  }
+  function removerTipoEst(idx) {
+    if (!confirm('Remover este tipo?')) return;
+    const tipos = tiposEstGet();
+    tipos.splice(idx, 1);
+    tiposEstSet(tipos);
+    renderListaTiposEst();
+    popularSelectTiposEst();
+  }
+
   // ── FINANCEIRO ──
   let paulFinEditId = null;
 
@@ -3702,7 +3876,14 @@
   function editarLancFin(id, data, tipo, desc, valor) {
     paulFinEditId = id;
     document.getElementById('pfin-data').value  = data;
-    document.getElementById('pfin-desc').value  = desc;
+    // Tenta separar "TipoLabel - detalhe" de volta nos campos
+    const sepIdx = desc.indexOf(' - ');
+    const tipoLabel = sepIdx > -1 ? desc.slice(0, sepIdx) : desc;
+    const detalhe   = sepIdx > -1 ? desc.slice(sepIdx + 3) : '';
+    const selFin = document.getElementById('pfin-tipo');
+    const optFin = Array.from(selFin.options).find(o => o.value === tipoLabel);
+    selFin.value = optFin ? tipoLabel : '';
+    document.getElementById('pfin-desc').value  = detalhe;
     document.getElementById('pfin-valor').value = tipo === 'deb' ? -Math.abs(valor) : Math.abs(valor);
     const btn = document.getElementById('pfin-btn-salvar');
     btn.textContent = '💾 Salvar Alteração';
@@ -3715,6 +3896,7 @@
   function cancelarEditLancFin() {
     paulFinEditId = null;
     document.getElementById('pfin-data').value  = '';
+    document.getElementById('pfin-tipo').value  = '';
     document.getElementById('pfin-desc').value  = '';
     document.getElementById('pfin-valor').value = '';
     const btn = document.getElementById('pfin-btn-salvar');
@@ -3724,25 +3906,26 @@
   }
 
   async function salvarLancFin() {
-    const data  = document.getElementById('pfin-data').value;
-    const desc  = document.getElementById('pfin-desc').value.trim();
-    const valor = parseFloat(document.getElementById('pfin-valor').value);
-    if (!data)       { alert('Informe a data.'); return; }
-    if (!desc)       { alert('Informe a descrição.'); return; }
-    if (!valor || valor === 0) { alert('Informe um valor (positivo para Crédito, negativo para Débito).'); return; }
-    const tipo = valor > 0 ? 'cred' : 'deb';
+    const data      = document.getElementById('pfin-data').value;
+    const tipoLabel = document.getElementById('pfin-tipo').value.trim();
+    const descExtra = document.getElementById('pfin-desc').value.trim();
+    const valor     = parseFloat(document.getElementById('pfin-valor').value);
+    if (!data)                 { alert('Informe a data.'); return; }
+    if (!tipoLabel)            { alert('Selecione o tipo de lançamento.'); return; }
+    if (!valor || valor === 0) { alert('Informe um valor (positivo = Crédito, negativo = Débito).'); return; }
+    const tipo     = valor > 0 ? 'cred' : 'deb';
     const valorAbs = Math.abs(valor);
+    const descricao = tipoLabel + (descExtra ? ' - ' + descExtra : '');
 
     try {
       if (paulFinEditId) {
-        // API não suporta PUT — exclui e recria
         await paulFetch('DELETE', '/paulistinha/financeiro/' + paulFinEditId);
-        const res = await paulFetch('POST', '/paulistinha/financeiro', { data, tipo, descricao: desc, valor: valorAbs });
+        const res = await paulFetch('POST', '/paulistinha/financeiro', { data, tipo, descricao, valor: valorAbs });
         const novoId = (res && res.id) ? res.id : null;
         if (novoId) paulHistoricoSet('fin_' + novoId, currentUser, 'editado');
         cancelarEditLancFin();
       } else {
-        const res = await paulFetch('POST', '/paulistinha/financeiro', { data, tipo, descricao: desc, valor: valorAbs });
+        const res = await paulFetch('POST', '/paulistinha/financeiro', { data, tipo, descricao, valor: valorAbs });
         const novoId = (res && res.id) ? res.id : null;
         if (novoId) paulHistoricoSet('fin_' + novoId, currentUser, 'incluído');
         document.getElementById('pfin-desc').value  = '';
@@ -3816,7 +3999,14 @@
     document.getElementById('pest-data').value    = data;
     document.getElementById('pest-produto').value = String(cod);
     document.getElementById('pest-qtd').value     = tipo === 'saida' ? -Math.abs(qtd) : Math.abs(qtd);
-    document.getElementById('pest-obs').value     = obs || '';
+    // Tenta separar "TipoLabel - detalhe" de volta nos campos
+    const sepIdx2 = (obs||'').indexOf(' - ');
+    const tipoLabelEst = sepIdx2 > -1 ? obs.slice(0, sepIdx2) : (obs || '');
+    const detalheEst   = sepIdx2 > -1 ? obs.slice(sepIdx2 + 3) : '';
+    const selEst = document.getElementById('pest-tipo');
+    const optEst = selEst ? Array.from(selEst.options).find(o => o.value === tipoLabelEst) : null;
+    if (selEst) selEst.value = optEst ? tipoLabelEst : '';
+    document.getElementById('pest-obs').value = detalheEst;
     const btn = document.getElementById('pest-btn-salvar');
     btn.textContent = '💾 Salvar Alteração';
     btn.style.background = '#f59e0b';
@@ -3827,6 +4017,7 @@
 
   function cancelarEdicaoEstoque() {
     paulEstEditId = null;
+    document.getElementById('pest-tipo').value    = '';
     document.getElementById('pest-produto').value = '';
     document.getElementById('pest-qtd').value     = '';
     document.getElementById('pest-obs').value     = '';
@@ -3837,17 +4028,19 @@
   }
 
   async function salvarMovEstoque() {
-    const data = document.getElementById('pest-data').value;
-    const cod  = document.getElementById('pest-produto').value;
-    const qtd  = parseInt(document.getElementById('pest-qtd').value);
-    const obs  = document.getElementById('pest-obs').value.trim();
-    if (!data)       { alert('Informe a data.'); return; }
-    if (!cod)        { alert('Selecione o produto.'); return; }
-    if (!qtd || qtd === 0) { alert('Informe a quantidade (positivo = Entrada, negativo = Saída).'); return; }
+    const data      = document.getElementById('pest-data').value;
+    const tipoLabel = document.getElementById('pest-tipo').value.trim();
+    const cod       = document.getElementById('pest-produto').value;
+    const qtd       = parseInt(document.getElementById('pest-qtd').value);
+    const obsExtra  = document.getElementById('pest-obs').value.trim();
+    if (!data)                 { alert('Informe a data.'); return; }
+    if (!tipoLabel)            { alert('Selecione o tipo de movimentação.'); return; }
+    if (!cod)                  { alert('Selecione o produto.'); return; }
+    if (!qtd || qtd === 0)     { alert('Informe a quantidade (positivo = Entrada, negativo = Saída).'); return; }
 
     const tipoApi    = qtd > 0 ? 'entrada' : 'saida';
     const qtdAbs     = Math.abs(qtd);
-    const obsCompleta = obs || null;
+    const obsCompleta = tipoLabel + (obsExtra ? ' - ' + obsExtra : '');
 
     try {
       const acao = paulEstEditId ? 'editado' : 'incluído';
