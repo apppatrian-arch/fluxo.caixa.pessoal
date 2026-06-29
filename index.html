@@ -891,6 +891,13 @@
         <div id="paul-lista-usuarios" style="display:flex;flex-direction:column;gap:8px;"></div>
       </div>
 
+      <!-- Mensagem: acesso pendente de aprovação -->
+      <div id="paul-msg-pendente" style="display:none;background:rgba(245,158,11,0.1);border:1.5px solid #f59e0b;border-radius:12px;padding:16px;margin-bottom:14px;text-align:center;">
+        <div style="font-size:22px;margin-bottom:6px;">⏳</div>
+        <div style="font-size:13px;font-weight:700;color:#f59e0b;margin-bottom:4px;">Acesso aguardando aprovação</div>
+        <div style="font-size:12px;color:var(--text-muted);">Seu cadastro foi registrado. Aguarde o administrador liberar seu acesso.</div>
+      </div>
+
       <!-- Sub-abas -->
       <div style="display:flex;gap:8px;margin-bottom:16px;">
         <button id="ptab-financeiro" onclick="setPTab('financeiro')" style="flex:1;padding:10px 0;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;background:var(--primary);color:white;">💰 Financeiro</button>
@@ -3826,14 +3833,18 @@
   }
 
   function paulAplicarAcessoUI() {
-    const editor  = paulPodeEditar();
-    const admin   = paulIsAdmin();
+    const perfil  = paulGetPerfil();
+    const editor  = perfil === 'admin' || perfil === 'editor';
+    const admin   = perfil === 'admin';
+    const pendente = perfil === 'pendente' || perfil === 'sem_acesso';
     const btnUsr = document.getElementById('btn-paul-usuarios');
     if (btnUsr) btnUsr.style.display = admin ? '' : 'none';
     ['pfin-bloco-form','pfin-bloco-motivos','pest-bloco-form','pest-bloco-motivos'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.style.display = editor ? '' : 'none';
     });
+    const elPendente = document.getElementById('paul-msg-pendente');
+    if (elPendente) elPendente.style.display = pendente ? '' : 'none';
   }
 
   function togglePainelUsuarios() {
@@ -3846,29 +3857,62 @@
 
   async function renderListaUsuarios() {
     await paulUsuariosCarregar();
-    const lista = paulUsuariosCache();
-    const el    = document.getElementById('paul-lista-usuarios');
+    const lista    = paulUsuariosCache();
+    const el       = document.getElementById('paul-lista-usuarios');
+    const pendentes = lista.filter(u => u.perfil === 'pendente');
+    const ativos    = lista.filter(u => u.perfil !== 'pendente');
     if (!lista.length) {
       el.innerHTML = '<div style="font-size:12px;color:var(--text-muted);text-align:center;padding:8px;">Nenhum usuário cadastrado.</div>';
       return;
     }
     const corPerfil = { admin: '#6366f1', editor: '#22c55e', leitura: '#f59e0b' };
     const bgPerfil  = { admin: 'rgba(99,102,241,0.1)', editor: 'rgba(34,197,94,0.1)', leitura: 'rgba(245,158,11,0.1)' };
-    el.innerHTML = lista.map(u => {
-      const cor = corPerfil[u.perfil] || 'var(--text-muted)';
-      const bg  = bgPerfil[u.perfil]  || 'var(--surface)';
-      const euAdmin = u.email.toLowerCase() === (currentUser||'').toLowerCase() && u.perfil === 'admin';
-      return '<div style="display:flex;align-items:center;gap:10px;background:var(--surface);border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;">' +
-        '<div style="flex:1;min-width:0;">' +
-          '<div style="font-size:13px;font-weight:700;color:var(--text);">' + u.nome + '</div>' +
-          '<div style="font-size:11px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + u.email + '</div>' +
-        '</div>' +
-        '<span style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:20px;background:' + bg + ';color:' + cor + ';white-space:nowrap;">' +
-          (u.perfil === 'admin' ? 'Admin' : u.perfil === 'editor' ? 'Editor' : 'Leitura') +
-        '</span>' +
-        (euAdmin ? '' : '<button onclick="paulRemoverUsuario(' + u.id + ')" style="background:none;border:none;color:var(--danger);font-size:16px;cursor:pointer;padding:2px 4px;" title="Remover">🗑</button>') +
-      '</div>';
-    }).join('');
+    let html = '';
+    if (pendentes.length) {
+      html += '<div style="font-size:11px;font-weight:700;color:#f59e0b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">⏳ Aguardando Aprovação</div>';
+      html += pendentes.map(u =>
+        '<div style="display:flex;align-items:center;gap:8px;background:rgba(245,158,11,0.06);border:1.5px solid #f59e0b;border-radius:10px;padding:10px 12px;margin-bottom:6px;">' +
+          '<div style="flex:1;min-width:0;">' +
+            '<div style="font-size:13px;font-weight:700;color:var(--text);">' + u.nome + '</div>' +
+            '<div style="font-size:11px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + u.email + '</div>' +
+          '</div>' +
+          '<select id="paul-approve-' + u.id + '" style="font-size:12px;padding:5px 6px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);">' +
+            '<option value="editor">Editor</option>' +
+            '<option value="leitura">Leitura</option>' +
+            '<option value="admin">Admin</option>' +
+          '</select>' +
+          '<button onclick="paulAprovarUsuario(' + u.id + ',\'' + u.nome.replace(/'/g,"\\'") + '\',\'' + u.email + '\')" style="padding:5px 10px;background:#22c55e;color:white;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">✓ Aprovar</button>' +
+          '<button onclick="paulRemoverUsuario(' + u.id + ')" style="background:none;border:none;color:var(--danger);font-size:16px;cursor:pointer;padding:2px 4px;" title="Rejeitar">🗑</button>' +
+        '</div>'
+      ).join('');
+    }
+    if (ativos.length) {
+      if (pendentes.length) html += '<div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin:10px 0 6px;">✅ Usuários Ativos</div>';
+      html += ativos.map(u => {
+        const cor     = corPerfil[u.perfil] || 'var(--text-muted)';
+        const bg      = bgPerfil[u.perfil]  || 'var(--surface)';
+        const euAdmin = u.email.toLowerCase() === (currentUser||'').toLowerCase() && u.perfil === 'admin';
+        return '<div style="display:flex;align-items:center;gap:10px;background:var(--surface);border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;">' +
+          '<div style="flex:1;min-width:0;">' +
+            '<div style="font-size:13px;font-weight:700;color:var(--text);">' + u.nome + '</div>' +
+            '<div style="font-size:11px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + u.email + '</div>' +
+          '</div>' +
+          '<span style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:20px;background:' + bg + ';color:' + cor + ';white-space:nowrap;">' +
+            (u.perfil === 'admin' ? 'Admin' : u.perfil === 'editor' ? 'Editor' : 'Leitura') +
+          '</span>' +
+          (euAdmin ? '' : '<button onclick="paulRemoverUsuario(' + u.id + ')" style="background:none;border:none;color:var(--danger);font-size:16px;cursor:pointer;padding:2px 4px;" title="Remover">🗑</button>') +
+        '</div>';
+      }).join('');
+    }
+    el.innerHTML = html;
+  }
+
+  async function paulAprovarUsuario(id, nomeAtual, email) {
+    const sel = document.getElementById('paul-approve-' + id);
+    const novoPerfil = sel ? sel.value : 'leitura';
+    await paulFetch('DELETE', '/paulistinha/usuarios/' + id);
+    await paulFetch('POST', '/paulistinha/usuarios', { nome: nomeAtual + '|' + novoPerfil, email, senha_hash: 'x' });
+    await renderListaUsuarios();
   }
 
   async function paulAdicionarUsuario() {
@@ -3896,15 +3940,20 @@
   async function paulInicializarUsuarios() {
     await paulUsuariosCarregar();
     const lista = paulUsuariosCache();
-    if (!lista.length && currentUser) {
-      const nome = (currentUser.split('@')[0] || 'Admin').replace(/[._]/g, ' ');
-      const nomeFormatado = nome.charAt(0).toUpperCase() + nome.slice(1);
-      await paulFetch('POST', '/paulistinha/usuarios', {
-        nome: nomeFormatado + '|admin',
-        email: currentUser.toLowerCase(),
-        senha_hash: 'x'
-      });
-      await paulUsuariosCarregar();
+    if (currentUser) {
+      const jaExiste = lista.some(u => u.email.toLowerCase() === currentUser.toLowerCase());
+      if (!jaExiste) {
+        const nome = (currentUser.split('@')[0] || 'Usuario').replace(/[._]/g, ' ');
+        const nomeFormatado = nome.charAt(0).toUpperCase() + nome.slice(1);
+        // primeiro usuário da lista vira admin; demais ficam pendentes
+        const perfil = lista.length === 0 ? 'admin' : 'pendente';
+        await paulFetch('POST', '/paulistinha/usuarios', {
+          nome: nomeFormatado + '|' + perfil,
+          email: currentUser.toLowerCase(),
+          senha_hash: 'x'
+        });
+        await paulUsuariosCarregar();
+      }
     }
     paulAplicarAcessoUI();
   }
