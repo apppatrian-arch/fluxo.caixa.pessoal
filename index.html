@@ -3723,8 +3723,7 @@
     document.getElementById('pest-filtro-fim').value = sHoje;
     popularSelectTiposFin();
     popularSelectTiposEst();
-    paulInicializarUsuarios();
-    paulAplicarAcessoUI();
+    await paulInicializarUsuarios();
 
     if (!paulToken) {
       const ok = await paulAuth();
@@ -3795,18 +3794,25 @@
     return 'R$ ' + Number(v).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
   }
 
-  // ── CONTROLE DE USUÁRIOS PAULISTINHA ──
-  const PAUL_USR_KEY = 'fc_paul_usuarios';
+  // ── CONTROLE DE USUÁRIOS PAULISTINHA (API) ──
+  // perfil é codificado no campo nome da API como "Nome|perfil"
+  let _paulUsuariosCache = null;
 
-  function paulUsuariosGet() {
-    return JSON.parse(localStorage.getItem(PAUL_USR_KEY) || '[]');
+  async function paulUsuariosCarregar() {
+    const raw = await paulFetch('GET', '/paulistinha/usuarios');
+    _paulUsuariosCache = (raw || []).map(u => {
+      const parts = String(u.nome || '').split('|');
+      return { id: u.id, nome: parts[0].trim(), email: u.email, perfil: parts[1] || 'leitura' };
+    });
+    return _paulUsuariosCache;
   }
-  function paulUsuariosSet(lista) {
-    localStorage.setItem(PAUL_USR_KEY, JSON.stringify(lista));
+
+  function paulUsuariosCache() {
+    return _paulUsuariosCache || [];
   }
 
   function paulGetPerfil() {
-    const lista = paulUsuariosGet();
+    const lista = paulUsuariosCache();
     if (!lista.length) return 'admin'; // sem configuração = acesso total
     const me = lista.find(u => u.email.toLowerCase() === (currentUser||'').toLowerCase());
     return me ? me.perfil : 'sem_acesso';
@@ -3822,10 +3828,8 @@
   function paulAplicarAcessoUI() {
     const editor  = paulPodeEditar();
     const admin   = paulIsAdmin();
-    // Botão de usuários: só admin vê
     const btnUsr = document.getElementById('btn-paul-usuarios');
     if (btnUsr) btnUsr.style.display = admin ? '' : 'none';
-    // Blocos de formulário e motivos: só editores veem
     ['pfin-bloco-form','pfin-bloco-motivos','pest-bloco-form','pest-bloco-motivos'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.style.display = editor ? '' : 'none';
@@ -3840,8 +3844,9 @@
     document.getElementById('btn-paul-usuarios').textContent = aberto ? '⚙️ Usuários' : '✕ Fechar';
   }
 
-  function renderListaUsuarios() {
-    const lista = paulUsuariosGet();
+  async function renderListaUsuarios() {
+    await paulUsuariosCarregar();
+    const lista = paulUsuariosCache();
     const el    = document.getElementById('paul-lista-usuarios');
     if (!lista.length) {
       el.innerHTML = '<div style="font-size:12px;color:var(--text-muted);text-align:center;padding:8px;">Nenhum usuário cadastrado.</div>';
@@ -3849,7 +3854,7 @@
     }
     const corPerfil = { admin: '#6366f1', editor: '#22c55e', leitura: '#f59e0b' };
     const bgPerfil  = { admin: 'rgba(99,102,241,0.1)', editor: 'rgba(34,197,94,0.1)', leitura: 'rgba(245,158,11,0.1)' };
-    el.innerHTML = lista.map((u, i) => {
+    el.innerHTML = lista.map(u => {
       const cor = corPerfil[u.perfil] || 'var(--text-muted)';
       const bg  = bgPerfil[u.perfil]  || 'var(--surface)';
       const euAdmin = u.email.toLowerCase() === (currentUser||'').toLowerCase() && u.perfil === 'admin';
@@ -3861,43 +3866,47 @@
         '<span style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:20px;background:' + bg + ';color:' + cor + ';white-space:nowrap;">' +
           (u.perfil === 'admin' ? 'Admin' : u.perfil === 'editor' ? 'Editor' : 'Leitura') +
         '</span>' +
-        (euAdmin ? '' : '<button onclick="paulRemoverUsuario(' + i + ')" style="background:none;border:none;color:var(--danger);font-size:16px;cursor:pointer;padding:2px 4px;" title="Remover">🗑</button>') +
+        (euAdmin ? '' : '<button onclick="paulRemoverUsuario(' + u.id + ')" style="background:none;border:none;color:var(--danger);font-size:16px;cursor:pointer;padding:2px 4px;" title="Remover">🗑</button>') +
       '</div>';
     }).join('');
   }
 
-  function paulAdicionarUsuario() {
+  async function paulAdicionarUsuario() {
     const nome   = document.getElementById('paul-usr-nome').value.trim();
     const email  = document.getElementById('paul-usr-email').value.trim().toLowerCase();
     const perfil = document.getElementById('paul-usr-perfil').value;
     if (!nome)  { alert('Informe o nome.'); return; }
     if (!email || !email.includes('@')) { alert('Informe um e-mail válido.'); return; }
-    const lista = paulUsuariosGet();
+    const lista = paulUsuariosCache();
     if (lista.some(u => u.email.toLowerCase() === email)) { alert('Este e-mail já está cadastrado.'); return; }
-    lista.push({ nome, email, perfil });
-    paulUsuariosSet(lista);
+    await paulFetch('POST', '/paulistinha/usuarios', { nome: nome + '|' + perfil, email, senha_hash: 'x' });
     document.getElementById('paul-usr-nome').value  = '';
     document.getElementById('paul-usr-email').value = '';
-    renderListaUsuarios();
+    await renderListaUsuarios();
   }
 
-  function paulRemoverUsuario(idx) {
+  async function paulRemoverUsuario(id) {
     if (!confirm('Remover este usuário?')) return;
-    const lista = paulUsuariosGet();
-    lista.splice(idx, 1);
-    paulUsuariosSet(lista);
+    await paulFetch('DELETE', '/paulistinha/usuarios/' + id);
+    await paulUsuariosCarregar();
     renderListaUsuarios();
     paulAplicarAcessoUI();
   }
 
-  function paulInicializarUsuarios() {
-    const lista = paulUsuariosGet();
+  async function paulInicializarUsuarios() {
+    await paulUsuariosCarregar();
+    const lista = paulUsuariosCache();
     if (!lista.length && currentUser) {
-      // Primeiro acesso: registra o usuário atual como admin
       const nome = (currentUser.split('@')[0] || 'Admin').replace(/[._]/g, ' ');
-      lista.push({ nome: nome.charAt(0).toUpperCase() + nome.slice(1), email: currentUser.toLowerCase(), perfil: 'admin' });
-      paulUsuariosSet(lista);
+      const nomeFormatado = nome.charAt(0).toUpperCase() + nome.slice(1);
+      await paulFetch('POST', '/paulistinha/usuarios', {
+        nome: nomeFormatado + '|admin',
+        email: currentUser.toLowerCase(),
+        senha_hash: 'x'
+      });
+      await paulUsuariosCarregar();
     }
+    paulAplicarAcessoUI();
   }
 
   // ── TIPOS DE LANÇAMENTO FINANCEIRO ──
