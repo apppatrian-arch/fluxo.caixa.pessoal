@@ -677,8 +677,8 @@
             🚪 Sair
           </button>
           <div style="padding:10px 14px;background:var(--bg);border-top:1px solid var(--border);text-align:center;">
-            <div style="font-size:11px;color:var(--text-muted);">Versão <strong style="color:var(--text);">v66</strong></div>
-            <div style="font-size:10px;color:var(--text-muted);margin-top:2px;">29/06/2026 às 09:30</div>
+            <div style="font-size:11px;color:var(--text-muted);">Versão <strong style="color:var(--text);">v67</strong></div>
+            <div style="font-size:10px;color:var(--text-muted);margin-top:2px;">29/06/2026 às 09:45</div>
           </div>
         </div>
       </div>
@@ -930,9 +930,6 @@
 
       <!-- SUB-PAINEL ESTOQUE -->
       <div id="ppainel-estoque" style="display:none;">
-
-        <!-- Cards de saldo por produto -->
-        <div id="pest-saldos" style="margin-bottom:14px;"></div>
 
         <!-- Form nova movimentação de estoque -->
         <div style="background:var(--card);border-radius:14px;padding:16px;margin-bottom:14px;">
@@ -3897,47 +3894,7 @@
   async function renderEstoque() {
     paulLoading('pest-lista', 'Carregando movimentações...');
     try {
-      const [saldos, movimentos] = await Promise.all([
-        paulFetch('GET', '/paulistinha/estoque/saldo'),
-        paulFetch('GET', '/paulistinha/estoque')
-      ]);
-
-      // Cards de saldo por produto com moldura
-      const elSaldos = document.getElementById('pest-saldos');
-      if (Array.isArray(saldos) && saldos.length) {
-        const itensComSaldo = saldos.filter(p => Number(p.saldo_caixas || 0) !== 0);
-        const itensSemSaldo = saldos.filter(p => Number(p.saldo_caixas || 0) === 0);
-
-        const cardHtml = (p) => {
-          const s = Number(p.saldo_caixas || 0);
-          const positivo = s >= 0;
-          const cor   = positivo ? 'var(--success)' : 'var(--danger)';
-          const bg    = positivo ? 'rgba(34,197,94,0.08)' : 'rgba(239,68,68,0.08)';
-          const borda = positivo ? '#22c55e' : '#ef4444';
-          return '<div style="background:' + bg + ';border:1.5px solid ' + borda + ';border-radius:12px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;">' +
-            '<div>' +
-              '<div style="font-size:9px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;">[' + p.codigo + ']</div>' +
-              '<div style="font-size:12px;font-weight:700;color:var(--text);margin-top:2px;">' + p.descricao + '</div>' +
-            '</div>' +
-            '<div style="font-size:15px;font-weight:800;color:' + cor + ';white-space:nowrap;margin-left:12px;">' + s.toLocaleString('pt-BR') + ' cx</div>' +
-          '</div>';
-        };
-
-        let html = '<div style="background:rgba(99,102,241,0.08);border:1.5px solid #6366f1;border-radius:12px;padding:14px;margin-bottom:8px;">' +
-          '<div style="font-size:12px;font-weight:700;color:#6366f1;margin-bottom:10px;">📦 Saldo em Estoque</div>' +
-          '<div style="display:flex;flex-direction:column;gap:8px;">';
-        itensComSaldo.forEach(p => { html += cardHtml(p); });
-        if (itensSemSaldo.length) {
-          html += '<details style="margin-top:4px;"><summary style="font-size:11px;color:var(--text-muted);cursor:pointer;padding:4px 0;">+ ' + itensSemSaldo.length + ' produto(s) com saldo zero</summary>' +
-            '<div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">';
-          itensSemSaldo.forEach(p => { html += cardHtml(p); });
-          html += '</div></details>';
-        }
-        html += '</div></div>';
-        elSaldos.innerHTML = html;
-      } else {
-        elSaldos.innerHTML = '';
-      }
+      const movimentos = await paulFetch('GET', '/paulistinha/estoque');
 
       // Mapa global para acesso no excluir (evitar injeção HTML via atributos)
       window._paulEstMap = {};
