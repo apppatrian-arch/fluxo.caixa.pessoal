@@ -690,7 +690,7 @@
             🚪 Sair
           </button>
           <div style="padding:10px 14px;background:var(--bg);border-top:1px solid var(--border);text-align:center;">
-            <div style="font-size:11px;color:var(--text-muted);">Versão <strong style="color:var(--text);">v86</strong></div>
+            <div style="font-size:11px;color:var(--text-muted);">Versão <strong style="color:var(--text);">v87</strong></div>
             <div style="font-size:10px;color:var(--text-muted);margin-top:2px;">29/06/2026 às 11:00</div>
           </div>
         </div>
@@ -985,7 +985,10 @@
               <input type="date" id="pfin-filtro-fim" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--bg);color:var(--text);" />
             </div>
           </div>
-          <button onclick="renderFinanceiro()" style="width:100%;padding:10px;background:var(--primary);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:12px;">🔍 Filtrar</button>
+          <div style="display:grid;grid-template-columns:1fr auto;gap:8px;margin-bottom:12px;">
+            <button onclick="renderFinanceiro()" style="padding:10px;background:var(--primary);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">🔍 Filtrar</button>
+            <button onclick="exportarPaulFinanceiro()" style="padding:10px 14px;background:var(--surface);color:var(--text);border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;" title="Exportar Excel">📥</button>
+          </div>
           <div id="pfin-lista"></div>
         </div>
         <!-- Gráfico Evolução Mensal Financeiro -->
@@ -1110,7 +1113,10 @@
               <input type="date" id="pest-filtro-fim" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--bg);color:var(--text);" />
             </div>
           </div>
-          <button onclick="renderEstoque()" style="width:100%;padding:10px;background:var(--primary);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:12px;">🔍 Filtrar</button>
+          <div style="display:grid;grid-template-columns:1fr auto;gap:8px;margin-bottom:12px;">
+            <button onclick="renderEstoque()" style="padding:10px;background:var(--primary);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">🔍 Filtrar</button>
+            <button onclick="exportarPaulEstoque()" style="padding:10px 14px;background:var(--surface);color:var(--text);border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;" title="Exportar Excel">📥</button>
+          </div>
           <div id="pest-lista"></div>
         </div>
         <!-- Gráfico Evolução Mensal Produtos -->
@@ -1151,6 +1157,7 @@
               <input type="date" id="pvend-data-fim" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--bg);color:var(--text);" />
             </div>
             <button onclick="buscarVendas()" style="padding:9px 16px;background:var(--primary);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">🔍 Buscar</button>
+            <button onclick="exportarPaulVendas()" style="padding:9px 14px;background:var(--surface);color:var(--text);border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;" title="Exportar Excel">📥</button>
           </div>
         </div>
         <!-- Cards de resumo -->
@@ -2234,6 +2241,87 @@
   function pvendSetVista(v) {
     pvend_vista = v; _paulSetVista('pvend', v);
     if (window._pvendDados) renderPvendChart(window._pvendDados);
+  }
+
+  // ── EXPORTAR EXCEL (SheetJS) ──
+  function _paulXlsx(nomeArquivo, abas) {
+    const wb = XLSX.utils.book_new();
+    abas.forEach(({ nome, linhas }) => {
+      const ws = XLSX.utils.aoa_to_sheet(linhas);
+      // Largura automática por coluna
+      const cols = linhas[0].map((_, ci) => ({
+        wch: Math.min(50, Math.max(...linhas.map(r => String(r[ci]||'').length), String(linhas[0][ci]||'').length) + 2)
+      }));
+      ws['!cols'] = cols;
+      XLSX.utils.book_append_sheet(wb, ws, nome);
+    });
+    XLSX.writeFile(wb, nomeArquivo);
+  }
+
+  function exportarPaulFinanceiro() {
+    const dados = window._pfinLanc;
+    if (!dados || !dados.length) { alert('Nenhum dado carregado. Aplique o filtro primeiro.'); return; }
+    const ini = document.getElementById('pfin-filtro-ini').value || '';
+    const fim = document.getElementById('pfin-filtro-fim').value || '';
+    const linhas = [['Data', 'Motivo', 'Detalhe', 'Valor (R$)', 'Tipo']];
+    dados.forEach(l => {
+      const partes = (l.descricao || '').split(' - ');
+      linhas.push([
+        String(l.data).slice(0,10),
+        partes[0] || '',
+        partes.slice(1).join(' - ') || '',
+        l.tipo === 'cred' ? Number(l.valor) : -Number(l.valor),
+        l.tipo === 'cred' ? 'Entrada' : 'Saída'
+      ]);
+    });
+    const periodo = (ini && fim) ? '_' + ini + '_a_' + fim : '';
+    _paulXlsx('paulistinha_financeiro' + periodo + '.xlsx', [{ nome: 'Financeiro', linhas }]);
+  }
+
+  function exportarPaulEstoque() {
+    const dados = window._pestMovs;
+    if (!dados || !dados.length) { alert('Nenhum dado carregado. Aplique o filtro primeiro.'); return; }
+    const ini = document.getElementById('pest-filtro-ini').value || '';
+    const fim = document.getElementById('pest-filtro-fim').value || '';
+    const linhas = [['Data', 'Cód. Produto', 'Produto', 'Motivo', 'Detalhe', 'Quantidade (cx)', 'Tipo']];
+    dados.forEach(m => {
+      const cod = String(m.produto_cod);
+      const partes = (m.observacao || '').split(' - ');
+      linhas.push([
+        String(m.data).slice(0,10),
+        cod,
+        paulProdutos[cod] || cod,
+        partes[0] || '',
+        partes.slice(1).join(' - ') || '',
+        m.tipo === 'entrada' ? Number(m.quantidade) : -Number(m.quantidade),
+        m.tipo === 'entrada' ? 'Entrada' : 'Saída'
+      ]);
+    });
+    const periodo = (ini && fim) ? '_' + ini + '_a_' + fim : '';
+    _paulXlsx('paulistinha_produtos' + periodo + '.xlsx', [{ nome: 'Produtos', linhas }]);
+  }
+
+  function exportarPaulVendas() {
+    const dados = window._pvendDados;
+    if (!dados || !dados.length) { alert('Nenhum dado carregado. Faça a busca primeiro.'); return; }
+    const ini = document.getElementById('pvend-data-ini').value || '';
+    const fim = document.getElementById('pvend-data-fim').value || '';
+    const linhas = [['Data Pedido', 'Nº Pedido', 'Nº Duplicata', 'Tipo', 'Valor (R$)', 'Pago (R$)', 'KG', 'Vencimento', 'Dt. Pagamento']];
+    dados.forEach(v => {
+      linhas.push([
+        String(v.data_pedido || '').slice(0,10),
+        v.nropedido || '',
+        v.nrodup    || '',
+        v.tipo      || '',
+        Number(v.valdup || 0),
+        Number(v.valpag || 0),
+        Number(v.kg     || 0),
+        String(v.datven || '').slice(0,10),
+        String(v.datpag || '').slice(0,10)
+      ]);
+    });
+    const periodo = (ini && fim) ? '_' + ini + '_a_' + fim : '';
+    _paulXlsx('paulistinha_vendas' + periodo + '.xlsx', [{ nome: 'Prod. Arapiraca', linhas }]);
   }
 
   function setHistVista(v) {
