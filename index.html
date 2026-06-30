@@ -690,7 +690,7 @@
             🚪 Sair
           </button>
           <div style="padding:10px 14px;background:var(--bg);border-top:1px solid var(--border);text-align:center;">
-            <div style="font-size:11px;color:var(--text-muted);">Versão <strong style="color:var(--text);">v87</strong></div>
+            <div style="font-size:11px;color:var(--text-muted);">Versão <strong style="color:var(--text);">v88</strong></div>
             <div style="font-size:10px;color:var(--text-muted);margin-top:2px;">29/06/2026 às 11:00</div>
           </div>
         </div>
@@ -704,7 +704,7 @@
     <div class="tabs-wrapper">
       <button class="tabs-arrow" id="tabs-prev" onclick="scrollTabs(-1)" title="Anterior">‹</button>
       <div class="tabs" id="tabs-bar">
-        <button class="tab tab-destaque active" id="tab-paulistinha" onclick="setTab('paulistinha')" style="white-space:nowrap;">🚬 Paulistinha</button>
+        <button class="tab tab-destaque active" id="tab-paulistinha" onclick="setTab('paulistinha')" style="white-space:nowrap;">🚬 Indústria B</button>
         <button class="tab" id="tab-pessoal" onclick="setTab('pessoal')" style="white-space:nowrap;">💼 Financeiro</button>
         <button class="tab" id="tab-acoes" onclick="setTab('acoes')" style="white-space:nowrap;">📈 Ações</button>
       </div>
@@ -880,7 +880,7 @@
 
       <!-- Header Paulistinha com botão de usuários -->
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-        <div style="font-size:15px;font-weight:700;color:var(--text);">Paulistinha</div>
+        <div style="font-size:15px;font-weight:700;color:var(--text);">Indústria B</div>
         <button id="btn-paul-usuarios" onclick="togglePainelUsuarios()" style="display:none;font-size:12px;padding:6px 12px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text-muted);cursor:pointer;font-weight:600;">⚙️ Usuários</button>
       </div>
 
@@ -915,7 +915,7 @@
       <div style="display:flex;gap:8px;margin-bottom:16px;">
         <button id="ptab-financeiro" onclick="setPTab('financeiro')" style="flex:1;padding:10px 0;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;background:var(--primary);color:white;">💰 Financeiro</button>
         <button id="ptab-estoque" onclick="setPTab('estoque')" style="flex:1;padding:10px 0;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;background:var(--bg);color:var(--text-muted);border:1.5px solid var(--border);">📦 Produtos</button>
-        <button id="ptab-vendas" onclick="setPTab('vendas')" style="flex:1;padding:10px 0;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;background:var(--bg);color:var(--text-muted);border:1.5px solid var(--border);">📋 Prod. Arapiraca</button>
+        <button id="ptab-vendas" onclick="setPTab('vendas')" style="flex:1;padding:10px 0;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;background:var(--bg);color:var(--text-muted);border:1.5px solid var(--border);">📋 Indústria A</button>
         <button id="ptab-lixeira" onclick="setPTab('lixeira')" style="padding:10px 14px;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;background:var(--bg);color:var(--text-muted);border:1.5px solid var(--border);" title="Excluídos">🗑</button>
       </div>
 
@@ -1781,7 +1781,7 @@
       const btn = document.getElementById('tab-' + t);
       if (btn) btn.classList.toggle('active', t === tab);
     });
-    const titulos = { paulistinha: 'Paulistinha', pessoal: 'Financeiro', acoes: 'Ações' };
+    const titulos = { paulistinha: 'Indústria B', pessoal: 'Financeiro', acoes: 'Ações' };
     const el = document.getElementById('topbar-title');
     if (el) el.textContent = titulos[tab] || 'Dashboard';
     if (tab === 'paulistinha') initPaulistinha();
@@ -2321,7 +2321,7 @@
       ]);
     });
     const periodo = (ini && fim) ? '_' + ini + '_a_' + fim : '';
-    _paulXlsx('paulistinha_vendas' + periodo + '.xlsx', [{ nome: 'Prod. Arapiraca', linhas }]);
+    _paulXlsx('industria_a_vendas' + periodo + '.xlsx', [{ nome: 'Indústria A', linhas }]);
   }
 
   function setHistVista(v) {
