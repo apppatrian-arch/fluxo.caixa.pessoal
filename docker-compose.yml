@@ -15,5 +15,6 @@ services:
       - GH_OWNER=${GH_OWNER}
       - GH_REPO=${GH_REPO}
       - GH_BRANCH=${GH_BRANCH:-main}
+      - GH_SUBDIR=${GH_SUBDIR:-}
     labels:
       - "com.docker.compose.project=fluxo-caixa-pessoal"
