@@ -1278,6 +1278,7 @@
               <div style="font-size:14px;font-weight:700;">💼 Minhas Carteiras</div>
               <div style="display:flex;align-items:center;gap:6px;">
                 <button onclick="forcaSincCarteiras()" title="Sincronizar com banco de dados" style="padding:6px 10px;background:transparent;border:1.5px solid var(--border);border-radius:8px;font-size:12px;cursor:pointer;color:var(--text-muted);">🔄</button>
+                <button onclick="exportarTodasCarteirasExcel()" title="Exportar todas as carteiras para Excel" style="padding:6px 10px;background:transparent;border:1.5px solid var(--border);border-radius:8px;font-size:12px;cursor:pointer;color:var(--text-muted);">📥 Excel</button>
                 <button onclick="abrirModalCarteira()" style="padding:7px 14px;background:var(--primary);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">+ Nova Carteira</button>
               </div>
             </div>
@@ -3692,6 +3693,73 @@
     renderCarteiras();
   }
 
+  function _csvRow(cols) {
+    return cols.map(v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"').join(';');
+  }
+
+  function _csvHeader() {
+    return _csvRow(['Ticker','Qtd','Preço Médio (R$)','Preço Atual (R$)','Custo Total (R$)','Saldo Atual (R$)','Part. (%)','Lucro/Prejuízo (R$)','Var. Total (%)','Var. Dia (%)','Var. Dia (R$)','Saldo Dia (R$)']);
+  }
+
+  function _csvLinhasCarteira(c) {
+    const fmtN = v => Number(v).toFixed(2).replace('.', ',');
+    const totalAtual = c.acoes.reduce((s, a) => s + a.qtd * (a.precoAtual || a.custo), 0);
+    const totalCusto = c.acoes.reduce((s, a) => s + a.qtd * a.custo, 0);
+    const linhas = c.acoes.map(a => {
+      const tCusto = a.qtd * a.custo, tAtual = a.qtd * (a.precoAtual || a.custo);
+      const lucro  = tAtual - tCusto;
+      const varPct = tCusto > 0 ? (lucro / tCusto * 100) : 0;
+      const part   = totalAtual > 0 ? (tAtual / totalAtual * 100) : 0;
+      const sdDia  = a.varDiaVal != null ? a.qtd * a.varDiaVal : null;
+      return _csvRow([
+        a.ticker, a.qtd, fmtN(a.custo),
+        a.precoAtual ? fmtN(a.precoAtual) : '',
+        fmtN(tCusto), fmtN(tAtual), fmtN(part),
+        a.precoAtual ? fmtN(lucro) : '',
+        fmtN(varPct),
+        a.varDiaPct != null ? fmtN(a.varDiaPct) : '',
+        a.varDiaVal != null ? fmtN(a.varDiaVal) : '',
+        sdDia != null ? fmtN(sdDia) : ''
+      ]);
+    });
+    // Linha de totais
+    const lucroTot = totalAtual - totalCusto;
+    const varTot   = totalCusto > 0 ? (lucroTot / totalCusto * 100) : 0;
+    const sdDiaTot = c.acoes.reduce((s, a) => a.varDiaVal != null ? s + a.qtd * a.varDiaVal : s, 0);
+    const temDia   = c.acoes.some(a => a.varDiaVal != null);
+    linhas.push(_csvRow(['TOTAL','','','',fmtN(totalCusto),fmtN(totalAtual),'100,00',fmtN(lucroTot),fmtN(varTot),'','',temDia ? fmtN(sdDiaTot) : '']));
+    return linhas;
+  }
+
+  function _downloadCsv(csv, filename) {
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url; link.download = filename; link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function exportarCarteiraExcel(id) {
+    const c = carteiras.find(x => x.id === id);
+    if (!c) return;
+    const hoje = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
+    const csv  = [_csvHeader(), ..._csvLinhasCarteira(c)].join('\r\n');
+    _downloadCsv(csv, 'carteira_' + c.nome.replace(/[^\w]/g, '_') + '_' + hoje + '.csv');
+  }
+
+  function exportarTodasCarteirasExcel() {
+    if (!carteiras.length) { alert('Nenhuma carteira para exportar.'); return; }
+    const hoje = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
+    const partes = [];
+    carteiras.forEach(c => {
+      partes.push('"Carteira: ' + c.nome + '"');
+      partes.push(_csvHeader());
+      partes.push(..._csvLinhasCarteira(c));
+      partes.push('');
+    });
+    _downloadCsv(partes.join('\r\n'), 'carteiras_' + hoje + '.csv');
+  }
+
   // Controla seleção Compra / Venda no formulário de cada carteira
   function setTipoMovCart(carteiraId, tipo) {
     const btnC = document.getElementById('ci-tipo-compra-' + carteiraId);
@@ -4010,6 +4078,7 @@
           '<div style="display:flex;gap:6px;">' +
             '<button id="cbtn-atualizar-' + c.id + '" onclick="atualizarCotacoesCarteira(\'' + c.id + '\')" style="background:rgba(255,255,255,0.2);border:none;border-radius:6px;color:white;font-size:12px;padding:4px 10px;cursor:pointer;" title="Atualizar cotações">🔄</button>' +
             '<button onclick="toggleCarteiraView(\'' + c.id + '\')" style="background:' + (viewMode==='chart' ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.2)') + ';border:none;border-radius:6px;color:white;font-size:12px;padding:4px 10px;cursor:pointer;" title="Alternar gráfico/tabela">📊</button>' +
+            '<button onclick="exportarCarteiraExcel(\'' + c.id + '\')" style="background:rgba(255,255,255,0.2);border:none;border-radius:6px;color:white;font-size:12px;padding:4px 10px;cursor:pointer;" title="Exportar para Excel">📥</button>' +
             '<button onclick="abrirModalCarteira(\'' + c.id + '\')" style="background:rgba(255,255,255,0.2);border:none;border-radius:6px;color:white;font-size:12px;padding:4px 10px;cursor:pointer;">✏️</button>' +
             '<button onclick="excluirCarteira(\'' + c.id + '\')" style="background:rgba(255,255,255,0.2);border:none;border-radius:6px;color:white;font-size:12px;padding:4px 10px;cursor:pointer;">🗑</button>' +
           '</div>' +
