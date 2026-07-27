@@ -3992,16 +3992,25 @@
 
     await Promise.all(uniqueTickers.map(async ticker => {
       try {
-        const r = await fetch(brapiUrl('/quote/' + ticker + '?fundamental=false'));
+        const r = await fetch(brapiUrl('/quote/' + ticker + '?range=5d&interval=1d&fundamental=false'));
         if (!r.ok) return;
         const data = await r.json();
         const q = data.results && data.results[0];
         if (q && q.regularMarketPrice) {
-          const sym = (q.symbol || ticker).replace('.SA','').toUpperCase();
+          const sym  = (q.symbol || ticker).replace('.SA','').toUpperCase();
+          const hist = q.historicalDataPrice;
+          let var7dPct = null;
+          if (hist && hist.length >= 2) {
+            const base = hist[0].close;
+            if (base && base > 0) var7dPct = (Number(q.regularMarketPrice) - base) / base * 100;
+          }
           precos[sym] = {
-            preco:    Number(q.regularMarketPrice),
+            preco:     Number(q.regularMarketPrice),
             varDiaPct: q.regularMarketChangePercent != null ? Number(q.regularMarketChangePercent) : null,
             varDiaVal: q.regularMarketChange        != null ? Number(q.regularMarketChange)        : null,
+            min52:     q.fiftyTwoWeekLow  != null ? Number(q.fiftyTwoWeekLow)  : null,
+            max52:     q.fiftyTwoWeekHigh != null ? Number(q.fiftyTwoWeekHigh) : null,
+            var7dPct,
           };
         }
       } catch(e) { /* ignora erro individual */ }
@@ -4010,9 +4019,12 @@
     c.acoes.forEach(a => {
       const sym = a.ticker.replace('.SA','').toUpperCase();
       if (precos[sym]) {
-        a.precoAtual   = precos[sym].preco;
-        a.varDiaPct    = precos[sym].varDiaPct;
-        a.varDiaVal    = precos[sym].varDiaVal;
+        a.precoAtual = precos[sym].preco;
+        a.varDiaPct  = precos[sym].varDiaPct;
+        a.varDiaVal  = precos[sym].varDiaVal;
+        a.var7dPct   = precos[sym].var7dPct;
+        a.min52      = precos[sym].min52;
+        a.max52      = precos[sym].max52;
       }
     });
     salvarCarteiras();
@@ -4069,6 +4081,9 @@
           if (ss.col === 'vardiapct') return x.varDiaPct != null ? x.varDiaPct : -Infinity;
           if (ss.col === 'vardiav')   return x.varDiaVal != null ? x.varDiaVal : -Infinity;
           if (ss.col === 'saldodia')  return x.varDiaVal != null ? x.qtd * x.varDiaVal : -Infinity;
+          if (ss.col === 'var7d')     return x.var7dPct  != null ? x.var7dPct  : -Infinity;
+          if (ss.col === 'min52')     return x.min52     != null ? x.min52     : -Infinity;
+          if (ss.col === 'max52')     return x.max52     != null ? x.max52     : -Infinity;
           return 0;
         };
         const va = valFn(a), vb = valFn(b);
@@ -4101,7 +4116,10 @@
         const saldoDia    = temDia ? a.qtd * a.varDiaVal : null;
         const corSaldoDia = saldoDia != null ? (saldoDia >= 0 ? 'var(--success)' : 'var(--danger)') : 'var(--text-muted)';
         const prefSaldoDia= saldoDia != null && saldoDia >= 0 ? '+' : '';
-        const bgLinha = idx % 2 === 0 ? 'var(--bg)' : 'var(--surface)';
+        const bgLinha    = idx % 2 === 0 ? 'var(--bg)' : 'var(--surface)';
+        const tem7d      = a.var7dPct != null;
+        const cor7d      = tem7d ? (a.var7dPct >= 0 ? 'var(--success)' : 'var(--danger)') : 'var(--text-muted)';
+        const pref7d     = tem7d && a.var7dPct >= 0 ? '+' : '';
         return '<tr style="border-bottom:1px solid var(--border);background:' + bgLinha + ';">' +
           '<td style="padding:8px;font-size:12px;font-weight:700;white-space:nowrap;">' + a.ticker + '</td>' +
           '<td style="padding:8px;font-size:12px;text-align:right;">' + Number(a.qtd).toLocaleString('pt-BR') + '</td>' +
@@ -4111,12 +4129,15 @@
           '<td style="padding:8px;font-size:12px;font-weight:700;text-align:right;color:var(--text-muted);">' + Number(partPct).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}) + '%</td>' +
           '<td style="padding:8px;font-size:12px;font-weight:700;text-align:right;color:' + (a.precoAtual ? corLucro : 'var(--text-muted)') + ';">' + (a.precoAtual ? prefLucro + fmt(lucroAcao) : '—') + '</td>' +
           '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + corAcao + ';">' + fmtPct(varAcao) + '</td>' +
+          '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + cor7d + ';">' + (tem7d ? pref7d + fmtPct(a.var7dPct) : '—') + '</td>' +
           '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + corDia + ';">' + (temDia ? prefDia + fmtPct(a.varDiaPct) : '—') + '</td>' +
           '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + corDia + ';">' + (temDia ? prefDia + fmt(a.varDiaVal) : '—') + '</td>' +
           '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + corSaldoDia + ';">' + (saldoDia != null ? prefSaldoDia + fmt(saldoDia) : '—') + '</td>' +
+          '<td style="padding:8px;font-size:11px;text-align:right;color:' + (a.min52 ? 'var(--danger)' : 'var(--text-muted)') + ';">' + (a.min52 ? fmt(a.min52) : '—') + '</td>' +
+          '<td style="padding:8px;font-size:11px;text-align:right;color:' + (a.max52 ? 'var(--success)' : 'var(--text-muted)') + ';">' + (a.max52 ? fmt(a.max52) : '—') + '</td>' +
           '<td style="padding:8px;">' + acoes + '</td>' +
         '</tr>';
-      }).join('') : '<tr><td colspan="12" style="padding:12px;text-align:center;color:var(--text-muted);font-size:12px;">Nenhuma ação. Adicione abaixo.</td></tr>';
+      }).join('') : '<tr><td colspan="15" style="padding:12px;text-align:center;color:var(--text-muted);font-size:12px;">Nenhuma ação. Adicione abaixo.</td></tr>';
 
       const lucroTotal   = totalAtual - totalCusto;
       const corLucroTot  = lucroTotal >= 0 ? 'var(--success)' : 'var(--danger)';
@@ -4135,6 +4156,7 @@
         '<td style="padding:8px;font-size:12px;font-weight:800;text-align:right;color:' + corVar + ';">' + fmtPct(varTotal) + '</td>' +
         '<td colspan="2" style="padding:8px;font-size:11px;color:var(--text-muted);text-align:right;">—</td>' +
         '<td style="padding:8px;font-size:12px;font-weight:800;text-align:right;color:' + (temDiaTot ? corDiaTot : 'var(--text-muted)') + ';">' + (temDiaTot ? prefDiaTot + fmt(saldoDiaTotal) : '—') + '</td>' +
+        '<td colspan="2" style="padding:8px;font-size:11px;color:var(--text-muted);text-align:right;">—</td>' +
         '<td></td></tr>' : '';
 
       const viewMode = carteiraViewMode[c.id] || 'table';
@@ -4203,9 +4225,12 @@
             th('part',      'Part.%',     'right') +
             th('lucro',     'Lucro/Prej.','right') +
             th('var',       'Var%',       'right') +
+            th('var7d',     'Últ.7d',     'right') +
             th('vardiapct', 'Var.Dia%',   'right') +
             th('vardiav',   'Var.Dia R$', 'right') +
             th('saldodia',  'Saldo Dia',  'right') +
+            th('min52',     'Mín.52sem',  'right') +
+            th('max52',     'Máx.52sem',  'right') +
             '<th style="padding:7px 8px;font-size:10px;color:var(--text-muted);text-align:center;font-weight:700;">Ações</th>' +
           '</tr></thead>' +
           '<tbody>' + linhasAcoes + rodape + '</tbody>' +
