@@ -3567,7 +3567,8 @@
     if (el) el.innerHTML = '<span style="color:' + (ok ? '#22c55e' : (ok === false ? '#ef4444' : 'var(--text-muted)')) + ';">' + msg + '</span>';
   }
 
-  const _CHUNK_SIZE = 150; // seguro para VARCHAR(200) com espaço para prefix+index
+  // Calcula chunk size dinamicamente: VARCHAR(200) - prefixo - até '99|' (3 chars)
+  function _chunkSize() { return Math.max(40, 200 - _cfgPrefix().length - 3); }
 
   async function carregarCarteirasDB() {
     _setSyncStatus('⏳ Sincronizando...', null);
@@ -3617,7 +3618,8 @@
       // Divide em chunks e salva cada um
       const encoded = _cartB64Enc(carteiras);
       const chunks = [];
-      for (let i = 0; i < encoded.length; i += _CHUNK_SIZE) chunks.push(encoded.slice(i, i + _CHUNK_SIZE));
+      const csz = _chunkSize();
+      for (let i = 0; i < encoded.length; i += csz) chunks.push(encoded.slice(i, i + csz));
       if (chunks.length === 0) chunks.push(''); // garante ao menos 1 registro
       for (let i = 0; i < chunks.length; i++) {
         await paulFetch('POST', '/paulistinha/financeiro', {
