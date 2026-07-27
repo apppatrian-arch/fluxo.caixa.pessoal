@@ -1270,6 +1270,17 @@
             <div id="acoes-resultado"></div>
           </div>
 
+          <!-- Taxa Selic -->
+          <div style="background:var(--card);border-radius:14px;padding:16px;margin-bottom:14px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+              <div style="font-size:14px;font-weight:700;">🏦 Taxa Selic</div>
+              <button onclick="buscarSelic()" id="btn-selic-refresh" title="Atualizar" style="background:transparent;border:1.5px solid var(--border);border-radius:8px;padding:4px 9px;font-size:12px;cursor:pointer;color:var(--text-muted);">🔄</button>
+            </div>
+            <div id="selic-resultado">
+              <div style="text-align:center;color:var(--text-muted);font-size:12px;padding:8px 0;">Carregando...</div>
+            </div>
+          </div>
+
         </div><!-- /coluna esquerda -->
 
         <!-- COLUNA DIREITA: Carteiras -->
@@ -3441,6 +3452,7 @@
   // ══════════════════════════════════════════
   async function initAcoes() {
     renderTokenAcoes();
+    buscarSelic();
     // Garante autenticação antes de carregar do DB
     if (!paulToken) await paulAuth();
     const loaded = await carregarCarteirasDB();
@@ -3448,6 +3460,46 @@
       carteiras = JSON.parse(localStorage.getItem(_chavCarteiras()) || '[]');
     }
     renderCarteiras();
+  }
+
+  async function buscarSelic() {
+    const el  = document.getElementById('selic-resultado');
+    const btn = document.getElementById('btn-selic-refresh');
+    if (!el) return;
+    if (btn) btn.style.opacity = '0.4';
+    try {
+      // Série 432 = Meta da Taxa Selic (% a.a.) — API pública do Banco Central
+      const [meta, diaria] = await Promise.all([
+        fetch('https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/1?formato=json').then(r => r.json()),
+        fetch('https://api.bcb.gov.br/dados/serie/bcdata.sgs.11/dados/ultimos/1?formato=json').then(r => r.json())
+      ]);
+      const taxaMeta   = parseFloat(String(meta[0].valor).replace(',', '.'));
+      const taxaDiaria = parseFloat(String(diaria[0].valor).replace(',', '.'));
+      const dataMeta   = meta[0].data;
+      // Selic mensal aproximada: (1 + anual/100)^(1/12) - 1
+      const taxaMensal = (Math.pow(1 + taxaMeta / 100, 1 / 12) - 1) * 100;
+
+      el.innerHTML =
+        '<div style="display:flex;gap:10px;align-items:stretch;">' +
+          '<div style="flex:1;background:var(--bg);border-radius:10px;padding:12px;text-align:center;">' +
+            '<div style="font-size:10px;color:var(--text-muted);margin-bottom:4px;">Meta (a.a.)</div>' +
+            '<div style="font-size:22px;font-weight:800;color:var(--primary);">' + taxaMeta.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}) + '%</div>' +
+          '</div>' +
+          '<div style="flex:1;background:var(--bg);border-radius:10px;padding:12px;text-align:center;">' +
+            '<div style="font-size:10px;color:var(--text-muted);margin-bottom:4px;">Mensal aprox.</div>' +
+            '<div style="font-size:22px;font-weight:800;color:#22c55e;">' + taxaMensal.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}) + '%</div>' +
+          '</div>' +
+          '<div style="flex:1;background:var(--bg);border-radius:10px;padding:12px;text-align:center;">' +
+            '<div style="font-size:10px;color:var(--text-muted);margin-bottom:4px;">Diária</div>' +
+            '<div style="font-size:22px;font-weight:800;color:var(--text);">' + taxaDiaria.toLocaleString('pt-BR', {minimumFractionDigits:4, maximumFractionDigits:4}) + '%</div>' +
+          '</div>' +
+        '</div>' +
+        '<div style="margin-top:8px;font-size:10px;color:var(--text-muted);text-align:right;">Fonte: Banco Central do Brasil · Atualizado em ' + dataMeta + '</div>';
+    } catch(e) {
+      el.innerHTML = '<div style="color:var(--danger);font-size:12px;text-align:center;">❌ Erro ao buscar Selic: ' + e.message + '</div>';
+    } finally {
+      if (btn) btn.style.opacity = '1';
+    }
   }
 
   function renderTokenAcoes() {
