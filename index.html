@@ -705,6 +705,7 @@
           <div style="padding:10px 14px;background:var(--bg);border-top:1px solid var(--border);text-align:center;">
             <div style="font-size:11px;color:var(--text-muted);">Versão <strong id="paul-menu-versao" style="color:var(--text);">v111</strong></div>
             <div style="font-size:10px;color:var(--text-muted);margin-top:2px;" id="paul-menu-versao-data">17/07/2026 às 10:30</div>
+            <button onclick="forcarAtualizacaoApp()" id="btn-forcar-update" style="margin-top:8px;padding:5px 14px;background:transparent;border:1.5px solid var(--border);border-radius:8px;font-size:11px;cursor:pointer;color:var(--text-muted);">🔄 Verificar atualização</button>
           </div>
         </div>
       </div>
@@ -3369,7 +3370,28 @@
         }
       }
     });
-    navigator.serviceWorker.register('./sw.js').then(reg => {
+    let _swReg = null;
+
+    function forcarAtualizacaoApp() {
+      const btn = document.getElementById('btn-forcar-update');
+      if (btn) { btn.textContent = '⏳ Verificando...'; btn.disabled = true; }
+      if (_swReg) {
+        _swReg.update().then(() => {
+          if (_swReg.waiting) {
+            _swReg.waiting.postMessage({ type: 'SKIP_WAITING' });
+          } else {
+            if (btn) { btn.textContent = '✅ Já está na versão mais recente'; btn.disabled = false; }
+          }
+        }).catch(() => {
+          if (btn) { btn.textContent = '❌ Erro ao verificar'; btn.disabled = false; }
+        });
+      } else {
+        window.location.reload();
+      }
+    }
+
+    navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).then(reg => {
+      _swReg = reg;
       // Força verificação imediata de nova versão
       reg.update();
 
