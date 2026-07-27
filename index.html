@@ -3992,27 +3992,44 @@
 
     await Promise.all(uniqueTickers.map(async ticker => {
       try {
-        const r = await fetch(brapiUrl('/quote/' + ticker + '?range=5d&interval=1d&fundamental=false'));
-        if (!r.ok) return;
-        const data = await r.json();
-        const q = data.results && data.results[0];
-        if (q && q.regularMarketPrice) {
-          const sym  = (q.symbol || ticker).replace('.SA','').toUpperCase();
-          const hist = q.historicalDataPrice;
-          let var7dPct = null;
-          if (hist && hist.length >= 2) {
-            const base = hist[0].close;
-            if (base && base > 0) var7dPct = (Number(q.regularMarketPrice) - base) / base * 100;
-          }
-          precos[sym] = {
-            preco:     Number(q.regularMarketPrice),
-            varDiaPct: q.regularMarketChangePercent != null ? Number(q.regularMarketChangePercent) : null,
-            varDiaVal: q.regularMarketChange        != null ? Number(q.regularMarketChange)        : null,
-            min52:     q.fiftyTwoWeekLow  != null ? Number(q.fiftyTwoWeekLow)  : null,
-            max52:     q.fiftyTwoWeekHigh != null ? Number(q.fiftyTwoWeekHigh) : null,
-            var7dPct,
-          };
+        const [r5d, r1y] = await Promise.all([
+          fetch(brapiUrl('/quote/' + ticker + '?range=5d&interval=1d&fundamental=false')),
+          fetch(brapiUrl('/quote/' + ticker + '?range=1y&interval=1mo&fundamental=false'))
+        ]);
+        const data = r5d.ok ? await r5d.json() : null;
+        const q = data && data.results && data.results[0];
+        if (!q || !q.regularMarketPrice) return;
+
+        const sym = (q.symbol || ticker).replace('.SA','').toUpperCase();
+
+        // 7 dias: preço de ~5 pregões atrás vs atual
+        const hist5 = q.historicalDataPrice || [];
+        const getClose = h => h && (h.close || h.adjustedClose || 0);
+        let var7dPct = null;
+        if (hist5.length >= 2) {
+          const base = getClose(hist5[0]);
+          if (base > 0) var7dPct = (Number(q.regularMarketPrice) - base) / base * 100;
         }
+
+        // 52 semanas: min/max dos fechamentos mensais do último ano
+        let min52 = null, max52 = null;
+        if (r1y.ok) {
+          const data1y = await r1y.json();
+          const q1y = data1y && data1y.results && data1y.results[0];
+          const hist1y = (q1y && q1y.historicalDataPrice) || [];
+          const closes = hist1y.map(getClose).filter(v => v > 0);
+          if (closes.length) {
+            min52 = Math.min(...closes);
+            max52 = Math.max(...closes);
+          }
+        }
+
+        precos[sym] = {
+          preco:     Number(q.regularMarketPrice),
+          varDiaPct: q.regularMarketChangePercent != null ? Number(q.regularMarketChangePercent) : null,
+          varDiaVal: q.regularMarketChange        != null ? Number(q.regularMarketChange)        : null,
+          var7dPct, min52, max52,
+        };
       } catch(e) { /* ignora erro individual */ }
     }));
 
