@@ -3370,9 +3370,26 @@
       }
     });
     navigator.serviceWorker.register('./sw.js').then(reg => {
-      // Verifica se já existe uma nova versão aguardando
+      // Força verificação imediata de nova versão
+      reg.update();
+
+      function aplicarAtualizacao(sw) {
+        sw.postMessage({ type: 'SKIP_WAITING' });
+      }
+
+      function mostrarBannerAtualizar() {
+        if (document.getElementById('paul-update-banner')) return;
+        const b = document.createElement('div');
+        b.id = 'paul-update-banner';
+        b.style.cssText = 'position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#1d4ed8;color:white;border-radius:12px;padding:12px 18px;display:flex;align-items:center;gap:12px;box-shadow:0 4px 20px rgba(0,0,0,0.3);z-index:9999;font-size:13px;font-weight:600;max-width:90vw;';
+        b.innerHTML = '<span>🆕 Nova versão disponível!</span><button onclick="window.location.reload()" style="background:white;color:#1d4ed8;border:none;border-radius:8px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer;">Atualizar</button>';
+        document.body.appendChild(b);
+      }
+
+      // Já havia um SW esperando (ex: aba ficou aberta)
       if (reg.waiting) {
-        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+        mostrarBannerAtualizar();
+        aplicarAtualizacao(reg.waiting);
       }
 
       // Nova versão encontrada durante a visita
@@ -3380,7 +3397,8 @@
         const novo = reg.installing;
         novo.addEventListener('statechange', () => {
           if (novo.state === 'installed' && navigator.serviceWorker.controller) {
-            novo.postMessage({ type: 'SKIP_WAITING' });
+            mostrarBannerAtualizar();
+            aplicarAtualizacao(novo);
           }
         });
       });
