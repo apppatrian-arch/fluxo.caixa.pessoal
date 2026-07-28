@@ -4101,12 +4101,10 @@
           if (ss.col === 'vardiav')   return x.varDiaVal != null ? x.varDiaVal : -Infinity;
           if (ss.col === 'saldodia')  return x.varDiaVal != null ? x.qtd * x.varDiaVal : -Infinity;
           if (ss.col === 'var7d')     return x.var7dPct  != null ? x.var7dPct  : -Infinity;
-          if (ss.col === 'min52')     return x.min52     != null ? x.min52     : -Infinity;
-          if (ss.col === 'max52')     return x.max52     != null ? x.max52     : -Infinity;
-          if (ss.col === 'pos52') {
-            const p = x.precoAtual, mn = x.min52, mx = x.max52;
-            return p != null && mn != null && mx != null && mx > mn ? (p - mn) / (mx - mn) * 100 : -Infinity;
-          }
+          if (ss.col === 'min52')   return x.min52 != null ? x.min52 : -Infinity;
+          if (ss.col === 'max52')   return x.max52 != null ? x.max52 : -Infinity;
+          if (ss.col === 'vsmin52') return x.precoAtual != null && x.min52 > 0 ? (x.precoAtual - x.min52) / x.min52 * 100 : -Infinity;
+          if (ss.col === 'vsmax52') return x.precoAtual != null && x.max52 > 0 ? (x.precoAtual - x.max52) / x.max52 * 100 : -Infinity;
           return 0;
         };
         const va = valFn(a), vb = valFn(b);
@@ -4143,23 +4141,22 @@
         const tem7d      = a.var7dPct != null;
         const cor7d      = tem7d ? (a.var7dPct >= 0 ? 'var(--success)' : 'var(--danger)') : 'var(--text-muted)';
         const pref7d     = tem7d && a.var7dPct >= 0 ? '+' : '';
-        const tem52      = a.precoAtual != null && a.min52 != null && a.max52 != null && a.max52 > a.min52;
-        const pos52      = tem52 ? (a.precoAtual - a.min52) / (a.max52 - a.min52) * 100 : null;
-        const cor52      = pos52 == null ? 'var(--text-muted)' : pos52 >= 70 ? 'var(--success)' : pos52 <= 30 ? 'var(--danger)' : 'var(--text)';
-        const pos52Bar   = pos52 != null
-          ? '<div style="font-size:11px;font-weight:700;color:' + cor52 + ';">' + Number(pos52).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}) + '%</div>' +
-            '<div style="height:3px;background:var(--border);border-radius:2px;margin-top:2px;overflow:hidden;min-width:50px;">' +
-              '<div style="height:100%;width:' + Math.min(100,Math.max(0,pos52)) + '%;background:' + cor52 + ';border-radius:2px;"></div>' +
-            '</div>'
-          : '<span style="color:var(--text-muted);">—</span>';
+        const temMin52   = a.precoAtual != null && a.min52 != null && a.min52 > 0;
+        const temMax52   = a.precoAtual != null && a.max52 != null && a.max52 > 0;
+        const vsMin52    = temMin52 ? (a.precoAtual - a.min52) / a.min52 * 100 : null;
+        const vsMáx52    = temMax52 ? (a.precoAtual - a.max52) / a.max52 * 100 : null;
+        const corVsMin   = vsMin52 == null ? 'var(--text-muted)' : vsMin52 >= 0 ? 'var(--success)' : 'var(--danger)';
+        const corVsMax   = vsMáx52 == null ? 'var(--text-muted)' : vsMáx52 >= 0 ? 'var(--success)' : 'var(--danger)';
+        const fmtPct2 = v => (v >= 0 ? '+' : '') + Number(v).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}) + '%';
         return '<tr style="border-bottom:1px solid var(--border);background:' + bgLinha + ';">' +
           '<td style="padding:8px;font-size:12px;font-weight:700;white-space:nowrap;">' + a.ticker + '</td>' +
           '<td style="padding:8px;font-size:12px;text-align:right;">' + Number(a.qtd).toLocaleString('pt-BR') + '</td>' +
           '<td style="padding:8px;font-size:12px;text-align:right;">' + fmt(a.custo) + '</td>' +
           '<td style="padding:8px;font-size:12px;text-align:right;color:' + (a.precoAtual ? 'var(--text)' : 'var(--text-muted)') + ';">' + (a.precoAtual ? fmt(a.precoAtual) : '—') + '</td>' +
           '<td style="padding:8px;font-size:11px;text-align:right;color:' + (a.min52 ? 'var(--danger)' : 'var(--text-muted)') + ';">' + (a.min52 ? fmt(a.min52) : '—') + '</td>' +
+          '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + corVsMin + ';">' + (vsMin52 != null ? fmtPct2(vsMin52) : '—') + '</td>' +
           '<td style="padding:8px;font-size:11px;text-align:right;color:' + (a.max52 ? 'var(--success)' : 'var(--text-muted)') + ';">' + (a.max52 ? fmt(a.max52) : '—') + '</td>' +
-          '<td style="padding:6px 8px;text-align:right;">' + pos52Bar + '</td>' +
+          '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + corVsMax + ';">' + (vsMáx52 != null ? fmtPct2(vsMáx52) : '—') + '</td>' +
           '<td style="padding:8px;font-size:12px;font-weight:700;text-align:right;color:' + (a.precoAtual ? 'var(--text)' : 'var(--text-muted)') + ';">' + fmt(saldoAcao) + '</td>' +
           '<td style="padding:8px;font-size:12px;font-weight:700;text-align:right;color:var(--text-muted);">' + Number(partPct).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}) + '%</td>' +
           '<td style="padding:8px;font-size:12px;font-weight:700;text-align:right;color:' + (a.precoAtual ? corLucro : 'var(--text-muted)') + ';">' + (a.precoAtual ? prefLucro + fmt(lucroAcao) : '—') + '</td>' +
@@ -4170,7 +4167,7 @@
           '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + corSaldoDia + ';">' + (saldoDia != null ? prefSaldoDia + fmt(saldoDia) : '—') + '</td>' +
           '<td style="padding:8px;">' + acoes + '</td>' +
         '</tr>';
-      }).join('') : '<tr><td colspan="16" style="padding:12px;text-align:center;color:var(--text-muted);font-size:12px;">Nenhuma ação. Adicione abaixo.</td></tr>';
+      }).join('') : '<tr><td colspan="17" style="padding:12px;text-align:center;color:var(--text-muted);font-size:12px;">Nenhuma ação. Adicione abaixo.</td></tr>';
 
       const lucroTotal   = totalAtual - totalCusto;
       const corLucroTot  = lucroTotal >= 0 ? 'var(--success)' : 'var(--danger)';
@@ -4183,7 +4180,7 @@
         '<td colspan="2" style="padding:8px;font-size:12px;font-weight:700;">Total</td>' +
         '<td style="padding:8px;font-size:11px;color:var(--text-muted);text-align:right;">' + fmt(totalCusto) + '</td>' +
         '<td style="padding:8px;font-size:11px;color:var(--text-muted);text-align:right;">' + fmt(totalAtual) + '</td>' +
-        '<td colspan="3" style="padding:8px;font-size:11px;color:var(--text-muted);text-align:center;">—</td>' +
+        '<td colspan="4" style="padding:8px;font-size:11px;color:var(--text-muted);text-align:center;">—</td>' +
         '<td style="padding:8px;font-size:12px;font-weight:800;text-align:right;">' + fmt(totalAtual) + '</td>' +
         '<td style="padding:8px;font-size:12px;font-weight:800;text-align:right;color:var(--text-muted);">100%</td>' +
         '<td style="padding:8px;font-size:12px;font-weight:800;text-align:right;color:' + corLucroTot + ';">' + prefLucroTot + fmt(lucroTotal) + '</td>' +
@@ -4255,8 +4252,9 @@
             th('custo',     'Custo',      'right') +
             th('atual',     'Atual',      'right') +
             th('min52',     'Mín.52sem',  'right') +
+            th('vsmin52',   '%vsMin',     'right') +
             th('max52',     'Máx.52sem',  'right') +
-            th('pos52',     'Pos.52sem',  'right') +
+            th('vsmax52',   '%vsMáx',     'right') +
             th('saldo',     'Saldo',      'right') +
             th('part',      'Part.%',     'right') +
             th('lucro',     'Lucro/Prej.','right') +
