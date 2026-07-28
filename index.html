@@ -3998,37 +3998,28 @@
 
     await Promise.all(uniqueTickers.map(async ticker => {
       try {
-        const [r5d, r1y] = await Promise.all([
-          fetch(brapiUrl('/quote/' + ticker + '?range=5d&interval=1d&fundamental=false')),
-          fetch(brapiUrl('/quote/' + ticker + '?range=1y&interval=1mo&fundamental=false'))
-        ]);
-        const data = r5d.ok ? await r5d.json() : null;
+        // Uma única chamada com histórico anual diário: serve para 7d e 52sem
+        const r = await fetch(brapiUrl('/quote/' + ticker + '?range=1y&interval=1d&fundamental=false'));
+        if (!r.ok) return;
+        const data = await r.json();
         const q = data && data.results && data.results[0];
         if (!q || !q.regularMarketPrice) return;
 
-        const sym = (q.symbol || ticker).replace('.SA','').toUpperCase();
-
-        // 7 dias: preço de ~5 pregões atrás vs atual
-        const hist5 = q.historicalDataPrice || [];
+        const sym     = (q.symbol || ticker).replace('.SA','').toUpperCase();
+        const hist    = q.historicalDataPrice || [];
         const getClose = h => h && (h.close || h.adjustedClose || 0);
+        const closes  = hist.map(getClose).filter(v => v > 0);
+
+        // 7 dias: fechamento de ~5 pregões atrás (últimas 6 entradas, pega a mais antiga)
         let var7dPct = null;
-        if (hist5.length >= 2) {
-          const base = getClose(hist5[0]);
+        if (hist.length >= 6) {
+          const base = getClose(hist[hist.length - 6]);
           if (base > 0) var7dPct = (Number(q.regularMarketPrice) - base) / base * 100;
         }
 
-        // 52 semanas: min/max dos fechamentos mensais do último ano
-        let min52 = null, max52 = null;
-        if (r1y.ok) {
-          const data1y = await r1y.json();
-          const q1y = data1y && data1y.results && data1y.results[0];
-          const hist1y = (q1y && q1y.historicalDataPrice) || [];
-          const closes = hist1y.map(getClose).filter(v => v > 0);
-          if (closes.length) {
-            min52 = Math.min(...closes);
-            max52 = Math.max(...closes);
-          }
-        }
+        // 52 semanas: mínimo e máximo de todos os fechamentos do ano
+        const min52 = closes.length ? Math.min(...closes) : null;
+        const max52 = closes.length ? Math.max(...closes) : null;
 
         precos[sym] = {
           preco:     Number(q.regularMarketPrice),
