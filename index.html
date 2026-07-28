@@ -3441,6 +3441,15 @@
           window.location.reload();
         }
       });
+
+      // Verifica atualização ao focar a aba (usuário volta para a página)
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') reg.update();
+      });
+
+      // Verifica atualização a cada 5 minutos (aba longa aberta)
+      setInterval(() => reg.update(), 5 * 60 * 1000);
+
     }).catch(() => {});
   }
 
