@@ -236,14 +236,15 @@
 
     @media (min-width: 768px) {
       .content.content-wide {
-        max-width: 980px;
-        padding: 20px 24px;
+        max-width: 1400px;
+        padding: 20px 28px;
       }
-      .acoes-desktop-grid {
+      .acoes-top-cards {
         display: grid;
-        grid-template-columns: 1fr 1.6fr;
-        gap: 20px;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 16px;
         align-items: start;
+        margin-bottom: 16px;
       }
     }
 
@@ -1224,12 +1225,12 @@
 
     <!-- ── PAINEL AÇÕES ── -->
     <div id="painel-acoes" style="display:none;">
-      <div class="acoes-desktop-grid">
 
-        <!-- COLUNA ESQUERDA: Token + Cotação -->
+      <!-- LINHA SUPERIOR: Token | Cotação | Selic -->
+      <div class="acoes-top-cards">
+
+        <!-- Token brapi.dev -->
         <div>
-
-          <!-- Token brapi.dev -->
           <div id="acoes-token-box" style="display:none;background:#fffbeb;border:1.5px solid #f59e0b;border-radius:14px;padding:14px 16px;margin-bottom:14px;">
             <div style="font-size:13px;font-weight:700;color:#92400e;margin-bottom:4px;">🔑 Token brapi.dev necessário</div>
             <div style="font-size:12px;color:#78350f;margin-bottom:10px;">
@@ -1241,9 +1242,7 @@
               <button onclick="salvarTokenAcoes()" style="padding:9px 14px;background:#f59e0b;color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">Salvar</button>
             </div>
           </div>
-
-          <!-- Token salvo -->
-          <div id="acoes-token-salvo" style="display:none;background:#f0fdf4;border:1.5px solid #22c55e;border-radius:14px;padding:12px 16px;margin-bottom:14px;">
+          <div id="acoes-token-salvo" style="display:none;background:#f0fdf4;border:1.5px solid #22c55e;border-radius:14px;padding:12px 16px;">
             <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
               <div>
                 <div style="font-size:13px;font-weight:700;color:#15803d;">🔑 Token brapi.dev gravado</div>
@@ -1256,50 +1255,48 @@
             </div>
             <div id="acoes-token-preview" style="margin-top:8px;font-size:12px;font-family:monospace;color:#15803d;word-break:break-all;background:#dcfce7;border-radius:6px;padding:6px 8px;"></div>
           </div>
+        </div>
 
-          <!-- Busca cotação atual -->
-          <div style="background:var(--card);border-radius:14px;padding:16px;margin-bottom:14px;">
-            <div style="font-size:14px;font-weight:700;margin-bottom:12px;">Cotação Atual</div>
-            <div style="display:flex;gap:8px;margin-bottom:12px;">
-              <input type="text" id="acoes-ticker" placeholder="Ex: BBAS3, PETR4, VALE3..." maxlength="10"
-                style="flex:1;padding:11px 14px;border:1.5px solid var(--border);border-radius:10px;font-size:15px;font-weight:700;text-transform:uppercase;background:var(--bg);color:var(--text);"
-                oninput="this.value=this.value.toUpperCase()"
-                onkeydown="if(event.key==='Enter') buscarCotacao()" />
-              <button onclick="buscarCotacao()" style="padding:11px 18px;background:var(--primary);color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap;">Buscar</button>
-            </div>
-            <div id="acoes-resultado"></div>
+        <!-- Cotação Atual -->
+        <div style="background:var(--card);border-radius:14px;padding:16px;">
+          <div style="font-size:14px;font-weight:700;margin-bottom:12px;">Cotação Atual</div>
+          <div style="display:flex;gap:8px;margin-bottom:12px;">
+            <input type="text" id="acoes-ticker" placeholder="Ex: BBAS3, PETR4, VALE3..." maxlength="10"
+              style="flex:1;padding:11px 14px;border:1.5px solid var(--border);border-radius:10px;font-size:15px;font-weight:700;text-transform:uppercase;background:var(--bg);color:var(--text);"
+              oninput="this.value=this.value.toUpperCase()"
+              onkeydown="if(event.key==='Enter') buscarCotacao()" />
+            <button onclick="buscarCotacao()" style="padding:11px 18px;background:var(--primary);color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap;">Buscar</button>
           </div>
+          <div id="acoes-resultado"></div>
+        </div>
 
-          <!-- Taxa Selic -->
-          <div style="background:var(--card);border-radius:14px;padding:16px;margin-bottom:14px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-              <div style="font-size:14px;font-weight:700;">🏦 Taxa Selic</div>
-              <button onclick="buscarSelic()" id="btn-selic-refresh" title="Atualizar" style="background:transparent;border:1.5px solid var(--border);border-radius:8px;padding:4px 9px;font-size:12px;cursor:pointer;color:var(--text-muted);">🔄</button>
-            </div>
-            <div id="selic-resultado">
-              <div style="text-align:center;color:var(--text-muted);font-size:12px;padding:8px 0;">Carregando...</div>
-            </div>
+        <!-- Taxa Selic -->
+        <div style="background:var(--card);border-radius:14px;padding:16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <div style="font-size:14px;font-weight:700;">🏦 Taxa Selic</div>
+            <button onclick="buscarSelic()" id="btn-selic-refresh" title="Atualizar" style="background:transparent;border:1.5px solid var(--border);border-radius:8px;padding:4px 9px;font-size:12px;cursor:pointer;color:var(--text-muted);">🔄</button>
           </div>
-
-        </div><!-- /coluna esquerda -->
-
-        <!-- COLUNA DIREITA: Carteiras -->
-        <div>
-          <div style="background:var(--card);border-radius:14px;padding:16px;margin-bottom:14px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-              <div style="font-size:14px;font-weight:700;">💼 Minhas Carteiras</div>
-              <div style="display:flex;align-items:center;gap:6px;">
-                <button onclick="forcaSincCarteiras()" title="Sincronizar com banco de dados" style="padding:6px 10px;background:transparent;border:1.5px solid var(--border);border-radius:8px;font-size:12px;cursor:pointer;color:var(--text-muted);">🔄</button>
-                <button onclick="exportarTodasCarteirasExcel()" title="Exportar todas as carteiras para Excel" style="padding:6px 10px;background:transparent;border:1.5px solid var(--border);border-radius:8px;font-size:12px;cursor:pointer;color:var(--text-muted);">📥 Excel</button>
-                <button onclick="abrirModalCarteira()" style="padding:7px 14px;background:var(--primary);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">+ Nova Carteira</button>
-              </div>
-            </div>
-            <div id="acoes-sync-status" style="font-size:11px;color:var(--text-muted);margin-bottom:10px;"></div>
-            <div id="carteiras-lista"></div>
+          <div id="selic-resultado">
+            <div style="text-align:center;color:var(--text-muted);font-size:12px;padding:8px 0;">Carregando...</div>
           </div>
-        </div><!-- /coluna direita -->
+        </div>
 
-      </div><!-- /acoes-desktop-grid -->
+      </div><!-- /acoes-top-cards -->
+
+      <!-- TABELA: Minhas Carteiras — largura total -->
+      <div style="background:var(--card);border-radius:14px;padding:16px;margin-bottom:14px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+          <div style="font-size:14px;font-weight:700;">💼 Minhas Carteiras</div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <button onclick="forcaSincCarteiras()" title="Sincronizar com banco de dados" style="padding:6px 10px;background:transparent;border:1.5px solid var(--border);border-radius:8px;font-size:12px;cursor:pointer;color:var(--text-muted);">🔄</button>
+            <button onclick="exportarTodasCarteirasExcel()" title="Exportar todas as carteiras para Excel" style="padding:6px 10px;background:transparent;border:1.5px solid var(--border);border-radius:8px;font-size:12px;cursor:pointer;color:var(--text-muted);">📥 Excel</button>
+            <button onclick="abrirModalCarteira()" style="padding:7px 14px;background:var(--primary);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">+ Nova Carteira</button>
+          </div>
+        </div>
+        <div id="acoes-sync-status" style="font-size:11px;color:var(--text-muted);margin-bottom:10px;"></div>
+        <div id="carteiras-lista"></div>
+      </div>
+
     </div><!-- /painel-acoes -->
 
 <!-- MODAL NOVA/EDITAR CARTEIRA -->
