@@ -241,7 +241,7 @@
       }
       .acoes-top-cards {
         display: grid;
-        grid-template-columns: 1fr 1fr 1fr;
+        grid-template-columns: 1fr 1fr 1fr 1fr;
         gap: 16px;
         align-items: start;
         margin-bottom: 16px;
@@ -1277,6 +1277,17 @@
             <button onclick="buscarSelic()" id="btn-selic-refresh" title="Atualizar" style="background:transparent;border:1.5px solid var(--border);border-radius:8px;padding:4px 9px;font-size:12px;cursor:pointer;color:var(--text-muted);">🔄</button>
           </div>
           <div id="selic-resultado">
+            <div style="text-align:center;color:var(--text-muted);font-size:12px;padding:8px 0;">Carregando...</div>
+          </div>
+        </div>
+
+        <!-- Dólar -->
+        <div style="background:var(--card);border-radius:14px;padding:16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <div style="font-size:14px;font-weight:700;">💵 Dólar (USD/BRL)</div>
+            <button onclick="buscarDolar()" id="btn-dolar-refresh" title="Atualizar" style="background:transparent;border:1.5px solid var(--border);border-radius:8px;padding:4px 9px;font-size:12px;cursor:pointer;color:var(--text-muted);">🔄</button>
+          </div>
+          <div id="dolar-resultado">
             <div style="text-align:center;color:var(--text-muted);font-size:12px;padding:8px 0;">Carregando...</div>
           </div>
         </div>
@@ -3459,6 +3470,7 @@
   async function initAcoes() {
     renderTokenAcoes();
     buscarSelic();
+    buscarDolar();
     // Garante autenticação antes de carregar do DB
     if (!paulToken) await paulAuth();
     const loaded = await carregarCarteirasDB();
@@ -3503,6 +3515,45 @@
         '<div style="margin-top:8px;font-size:10px;color:var(--text-muted);text-align:right;">Fonte: Banco Central do Brasil · Atualizado em ' + dataMeta + '</div>';
     } catch(e) {
       el.innerHTML = '<div style="color:var(--danger);font-size:12px;text-align:center;">❌ Erro ao buscar Selic: ' + e.message + '</div>';
+    } finally {
+      if (btn) btn.style.opacity = '1';
+    }
+  }
+
+  async function buscarDolar() {
+    const el  = document.getElementById('dolar-resultado');
+    const btn = document.getElementById('btn-dolar-refresh');
+    if (!el) return;
+    if (btn) btn.style.opacity = '0.4';
+    try {
+      const r = await fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL,EUR-BRL');
+      if (!r.ok) throw new Error('Erro ' + r.status);
+      const data = await r.json();
+      const usd  = data.USDBRL;
+      const eur  = data.EURBRL;
+      const fmtR = v => 'R$ ' + Number(v).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+      const fmtV = v => {
+        const n = Number(v);
+        const s = (n >= 0 ? '+' : '') + n.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}) + '%';
+        return '<span style="color:' + (n >= 0 ? 'var(--danger)' : 'var(--success)') + ';font-size:11px;font-weight:700;">' + s + '</span>';
+      };
+      const hora = usd.create_date ? usd.create_date.slice(11,16) : '';
+      el.innerHTML =
+        '<div style="display:flex;gap:10px;align-items:stretch;">' +
+          '<div style="flex:1;background:var(--bg);border-radius:10px;padding:12px;text-align:center;">' +
+            '<div style="font-size:10px;color:var(--text-muted);margin-bottom:4px;">USD · Compra</div>' +
+            '<div style="font-size:20px;font-weight:800;color:var(--primary);">' + fmtR(usd.bid) + '</div>' +
+            '<div style="margin-top:4px;">' + fmtV(usd.pctChange) + '</div>' +
+          '</div>' +
+          '<div style="flex:1;background:var(--bg);border-radius:10px;padding:12px;text-align:center;">' +
+            '<div style="font-size:10px;color:var(--text-muted);margin-bottom:4px;">EUR · Compra</div>' +
+            '<div style="font-size:20px;font-weight:800;color:#7c3aed;">' + fmtR(eur.bid) + '</div>' +
+            '<div style="margin-top:4px;">' + fmtV(eur.pctChange) + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div style="margin-top:8px;font-size:10px;color:var(--text-muted);text-align:right;">Fonte: AwesomeAPI' + (hora ? ' · ' + hora : '') + '</div>';
+    } catch(e) {
+      el.innerHTML = '<div style="color:var(--danger);font-size:12px;text-align:center;">❌ Erro ao buscar câmbio: ' + e.message + '</div>';
     } finally {
       if (btn) btn.style.opacity = '1';
     }
