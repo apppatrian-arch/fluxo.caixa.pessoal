@@ -3996,30 +3996,30 @@
     const uniqueTickers = [...new Set(c.acoes.map(a => a.ticker.replace('.SA','').toUpperCase()))];
     const precos = {};
 
+    let erros = 0;
     await Promise.all(uniqueTickers.map(async ticker => {
       try {
-        // Uma única chamada com histórico anual diário: serve para 7d e 52sem
-        const r = await fetch(brapiUrl('/quote/' + ticker + '?range=1y&interval=1d&fundamental=false'));
-        if (!r.ok) return;
+        // range=5d traz preço atual + 5 pregões de histórico (leve, funciona no plano free)
+        const r = await fetch(brapiUrl('/quote/' + ticker + '?range=5d&interval=1d&fundamental=false'));
+        if (!r.ok) { erros++; return; }
         const data = await r.json();
         const q = data && data.results && data.results[0];
-        if (!q || !q.regularMarketPrice) return;
+        if (!q || !q.regularMarketPrice) { erros++; return; }
 
-        const sym     = (q.symbol || ticker).replace('.SA','').toUpperCase();
-        const hist    = q.historicalDataPrice || [];
+        const sym      = (q.symbol || ticker).replace('.SA','').toUpperCase();
+        const hist     = q.historicalDataPrice || [];
         const getClose = h => h && (h.close || h.adjustedClose || 0);
-        const closes  = hist.map(getClose).filter(v => v > 0);
 
-        // 7 dias: fechamento de ~5 pregões atrás (últimas 6 entradas, pega a mais antiga)
+        // 7 dias: fechamento de ~5 pregões atrás vs preço atual
         let var7dPct = null;
-        if (hist.length >= 6) {
-          const base = getClose(hist[hist.length - 6]);
+        if (hist.length >= 2) {
+          const base = getClose(hist[0]);
           if (base > 0) var7dPct = (Number(q.regularMarketPrice) - base) / base * 100;
         }
 
-        // 52 semanas: mínimo e máximo de todos os fechamentos do ano
-        const min52 = closes.length ? Math.min(...closes) : null;
-        const max52 = closes.length ? Math.max(...closes) : null;
+        // 52 semanas: campos nativos do brapi (disponíveis mesmo sem range longo)
+        const min52 = q.fiftyTwoWeekLow  != null ? Number(q.fiftyTwoWeekLow)  : null;
+        const max52 = q.fiftyTwoWeekHigh != null ? Number(q.fiftyTwoWeekHigh) : null;
 
         precos[sym] = {
           preco:     Number(q.regularMarketPrice),
@@ -4027,8 +4027,13 @@
           varDiaVal: q.regularMarketChange        != null ? Number(q.regularMarketChange)        : null,
           var7dPct, min52, max52,
         };
-      } catch(e) { /* ignora erro individual */ }
+      } catch(e) { erros++; }
     }));
+
+    if (erros > 0 && Object.keys(precos).length === 0) {
+      if (elBtn) { elBtn.textContent = '❌'; elBtn.disabled = false; setTimeout(() => { if (elBtn) elBtn.textContent = '🔄'; }, 3000); }
+      return;
+    }
 
     c.acoes.forEach(a => {
       const sym = a.ticker.replace('.SA','').toUpperCase();
