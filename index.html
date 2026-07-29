@@ -4210,12 +4210,12 @@
           '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + corVsMax + ';">' + (vsMáx52 != null ? fmtPct2(vsMáx52) : '—') + '</td>' +
           '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + cor7d + ';">' + (tem7d ? pref7d + fmtPct(a.var7dPct) : '—') + '</td>' +
           '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + corDia + ';">' + (temDia ? prefDia + fmtPct(a.varDiaPct) : '—') + '</td>' +
+          '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + corDia + ';">' + (temDia ? prefDia + fmt(a.varDiaVal) : '—') + '</td>' +
+          '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + corSaldoDia + ';">' + (saldoDia != null ? prefSaldoDia + fmt(saldoDia) : '—') + '</td>' +
           '<td style="padding:8px;font-size:12px;font-weight:700;text-align:right;color:' + (a.precoAtual ? 'var(--text)' : 'var(--text-muted)') + ';">' + fmt(saldoAcao) + '</td>' +
           '<td style="padding:8px;font-size:12px;font-weight:700;text-align:right;color:var(--text-muted);">' + Number(partPct).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}) + '%</td>' +
           '<td style="padding:8px;font-size:12px;font-weight:700;text-align:right;color:' + (a.precoAtual ? corLucro : 'var(--text-muted)') + ';">' + (a.precoAtual ? prefLucro + fmt(lucroAcao) : '—') + '</td>' +
           '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + corAcao + ';">' + fmtPct(varAcao) + '</td>' +
-          '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + corDia + ';">' + (temDia ? prefDia + fmt(a.varDiaVal) : '—') + '</td>' +
-          '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + corSaldoDia + ';">' + (saldoDia != null ? prefSaldoDia + fmt(saldoDia) : '—') + '</td>' +
           '<td style="padding:8px;">' + acoes + '</td>' +
         '</tr>';
       }).join('') : '<tr><td colspan="17" style="padding:12px;text-align:center;color:var(--text-muted);font-size:12px;">Nenhuma ação. Adicione abaixo.</td></tr>';
@@ -4231,13 +4231,13 @@
         '<td colspan="2" style="padding:8px;font-size:12px;font-weight:700;">Total</td>' +
         '<td style="padding:8px;font-size:11px;color:var(--text-muted);text-align:right;">' + fmt(totalCusto) + '</td>' +
         '<td style="padding:8px;font-size:11px;color:var(--text-muted);text-align:right;">' + fmt(totalAtual) + '</td>' +
-        '<td colspan="6" style="padding:8px;font-size:11px;color:var(--text-muted);text-align:center;">—</td>' +
+        '<td colspan="4" style="padding:8px;font-size:11px;color:var(--text-muted);text-align:center;">—</td>' +
+        '<td colspan="3" style="padding:8px;font-size:11px;color:var(--text-muted);text-align:center;">—</td>' +
+        '<td style="padding:8px;font-size:12px;font-weight:800;text-align:right;color:' + (temDiaTot ? corDiaTot : 'var(--text-muted)') + ';">' + (temDiaTot ? prefDiaTot + fmt(saldoDiaTotal) : '—') + '</td>' +
         '<td style="padding:8px;font-size:12px;font-weight:800;text-align:right;">' + fmt(totalAtual) + '</td>' +
         '<td style="padding:8px;font-size:12px;font-weight:800;text-align:right;color:var(--text-muted);">100%</td>' +
         '<td style="padding:8px;font-size:12px;font-weight:800;text-align:right;color:' + corLucroTot + ';">' + prefLucroTot + fmt(lucroTotal) + '</td>' +
         '<td style="padding:8px;font-size:12px;font-weight:800;text-align:right;color:' + corVar + ';">' + fmtPct(varTotal) + '</td>' +
-        '<td style="padding:8px;font-size:11px;color:var(--text-muted);text-align:center;">—</td>' +
-        '<td style="padding:8px;font-size:12px;font-weight:800;text-align:right;color:' + (temDiaTot ? corDiaTot : 'var(--text-muted)') + ';">' + (temDiaTot ? prefDiaTot + fmt(saldoDiaTotal) : '—') + '</td>' +
         '<td></td></tr>' : '';
 
       const viewMode = carteiraViewMode[c.id] || 'table';
@@ -4308,12 +4308,12 @@
             th('vsmax52',   '%vsMáx',     'right') +
             th('var7d',     'Últ.7d',     'right') +
             th('vardiapct', 'Var.Dia%',   'right') +
+            th('vardiav',   'Var.Dia R$', 'right') +
+            th('saldodia',  'Saldo Dia',  'right') +
             th('saldo',     'Saldo',      'right') +
             th('part',      'Part.%',     'right') +
             th('lucro',     'Lucro/Prej.','right') +
             th('var',       'Var%',       'right') +
-            th('vardiav',   'Var.Dia R$', 'right') +
-            th('saldodia',  'Saldo Dia',  'right') +
             '<th style="padding:7px 8px;font-size:10px;color:var(--text-muted);text-align:center;font-weight:700;">Ações</th>' +
           '</tr></thead>' +
           '<tbody>' + linhasAcoes + rodape + '</tbody>' +
