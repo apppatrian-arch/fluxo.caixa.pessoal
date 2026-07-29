@@ -1676,12 +1676,12 @@
 
       // Carteiras de ações
       const carteirasSalvas = JSON.parse(localStorage.getItem(chaveLocal('carteiras')) || '[]');
-      const cartRows = [['CarteiraID','CarteiraNome','AcaoID','Ticker','Quantidade','CustoUnitario','PrecoAtual']];
+      const cartRows = [['CarteiraID','CarteiraNome','AcaoID','Ticker','Quantidade','CustoUnitario','PrecoAtual','Moeda']];
       carteirasSalvas.forEach(c => {
         (c.acoes || []).forEach(a => {
-          cartRows.push([c.id, c.nome, a.id, a.ticker, a.qtd, a.custo, a.precoAtual || '']);
+          cartRows.push([c.id, c.nome, a.id, a.ticker, a.qtd, a.custo, a.precoAtual || '', a.moeda || 'BRL']);
         });
-        if (!c.acoes || !c.acoes.length) cartRows.push([c.id, c.nome, '', '', '', '', '']);
+        if (!c.acoes || !c.acoes.length) cartRows.push([c.id, c.nome, '', '', '', '', '', '']);
       });
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(cartRows), 'Carteiras');
 
@@ -1755,7 +1755,7 @@
           rows.filter(r => r[0]).forEach(r => {
             const cId = String(r[0]), cNome = String(r[1]||'');
             if (!carteiraMap[cId]) carteiraMap[cId] = { id: cId, nome: cNome, acoes: [] };
-            if (r[2]) carteiraMap[cId].acoes.push({ id: String(r[2]), ticker: String(r[3]||''), qtd: Number(r[4])||0, custo: Number(r[5])||0, precoAtual: r[6] ? Number(r[6]) : undefined });
+            if (r[2]) carteiraMap[cId].acoes.push({ id: String(r[2]), ticker: String(r[3]||''), qtd: Number(r[4])||0, custo: Number(r[5])||0, precoAtual: r[6] ? Number(r[6]) : undefined, moeda: r[7] ? String(r[7]) : 'BRL' });
           });
           localStorage.setItem(chaveLocal('carteiras'), JSON.stringify(Object.values(carteiraMap)));
         }
@@ -3538,6 +3538,7 @@
         return '<span style="color:' + (n >= 0 ? 'var(--danger)' : 'var(--success)') + ';font-size:11px;font-weight:700;">' + s + '</span>';
       };
       const hora = usd.create_date ? usd.create_date.slice(11,16) : '';
+      _dolarAtual = Number(usd.bid) || 1;
       el.innerHTML =
         '<div style="display:flex;gap:10px;align-items:stretch;">' +
           '<div style="flex:1;background:var(--bg);border-radius:10px;padding:12px;text-align:center;">' +
@@ -3695,6 +3696,7 @@
   //  CARTEIRAS DE AÇÕES
   // ══════════════════════════════════════════
   let carteiras = [];
+  let _dolarAtual = 1; // atualizado por buscarDolar()
 
   const _CFG_DATE = '2000-01-01';
   const _CFG_TIPO = 'cred';
@@ -4074,6 +4076,7 @@
 
         precos[sym] = {
           preco:     Number(q.regularMarketPrice),
+          moeda:     (q.currency || 'BRL').toUpperCase(),
           varDiaPct: q.regularMarketChangePercent != null ? Number(q.regularMarketChangePercent) : null,
           varDiaVal: q.regularMarketChange        != null ? Number(q.regularMarketChange)        : null,
           var7dPct, min52, max52,
@@ -4090,6 +4093,7 @@
       const sym = a.ticker.replace('.SA','').toUpperCase();
       if (precos[sym]) {
         a.precoAtual = precos[sym].preco;
+        a.moeda      = precos[sym].moeda;
         a.varDiaPct  = precos[sym].varDiaPct;
         a.varDiaVal  = precos[sym].varDiaVal;
         a.var7dPct   = precos[sym].var7dPct;
@@ -4128,8 +4132,9 @@
     }
 
     el.innerHTML = carteiras.map(c => {
-      const totalCusto   = c.acoes.reduce((s, a) => s + (a.qtd * a.custo), 0);
-      const totalAtual   = c.acoes.reduce((s, a) => s + (a.qtd * (a.precoAtual || a.custo)), 0);
+      const _fatorUSD = (a) => a.moeda === 'USD' ? _dolarAtual : 1;
+      const totalCusto   = c.acoes.reduce((s, a) => s + a.qtd * a.custo * _fatorUSD(a), 0);
+      const totalAtual   = c.acoes.reduce((s, a) => s + a.qtd * (a.precoAtual || a.custo) * _fatorUSD(a), 0);
       const varTotal     = totalCusto > 0 ? ((totalAtual - totalCusto) / totalCusto * 100) : 0;
       const corVar       = varTotal >= 0 ? 'var(--success)' : 'var(--danger)';
       const sinalVar     = varTotal >= 0 ? '+' : '';
@@ -4169,19 +4174,22 @@
       const th = (col, label, align) => '<th onclick="sortCarteira(\'' + c.id + '\',\'' + col + '\')" style="' + (ss && ss.col === col ? thActive : thStyle) + 'text-align:' + align + ';">' + label + arrow(col) + '</th>';
 
       const linhasAcoes = acoesOrd.length ? acoesOrd.map((a, idx) => {
-        const tCusto  = a.qtd * a.custo;
-        const tAtual  = a.qtd * (a.precoAtual || a.custo);
+        const fUSD    = a.moeda === 'USD' ? _dolarAtual : 1;
+        const isUSD   = a.moeda === 'USD';
+        const tCusto  = a.qtd * a.custo * fUSD;
+        const tAtual  = a.qtd * (a.precoAtual || a.custo) * fUSD;
         const varAcao = tCusto > 0 ? ((tAtual - tCusto) / tCusto * 100) : 0;
         const corAcao = varAcao >= 0 ? 'var(--success)' : 'var(--danger)';
         const acoes   = '<div style="display:flex;gap:4px;justify-content:center;">' +
           '<button onclick="editarAcaoCarteira(\'' + c.id + '\',\'' + a.id + '\')" title="Alterar" style="background:#fef3c7;border:none;border-radius:6px;color:#92400e;font-size:13px;cursor:pointer;padding:4px 7px;">✏️</button>' +
           '<button onclick="removerAcaoCarteira(\'' + c.id + '\',\'' + a.id + '\')" title="Excluir" style="background:#fee2e2;border:none;border-radius:6px;color:#dc2626;font-size:13px;cursor:pointer;padding:4px 7px;">🗑</button>' +
           '</div>';
-        const saldoAcao   = a.qtd * (a.precoAtual || a.custo);
+        const saldoAcao   = tAtual;
         const partPct     = totalAtual > 0 ? (saldoAcao / totalAtual * 100) : 0;
         const lucroAcao   = tAtual - tCusto;
         const corLucro    = lucroAcao >= 0 ? 'var(--success)' : 'var(--danger)';
         const prefLucro   = lucroAcao >= 0 ? '+' : '';
+        const fmtUSD      = v => isUSD ? 'US$ ' + Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) : fmt(v);
         const temDia      = a.precoAtual && a.varDiaPct != null;
         const corDia      = temDia ? (a.varDiaPct >= 0 ? 'var(--success)' : 'var(--danger)') : 'var(--text-muted)';
         const prefDia     = temDia && a.varDiaPct >= 0 ? '+' : '';
@@ -4202,16 +4210,16 @@
         return '<tr style="border-bottom:1px solid var(--border);background:' + bgLinha + ';">' +
           '<td style="padding:8px;font-size:12px;font-weight:700;white-space:nowrap;">' + a.ticker + '</td>' +
           '<td style="padding:8px;font-size:12px;text-align:right;">' + Number(a.qtd).toLocaleString('pt-BR') + '</td>' +
-          '<td style="padding:8px;font-size:12px;text-align:right;">' + fmt(a.custo) + '</td>' +
-          '<td style="padding:8px;font-size:12px;text-align:right;color:' + (a.precoAtual ? 'var(--text)' : 'var(--text-muted)') + ';">' + (a.precoAtual ? fmt(a.precoAtual) : '—') + '</td>' +
-          '<td style="padding:8px;font-size:11px;text-align:right;color:' + (a.min52 ? 'var(--danger)' : 'var(--text-muted)') + ';">' + (a.min52 ? fmt(a.min52) : '—') + '</td>' +
+          '<td style="padding:8px;font-size:12px;text-align:right;">' + fmtUSD(a.custo) + (isUSD ? ' <span style="font-size:9px;background:#dbeafe;color:#1d4ed8;border-radius:4px;padding:1px 4px;font-weight:700;">USD</span>' : '') + '</td>' +
+          '<td style="padding:8px;font-size:12px;text-align:right;color:' + (a.precoAtual ? 'var(--text)' : 'var(--text-muted)') + ';">' + (a.precoAtual ? fmtUSD(a.precoAtual) : '—') + '</td>' +
+          '<td style="padding:8px;font-size:11px;text-align:right;color:' + (a.min52 ? 'var(--danger)' : 'var(--text-muted)') + ';">' + (a.min52 ? fmtUSD(a.min52) : '—') + '</td>' +
           '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + corVsMin + ';">' + (vsMin52 != null ? fmtPct2(vsMin52) : '—') + '</td>' +
-          '<td style="padding:8px;font-size:11px;text-align:right;color:' + (a.max52 ? 'var(--success)' : 'var(--text-muted)') + ';">' + (a.max52 ? fmt(a.max52) : '—') + '</td>' +
+          '<td style="padding:8px;font-size:11px;text-align:right;color:' + (a.max52 ? 'var(--success)' : 'var(--text-muted)') + ';">' + (a.max52 ? fmtUSD(a.max52) : '—') + '</td>' +
           '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + corVsMax + ';">' + (vsMáx52 != null ? fmtPct2(vsMáx52) : '—') + '</td>' +
           '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + cor7d + ';">' + (tem7d ? pref7d + fmtPct(a.var7dPct) : '—') + '</td>' +
           '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + corDia + ';">' + (temDia ? prefDia + fmtPct(a.varDiaPct) : '—') + '</td>' +
-          '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + corDia + ';">' + (temDia ? prefDia + fmt(a.varDiaVal) : '—') + '</td>' +
-          '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + corSaldoDia + ';">' + (saldoDia != null ? prefSaldoDia + fmt(saldoDia) : '—') + '</td>' +
+          '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + corDia + ';">' + (temDia ? prefDia + fmtUSD(a.varDiaVal) : '—') + '</td>' +
+          '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + corSaldoDia + ';">' + (saldoDia != null ? prefSaldoDia + fmt(saldoDia * fUSD) : '—') + '</td>' +
           '<td style="padding:8px;font-size:12px;font-weight:700;text-align:right;color:' + (a.precoAtual ? 'var(--text)' : 'var(--text-muted)') + ';">' + fmt(saldoAcao) + '</td>' +
           '<td style="padding:8px;font-size:12px;font-weight:700;text-align:right;color:var(--text-muted);">' + Number(partPct).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}) + '%</td>' +
           '<td style="padding:8px;font-size:12px;font-weight:700;text-align:right;color:' + (a.precoAtual ? corLucro : 'var(--text-muted)') + ';">' + (a.precoAtual ? prefLucro + fmt(lucroAcao) : '—') + '</td>' +
@@ -4223,7 +4231,7 @@
       const lucroTotal   = totalAtual - totalCusto;
       const corLucroTot  = lucroTotal >= 0 ? 'var(--success)' : 'var(--danger)';
       const prefLucroTot = lucroTotal >= 0 ? '+' : '';
-      const saldoDiaTotal= c.acoes.reduce((s, a) => a.varDiaVal != null ? s + a.qtd * a.varDiaVal : s, 0);
+      const saldoDiaTotal= c.acoes.reduce((s, a) => a.varDiaVal != null ? s + a.qtd * a.varDiaVal * (a.moeda === 'USD' ? _dolarAtual : 1) : s, 0);
       const temDiaTot    = c.acoes.some(a => a.varDiaVal != null);
       const corDiaTot    = saldoDiaTotal >= 0 ? 'var(--success)' : 'var(--danger)';
       const prefDiaTot   = saldoDiaTotal >= 0 ? '+' : '';
