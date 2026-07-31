@@ -1358,6 +1358,14 @@
         </div>
       </div>
 
+      <!-- GRÁFICO ALOCAÇÃO DE PATRIMÔNIO -->
+      <div style="background:var(--card);border-radius:14px;padding:16px;margin-bottom:14px;">
+        <div style="font-size:14px;font-weight:700;margin-bottom:4px;">📊 Alocação de Patrimônio</div>
+        <div id="alocacao-wrap">
+          <div style="text-align:center;color:var(--text-muted);font-size:13px;padding:24px 0;">Carregando dados...</div>
+        </div>
+      </div>
+
     </div><!-- /painel-acoes -->
 
 <!-- MODAL NOVA/EDITAR CARTEIRA -->
@@ -3855,6 +3863,168 @@
         }).join('') +
         '</tbody>' +
       '</table></div>';
+    renderGraficoAlocacao();
+  }
+
+  function renderGraficoAlocacao() {
+    const wrap = document.getElementById('alocacao-wrap');
+    if (!wrap) return;
+
+    const fmt = v => 'R$ ' + Number(v).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+    const fmtPct = v => Number(v).toLocaleString('pt-BR', {minimumFractionDigits:1, maximumFractionDigits:1}) + '%';
+
+    // Renda Variável: soma totalAtual de todas as carteiras
+    const carteirasComSaldo = carteiras.map(c => {
+      const _fatorUSD = a => a.moeda === 'USD' ? _dolarAtual : 1;
+      const total = c.acoes.reduce((s, a) => s + a.qtd * (a.precoAtual || a.custo) * _fatorUSD(a), 0);
+      return { nome: c.nome || 'Carteira', total };
+    }).filter(c => c.total > 0);
+
+    const totalRV = carteirasComSaldo.reduce((s, c) => s + c.total, 0);
+
+    // Renda Fixa: soma dos provisionados
+    const rfComSaldo = rendaFixa.map(item => ({
+      nome: item.instituicao || 'RF',
+      total: _rfCalcProvisionado(item)
+    })).filter(x => x.total > 0);
+
+    const totalRF = rfComSaldo.reduce((s, x) => s + x.total, 0);
+    const totalGeral = totalRV + totalRF;
+
+    if (totalGeral === 0) {
+      if (_chartAlocacao) { _chartAlocacao.destroy(); _chartAlocacao = null; }
+      wrap.innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:13px;padding:24px 0;">Sem dados para exibir. Adicione carteiras ou aplicações de Renda Fixa.</div>';
+      return;
+    }
+
+    // Paleta: azul para RV, violeta para RF; sub-tons com alpha para breakdown
+    const COR_RV = '#3b82f6';
+    const COR_RF = '#7c3aed';
+    // Sub-segmentos: variações de luminosidade
+    const subCoresRV = ['#3b82f6','#60a5fa','#93c5fd','#bfdbfe','#dbeafe'];
+    const subCoresRF = ['#7c3aed','#8b5cf6','#a78bfa','#c4b5fd','#ddd6fe'];
+
+    // Montar segmentos: nível 1 = tipos, com breakdown interno
+    const labels = [];
+    const valores = [];
+    const cores   = [];
+
+    // Segmentos de Renda Variável (por carteira)
+    carteirasComSaldo.forEach((c, i) => {
+      labels.push(c.nome);
+      valores.push(c.total);
+      cores.push(subCoresRV[i % subCoresRV.length]);
+    });
+    // Se não houver carteiras mas o totalRV > 0 (não ocorre aqui, mas safety)
+    if (!carteirasComSaldo.length && totalRV > 0) {
+      labels.push('Renda Variável'); valores.push(totalRV); cores.push(COR_RV);
+    }
+
+    // Segmentos de Renda Fixa (por instituição)
+    rfComSaldo.forEach((x, i) => {
+      labels.push(x.nome);
+      valores.push(x.total);
+      cores.push(subCoresRF[i % subCoresRF.length]);
+    });
+    if (!rfComSaldo.length && totalRF > 0) {
+      labels.push('Renda Fixa'); valores.push(totalRF); cores.push(COR_RF);
+    }
+
+    // Rebuild canvas (evita conflito de instância antiga)
+    if (_chartAlocacao) { _chartAlocacao.destroy(); _chartAlocacao = null; }
+    wrap.innerHTML =
+      '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:20px;">' +
+        '<div style="position:relative;width:160px;height:160px;flex-shrink:0;">' +
+          '<canvas id="chart-alocacao" width="160" height="160"></canvas>' +
+          '<div id="alocacao-centro" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;"></div>' +
+        '</div>' +
+        '<div style="flex:1;min-width:180px;">' +
+          // Barras de tipo
+          '<div style="margin-bottom:14px;">' +
+            '<div style="font-size:10px;font-weight:700;color:var(--text-muted);letter-spacing:.05em;margin-bottom:8px;text-transform:uppercase;">Por Tipo</div>' +
+            (totalRV > 0 ? _rfBarLinha(COR_RV, 'Renda Variável', totalRV, totalGeral, fmt, fmtPct) : '') +
+            (totalRF > 0 ? _rfBarLinha(COR_RF, 'Renda Fixa',      totalRF, totalGeral, fmt, fmtPct) : '') +
+          '</div>' +
+          // Breakdown carteiras
+          (carteirasComSaldo.length > 1 || rfComSaldo.length > 1 ?
+            '<div>' +
+              '<div style="font-size:10px;font-weight:700;color:var(--text-muted);letter-spacing:.05em;margin-bottom:8px;text-transform:uppercase;">Breakdown</div>' +
+              carteirasComSaldo.map((c, i) =>
+                _rfBarLinha(subCoresRV[i % subCoresRV.length], c.nome, c.total, totalGeral, fmt, fmtPct, true)
+              ).join('') +
+              rfComSaldo.map((x, i) =>
+                _rfBarLinha(subCoresRF[i % subCoresRF.length], x.nome, x.total, totalGeral, fmt, fmtPct, true)
+              ).join('') +
+            '</div>'
+          : '') +
+        '</div>' +
+      '</div>';
+
+    // Atualiza centro do donut com total geral
+    const centro = document.getElementById('alocacao-centro');
+    if (centro) {
+      centro.innerHTML =
+        '<div style="font-size:9px;color:var(--text-muted);font-weight:600;letter-spacing:.03em;">TOTAL</div>' +
+        '<div style="font-size:12px;font-weight:800;color:var(--text);line-height:1.2;">' + fmt(totalGeral).replace('R$ ','') + '</div>';
+    }
+
+    const ctx = document.getElementById('chart-alocacao');
+    if (!ctx) return;
+    _chartAlocacao = new Chart(ctx.getContext('2d'), {
+      type: 'doughnut',
+      data: {
+        labels,
+        datasets: [{
+          data: valores,
+          backgroundColor: cores,
+          borderColor: 'transparent',
+          borderWidth: 2,
+          hoverBorderColor: 'var(--card)',
+          hoverBorderWidth: 3,
+          hoverOffset: 6,
+        }]
+      },
+      options: {
+        cutout: '68%',
+        animation: { duration: 400 },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => {
+                const v = ctx.parsed;
+                const pct = totalGeral > 0 ? (v / totalGeral * 100) : 0;
+                return '  ' + fmt(v) + '  (' + fmtPct(pct) + ')';
+              }
+            },
+            backgroundColor: 'rgba(0,0,0,.82)',
+            titleColor: '#e6edf3',
+            bodyColor: '#c9d1d9',
+            padding: 10,
+            cornerRadius: 8,
+          }
+        }
+      }
+    });
+  }
+
+  function _rfBarLinha(cor, nome, valor, total, fmt, fmtPct, sub) {
+    const pct    = total > 0 ? (valor / total * 100) : 0;
+    const tamanho= sub ? '11px' : '12px';
+    const peso   = sub ? '500' : '700';
+    return '<div style="margin-bottom:' + (sub ? '5' : '8') + 'px;">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">' +
+        '<div style="display:flex;align-items:center;gap:5px;">' +
+          '<div style="width:9px;height:9px;border-radius:50%;background:' + cor + ';flex-shrink:0;"></div>' +
+          '<span style="font-size:' + tamanho + ';font-weight:' + peso + ';color:var(--text);">' + nome + '</span>' +
+        '</div>' +
+        '<span style="font-size:11px;color:var(--text-muted);font-weight:600;">' + fmtPct(pct) + '</span>' +
+      '</div>' +
+      '<div style="height:5px;background:var(--border);border-radius:99px;overflow:hidden;">' +
+        '<div style="height:100%;width:' + pct.toFixed(1) + '%;background:' + cor + ';border-radius:99px;transition:width .4s ease;"></div>' +
+      '</div>' +
+      '<div style="font-size:10px;color:var(--text-muted);margin-top:2px;text-align:right;">' + fmt(valor) + '</div>' +
+    '</div>';
   }
 
   function renderTokenAcoes() {
@@ -3993,9 +4163,10 @@
   //  CARTEIRAS DE AÇÕES
   // ══════════════════════════════════════════
   let carteiras = [];
-  let _dolarAtual = 1;   // atualizado por buscarDolar()
-  let _selicAnual = 0;   // atualizado por buscarSelic()
-  let rendaFixa   = [];  // carteira de renda fixa
+  let _dolarAtual    = 1;   // atualizado por buscarDolar()
+  let _selicAnual    = 0;   // atualizado por buscarSelic()
+  let rendaFixa      = [];  // carteira de renda fixa
+  let _chartAlocacao = null;
 
   const _CFG_DATE = '2000-01-01';
   const _CFG_TIPO = 'cred';
@@ -4644,6 +4815,7 @@
         '</div>' +
       '</div>';
     }).join('');
+    renderGraficoAlocacao();
   }
 
   // ── SETAS DE NAVEGAÇÃO DAS TABS ──
