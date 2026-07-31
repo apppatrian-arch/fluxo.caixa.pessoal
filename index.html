@@ -1308,6 +1308,56 @@
         <div id="carteiras-lista"></div>
       </div>
 
+      <!-- RENDA FIXA -->
+      <div style="background:var(--card);border-radius:14px;padding:16px;margin-bottom:14px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <div style="font-size:14px;font-weight:700;">🏦 Renda Fixa</div>
+          <button onclick="abrirFormRendaFixa()" style="padding:7px 14px;background:#7c3aed;color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">+ Nova Aplicação</button>
+        </div>
+        <div id="rf-resumo" style="display:none;margin-bottom:12px;"></div>
+        <div id="rf-lista"></div>
+        <div id="rf-form" style="display:none;background:var(--bg);border-radius:10px;padding:14px;margin-top:10px;">
+          <div style="font-size:12px;font-weight:700;color:var(--text-muted);margin-bottom:10px;" id="rf-form-titulo">+ Nova Aplicação</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+            <div>
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">Instituição</div>
+              <input id="rf-inst" type="text" placeholder="Ex: Banco XYZ" maxlength="50"
+                style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text);box-sizing:border-box;" />
+            </div>
+            <div>
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">% CDI / Selic</div>
+              <input id="rf-pct" type="number" placeholder="Ex: 100" min="0" max="200" step="0.01"
+                style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text);box-sizing:border-box;" />
+            </div>
+            <div>
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">Valor Aplicado (R$)</div>
+              <input id="rf-aplicado" type="number" placeholder="0,00" min="0" step="0.01"
+                style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text);box-sizing:border-box;" />
+            </div>
+            <div>
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">Valor Atualizado (R$)</div>
+              <input id="rf-atualizado" type="number" placeholder="0,00" min="0" step="0.01"
+                style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text);box-sizing:border-box;" />
+            </div>
+            <div>
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">Data da Atualização</div>
+              <input id="rf-data" type="date"
+                style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text);box-sizing:border-box;" />
+            </div>
+            <div>
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">Observação (opcional)</div>
+              <input id="rf-obs" type="text" placeholder="CDB 1 ano, LCI etc." maxlength="80"
+                style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text);box-sizing:border-box;" />
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:4px;">
+            <button onclick="salvarItemRendaFixa()" style="padding:9px 20px;background:#7c3aed;color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">💾 Salvar</button>
+            <button onclick="fecharFormRendaFixa()" style="padding:9px 16px;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;font-size:13px;cursor:pointer;color:var(--text);">Cancelar</button>
+          </div>
+          <input type="hidden" id="rf-edit-id" value="" />
+        </div>
+      </div>
+
     </div><!-- /painel-acoes -->
 
 <!-- MODAL NOVA/EDITAR CARTEIRA -->
@@ -3478,6 +3528,14 @@
       carteiras = JSON.parse(localStorage.getItem(_chavCarteiras()) || '[]');
     }
     renderCarteiras();
+
+    // Renda Fixa
+    const rfLoaded = await _rfCarregarDB();
+    if (!rfLoaded) {
+      const local = localStorage.getItem(_rfChaveLocal());
+      rendaFixa = local ? (JSON.parse(local) || []) : [];
+    }
+    renderRendaFixa();
   }
 
   async function buscarSelic() {
@@ -3492,6 +3550,7 @@
         fetch('https://api.bcb.gov.br/dados/serie/bcdata.sgs.11/dados/ultimos/1?formato=json').then(r => r.json())
       ]);
       const taxaMeta   = parseFloat(String(meta[0].valor).replace(',', '.'));
+      _selicAnual = taxaMeta;
       const taxaDiaria = parseFloat(String(diaria[0].valor).replace(',', '.'));
       const dataMeta   = meta[0].data;
       // Selic mensal aproximada: (1 + anual/100)^(1/12) - 1
@@ -3558,6 +3617,244 @@
     } finally {
       if (btn) btn.style.opacity = '1';
     }
+  }
+
+  // ══════════════════════════════════════════
+  //  RENDA FIXA
+  // ══════════════════════════════════════════
+
+  function _rfPrefix()  { return '_rendafixa_' + (currentUser || '').toLowerCase() + '|'; }
+  function _rfChaveLocal() { return chaveLocal('rendafixa'); }
+
+  function _rfCalcProvisionado(item) {
+    if (!item.valorAtualizado || !item.dataAtualizacao || !_selicAnual) return item.valorAtualizado || 0;
+    const hoje  = new Date(); hoje.setHours(0,0,0,0);
+    const base  = new Date(item.dataAtualizacao + 'T00:00:00');
+    const diasCalendario = Math.max(0, Math.floor((hoje - base) / 86400000));
+    if (diasCalendario === 0) return item.valorAtualizado;
+    const selicEfetiva = _selicAnual * ((item.percentualCDI || 100) / 100);
+    // Taxa diária equivalente usando 252 dias úteis
+    const taxaDiaria   = Math.pow(1 + selicEfetiva / 100, 1 / 252) - 1;
+    // Aproximação de dias úteis: dias corridos × 252/365
+    const diasUteis    = diasCalendario * (252 / 365);
+    return item.valorAtualizado * Math.pow(1 + taxaDiaria, diasUteis);
+  }
+
+  function _rfSalvarLocal() {
+    localStorage.setItem(_rfChaveLocal(), JSON.stringify(rendaFixa));
+  }
+
+  async function _rfSalvarDB() {
+    try {
+      if (!paulToken) await paulAuth();
+      const prefix   = _rfPrefix();
+      const encoded  = _cartB64Enc(rendaFixa); // reutiliza encoder das carteiras
+      const csz      = Math.max(40, 200 - prefix.length - 3);
+      const chunks   = [];
+      for (let i = 0; i < encoded.length; i += csz) chunks.push(encoded.slice(i, i + csz));
+
+      // remove registros antigos
+      const records  = await paulFetch('GET', '/paulistinha/financeiro');
+      const antigos  = (records || []).filter(r => String(r.descricao || '').startsWith(prefix));
+      for (const r of antigos) { try { await paulFetch('DELETE', '/paulistinha/financeiro/' + r.id); } catch(_) {} }
+
+      // salva novos chunks
+      for (let i = 0; i < chunks.length; i++) {
+        await paulFetch('POST', '/paulistinha/financeiro', {
+          data: _CFG_DATE, tipo: _CFG_TIPO,
+          descricao: prefix + i + '|' + chunks[i],
+          valor: 0.01
+        });
+      }
+    } catch(e) { /* silencioso — localStorage é fallback */ }
+  }
+
+  async function _rfCarregarDB() {
+    try {
+      if (!paulToken) await paulAuth();
+      const records = await paulFetch('GET', '/paulistinha/financeiro');
+      const prefix  = _rfPrefix();
+      const cfgRecs = (records || []).filter(r => String(r.descricao || '').startsWith(prefix));
+      if (!cfgRecs.length) return false;
+      const chunks  = cfgRecs.map(r => {
+        const rest = String(r.descricao).slice(prefix.length);
+        const sep  = rest.indexOf('|');
+        return { idx: sep > -1 ? parseInt(rest.slice(0, sep)) || 0 : 0, data: sep > -1 ? rest.slice(sep + 1) : rest };
+      }).sort((a, b) => a.idx - b.idx);
+      let decoded = null;
+      try { decoded = _cartB64Dec(chunks.map(c => c.data).join('')); } catch(e) {}
+      if (!decoded || !Array.isArray(decoded)) return false;
+      rendaFixa = decoded;
+      _rfSalvarLocal();
+      return true;
+    } catch(e) { return false; }
+  }
+
+  function _rfNovoId() { return 'rf' + Date.now() + Math.random().toString(36).slice(2,6); }
+
+  function abrirFormRendaFixa(id) {
+    const form = document.getElementById('rf-form');
+    document.getElementById('rf-form-titulo').textContent = id ? '✏️ Editar Aplicação' : '+ Nova Aplicação';
+    document.getElementById('rf-edit-id').value = id || '';
+    if (id) {
+      const item = rendaFixa.find(x => x.id === id);
+      if (!item) return;
+      document.getElementById('rf-inst').value      = item.instituicao    || '';
+      document.getElementById('rf-pct').value       = item.percentualCDI  || 100;
+      document.getElementById('rf-aplicado').value  = item.valorAplicado  || '';
+      document.getElementById('rf-atualizado').value= item.valorAtualizado|| '';
+      document.getElementById('rf-data').value      = item.dataAtualizacao|| '';
+      document.getElementById('rf-obs').value       = item.observacao     || '';
+    } else {
+      document.getElementById('rf-inst').value       = '';
+      document.getElementById('rf-pct').value        = 100;
+      document.getElementById('rf-aplicado').value   = '';
+      document.getElementById('rf-atualizado').value = '';
+      document.getElementById('rf-data').value       = new Date().toISOString().slice(0,10);
+      document.getElementById('rf-obs').value        = '';
+    }
+    form.style.display = 'block';
+    document.getElementById('rf-inst').focus();
+  }
+
+  function fecharFormRendaFixa() {
+    document.getElementById('rf-form').style.display = 'none';
+  }
+
+  async function salvarItemRendaFixa() {
+    const inst     = document.getElementById('rf-inst').value.trim();
+    const pct      = parseFloat(document.getElementById('rf-pct').value) || 100;
+    const aplicado = parseFloat(document.getElementById('rf-aplicado').value) || 0;
+    const atual    = parseFloat(document.getElementById('rf-atualizado').value) || 0;
+    const data     = document.getElementById('rf-data').value;
+    const obs      = document.getElementById('rf-obs').value.trim();
+    const editId   = document.getElementById('rf-edit-id').value;
+
+    if (!inst)    { alert('Informe o nome da instituição.'); return; }
+    if (!atual)   { alert('Informe o valor atualizado.'); return; }
+    if (!data)    { alert('Informe a data da atualização.'); return; }
+
+    const item = { id: editId || _rfNovoId(), instituicao: inst, percentualCDI: pct,
+                   valorAplicado: aplicado, valorAtualizado: atual, dataAtualizacao: data, observacao: obs };
+    if (editId) {
+      const idx = rendaFixa.findIndex(x => x.id === editId);
+      if (idx > -1) rendaFixa[idx] = item; else rendaFixa.push(item);
+    } else {
+      rendaFixa.push(item);
+    }
+    _rfSalvarLocal();
+    await _rfSalvarDB();
+    fecharFormRendaFixa();
+    renderRendaFixa();
+  }
+
+  async function removerItemRendaFixa(id) {
+    if (!confirm('Excluir esta aplicação?')) return;
+    rendaFixa = rendaFixa.filter(x => x.id !== id);
+    _rfSalvarLocal();
+    await _rfSalvarDB();
+    renderRendaFixa();
+  }
+
+  function renderRendaFixa() {
+    const el     = document.getElementById('rf-lista');
+    const elRes  = document.getElementById('rf-resumo');
+    if (!el) return;
+    const fmt    = v => 'R$ ' + Number(v).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+    const fmtD   = d => { if (!d) return '—'; const [y,m,dd] = d.split('-'); return dd+'/'+m+'/'+y; };
+
+    if (!rendaFixa.length) {
+      elRes.style.display = 'none';
+      el.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-muted);font-size:13px;">Nenhuma aplicação cadastrada. Clique em <strong>+ Nova Aplicação</strong> para começar.</div>';
+      return;
+    }
+
+    // Calcula provisionados e totais
+    const itens = rendaFixa.map(item => {
+      const prov   = _rfCalcProvisionado(item);
+      const hoje   = new Date(); hoje.setHours(0,0,0,0);
+      const base   = new Date(item.dataAtualizacao + 'T00:00:00');
+      const dias   = Math.max(0, Math.floor((hoje - base) / 86400000));
+      return { ...item, provisionado: prov, dias };
+    });
+
+    const totalAplicado    = itens.reduce((s, x) => s + (x.valorAplicado || 0), 0);
+    const totalAtualizado  = itens.reduce((s, x) => s + (x.valorAtualizado || 0), 0);
+    const totalProvisionado= itens.reduce((s, x) => s + x.provisionado, 0);
+    const rendTot          = totalProvisionado - totalAplicado;
+    const corRend          = rendTot >= 0 ? 'var(--success)' : 'var(--danger)';
+
+    elRes.style.display = 'block';
+    elRes.innerHTML =
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;">' +
+        '<div style="background:var(--bg);border-radius:10px;padding:12px;text-align:center;">' +
+          '<div style="font-size:10px;color:var(--text-muted);margin-bottom:4px;">Total Aplicado</div>' +
+          '<div style="font-size:18px;font-weight:800;color:var(--text);">' + fmt(totalAplicado) + '</div>' +
+        '</div>' +
+        '<div style="background:var(--bg);border-radius:10px;padding:12px;text-align:center;">' +
+          '<div style="font-size:10px;color:var(--text-muted);margin-bottom:4px;">Valor Atualizado</div>' +
+          '<div style="font-size:18px;font-weight:800;color:var(--primary);">' + fmt(totalAtualizado) + '</div>' +
+        '</div>' +
+        '<div style="background:var(--bg);border-radius:10px;padding:12px;text-align:center;">' +
+          '<div style="font-size:10px;color:var(--text-muted);margin-bottom:4px;">Total Provisionado</div>' +
+          '<div style="font-size:18px;font-weight:800;color:#7c3aed;">' + fmt(totalProvisionado) + '</div>' +
+        '</div>' +
+        '<div style="background:var(--bg);border-radius:10px;padding:12px;text-align:center;">' +
+          '<div style="font-size:10px;color:var(--text-muted);margin-bottom:4px;">Rendimento Total</div>' +
+          '<div style="font-size:18px;font-weight:800;color:' + corRend + ';">' + (rendTot >= 0 ? '+' : '') + fmt(rendTot) + '</div>' +
+        '</div>' +
+      '</div>';
+
+    // Tabela
+    const thS = 'padding:7px 8px;font-size:10px;color:var(--text-muted);font-weight:700;white-space:nowrap;text-align:';
+    el.innerHTML =
+      '<div style="overflow-x:auto;margin-top:4px;">' +
+      '<table style="width:100%;border-collapse:collapse;">' +
+        '<thead><tr style="background:var(--bg);">' +
+          '<th style="' + thS + 'left;">Instituição</th>' +
+          '<th style="' + thS + 'right;">% CDI</th>' +
+          '<th style="' + thS + 'right;">Valor Aplicado</th>' +
+          '<th style="' + thS + 'right;">Valor Atualizado</th>' +
+          '<th style="' + thS + 'right;">Data Atualiz.</th>' +
+          '<th style="' + thS + 'right;">Dias Decorridos</th>' +
+          '<th style="' + thS + 'right;">Taxa Diária</th>' +
+          '<th style="' + thS + 'right;color:#7c3aed;">Valor Provisionado</th>' +
+          '<th style="' + thS + 'right;">Rend. Período</th>' +
+          '<th style="' + thS + 'right;">Rend. Total</th>' +
+          '<th style="' + thS + 'center;">Ações</th>' +
+        '</tr></thead>' +
+        '<tbody>' +
+        itens.map((item, idx) => {
+          const bg         = idx % 2 === 0 ? 'var(--bg)' : 'var(--surface)';
+          const rendPeriodo= item.provisionado - item.valorAtualizado;
+          const rendTotal  = item.provisionado - (item.valorAplicado || 0);
+          const corP       = rendPeriodo >= 0 ? 'var(--success)' : 'var(--danger)';
+          const corT       = rendTotal   >= 0 ? 'var(--success)' : 'var(--danger)';
+          const taxaDiaria = _selicAnual > 0
+            ? (Math.pow(1 + _selicAnual * (item.percentualCDI/100) / 100, 1/252) - 1) * 100
+            : 0;
+          const pctCDI     = Number(item.percentualCDI || 100).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:2});
+          return '<tr style="border-bottom:1px solid var(--border);background:' + bg + ';">' +
+            '<td style="padding:8px;font-size:12px;font-weight:700;">' + (item.instituicao || '—') +
+              (item.observacao ? '<div style="font-size:10px;color:var(--text-muted);font-weight:400;">' + item.observacao + '</div>' : '') +
+            '</td>' +
+            '<td style="padding:8px;font-size:12px;text-align:right;font-weight:700;color:#7c3aed;">' + pctCDI + '%</td>' +
+            '<td style="padding:8px;font-size:12px;text-align:right;color:var(--text-muted);">' + (item.valorAplicado ? fmt(item.valorAplicado) : '—') + '</td>' +
+            '<td style="padding:8px;font-size:12px;text-align:right;">' + fmt(item.valorAtualizado) + '</td>' +
+            '<td style="padding:8px;font-size:12px;text-align:right;color:var(--text-muted);">' + fmtD(item.dataAtualizacao) + '</td>' +
+            '<td style="padding:8px;font-size:12px;text-align:right;">' + item.dias + 'd</td>' +
+            '<td style="padding:8px;font-size:11px;text-align:right;color:var(--text-muted);">' + (_selicAnual > 0 ? taxaDiaria.toFixed(4) + '%' : '—') + '</td>' +
+            '<td style="padding:8px;font-size:13px;font-weight:800;text-align:right;color:#7c3aed;">' + fmt(item.provisionado) + '</td>' +
+            '<td style="padding:8px;font-size:12px;font-weight:700;text-align:right;color:' + corP + ';">' + (rendPeriodo >= 0 ? '+' : '') + fmt(rendPeriodo) + '</td>' +
+            '<td style="padding:8px;font-size:12px;font-weight:700;text-align:right;color:' + corT + ';">' + (rendTotal >= 0 ? '+' : '') + fmt(rendTotal) + '</td>' +
+            '<td style="padding:8px;text-align:center;white-space:nowrap;">' +
+              '<button onclick="abrirFormRendaFixa(\'' + item.id + '\')" title="Editar" style="background:#fef3c7;border:none;border-radius:6px;color:#92400e;font-size:13px;cursor:pointer;padding:4px 7px;margin-right:3px;">✏️</button>' +
+              '<button onclick="removerItemRendaFixa(\'' + item.id + '\')" title="Excluir" style="background:#fee2e2;border:none;border-radius:6px;color:#dc2626;font-size:13px;cursor:pointer;padding:4px 7px;">🗑</button>' +
+            '</td>' +
+          '</tr>';
+        }).join('') +
+        '</tbody>' +
+      '</table></div>';
   }
 
   function renderTokenAcoes() {
@@ -3696,7 +3993,9 @@
   //  CARTEIRAS DE AÇÕES
   // ══════════════════════════════════════════
   let carteiras = [];
-  let _dolarAtual = 1; // atualizado por buscarDolar()
+  let _dolarAtual = 1;   // atualizado por buscarDolar()
+  let _selicAnual = 0;   // atualizado por buscarSelic()
+  let rendaFixa   = [];  // carteira de renda fixa
 
   const _CFG_DATE = '2000-01-01';
   const _CFG_TIPO = 'cred';
