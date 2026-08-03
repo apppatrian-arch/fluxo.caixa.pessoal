@@ -3559,6 +3559,8 @@
       ]);
       const taxaMeta   = parseFloat(String(meta[0].valor).replace(',', '.'));
       _selicAnual = taxaMeta;
+      // Re-renderiza renda fixa agora que a Selic está disponível
+      if (rendaFixa.length) { renderRendaFixa(); renderGraficoAlocacao(); }
       const taxaDiaria = parseFloat(String(diaria[0].valor).replace(',', '.'));
       const dataMeta   = meta[0].data;
       // Selic mensal aproximada: (1 + anual/100)^(1/12) - 1
