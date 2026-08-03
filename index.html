@@ -3634,17 +3634,66 @@
   function _rfPrefix()  { return '_rendafixa_' + (currentUser || '').toLowerCase() + '|'; }
   function _rfChaveLocal() { return chaveLocal('rendafixa'); }
 
+  // Algoritmo de Meeus/Jones/Butcher para data da Páscoa
+  function _calcPascoa(ano) {
+    const a = ano % 19, b = Math.floor(ano/100), c = ano%100;
+    const d = Math.floor(b/4), e = b%4, f = Math.floor((b+8)/25);
+    const g = Math.floor((b-f+1)/3);
+    const h = (19*a + b - d - g + 15) % 30;
+    const i = Math.floor(c/4), k = c%4;
+    const l = (32 + 2*e + 2*i - h - k) % 7;
+    const m = Math.floor((a + 11*h + 22*l) / 451);
+    const mes = Math.floor((h + l - 7*m + 114) / 31);
+    const dia = ((h + l - 7*m + 114) % 31) + 1;
+    return new Date(ano, mes-1, dia);
+  }
+
+  // Retorna Set de strings 'YYYY-MM-DD' com feriados nacionais BR do ano
+  function _feriadosBR(ano) {
+    const s = new Set();
+    const add = (m, d) => s.add(ano + '-' + String(m).padStart(2,'0') + '-' + String(d).padStart(2,'0'));
+    add(1,1); add(4,21); add(5,1); add(9,7); add(10,12); add(11,2); add(11,15); add(11,20); add(12,25);
+    const p = _calcPascoa(ano);
+    const addDelta = (base, delta) => {
+      const dt = new Date(base); dt.setDate(dt.getDate() + delta);
+      s.add(dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0') + '-' + String(dt.getDate()).padStart(2,'0'));
+    };
+    addDelta(p, -48); // Segunda de Carnaval
+    addDelta(p, -47); // Terça de Carnaval
+    addDelta(p,  -2); // Sexta-feira Santa
+    addDelta(p,  60); // Corpus Christi
+    return s;
+  }
+
+  // Conta dias úteis entre duas datas — início exclusive, fim inclusive (padrão bancário D+1)
+  function _contarDiasUteis(inicio, fim) {
+    if (fim <= inicio) return 0;
+    let count = 0;
+    const cache = {};
+    const curr = new Date(inicio);
+    curr.setDate(curr.getDate() + 1);
+    const end = new Date(fim); end.setHours(0,0,0,0);
+    while (curr <= end) {
+      const dow = curr.getDay();
+      if (dow !== 0 && dow !== 6) {
+        const ano = curr.getFullYear();
+        if (!cache[ano]) cache[ano] = _feriadosBR(ano);
+        const key = ano + '-' + String(curr.getMonth()+1).padStart(2,'0') + '-' + String(curr.getDate()).padStart(2,'0');
+        if (!cache[ano].has(key)) count++;
+      }
+      curr.setDate(curr.getDate() + 1);
+    }
+    return count;
+  }
+
   function _rfCalcProvisionado(item) {
     if (!item.valorAtualizado || !item.dataAtualizacao || !_selicAnual) return item.valorAtualizado || 0;
-    const hoje  = new Date(); hoje.setHours(0,0,0,0);
-    const base  = new Date(item.dataAtualizacao + 'T00:00:00');
-    const diasCalendario = Math.max(0, Math.floor((hoje - base) / 86400000));
-    if (diasCalendario === 0) return item.valorAtualizado;
+    const hoje = new Date(); hoje.setHours(0,0,0,0);
+    const base = new Date(item.dataAtualizacao + 'T00:00:00'); base.setHours(0,0,0,0);
+    const diasUteis = _contarDiasUteis(base, hoje);
+    if (diasUteis === 0) return item.valorAtualizado;
     const selicEfetiva = _selicAnual * ((item.percentualCDI || 100) / 100);
-    // Taxa diária equivalente usando 252 dias úteis
     const taxaDiaria   = Math.pow(1 + selicEfetiva / 100, 1 / 252) - 1;
-    // Aproximação de dias úteis: dias corridos × 252/365
-    const diasUteis    = diasCalendario * (252 / 365);
     return item.valorAtualizado * Math.pow(1 + taxaDiaria, diasUteis);
   }
 
@@ -3781,8 +3830,8 @@
     const itens = rendaFixa.map(item => {
       const prov   = _rfCalcProvisionado(item);
       const hoje   = new Date(); hoje.setHours(0,0,0,0);
-      const base   = new Date(item.dataAtualizacao + 'T00:00:00');
-      const dias   = Math.max(0, Math.floor((hoje - base) / 86400000));
+      const base   = new Date(item.dataAtualizacao + 'T00:00:00'); base.setHours(0,0,0,0);
+      const dias   = _contarDiasUteis(base, hoje);
       return { ...item, provisionado: prov, dias };
     });
 
@@ -3824,7 +3873,7 @@
           '<th style="' + thS + 'right;">Valor Aplicado</th>' +
           '<th style="' + thS + 'right;">Valor Atualizado</th>' +
           '<th style="' + thS + 'right;">Data Atualiz.</th>' +
-          '<th style="' + thS + 'right;">Dias Decorridos</th>' +
+          '<th style="' + thS + 'right;">Dias Úteis</th>' +
           '<th style="' + thS + 'right;">Taxa Diária</th>' +
           '<th style="' + thS + 'right;color:#7c3aed;">Valor Provisionado</th>' +
           '<th style="' + thS + 'right;">Rend. Período</th>' +
