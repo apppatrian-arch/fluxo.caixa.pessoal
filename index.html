@@ -1354,6 +1354,9 @@
             <button onclick="salvarItemRendaFixa()" style="padding:9px 20px;background:#7c3aed;color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">💾 Salvar</button>
             <button onclick="fecharFormRendaFixa()" style="padding:9px 16px;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;font-size:13px;cursor:pointer;color:var(--text);">Cancelar</button>
           </div>
+          <div style="margin-top:12px;padding:10px 12px;background:#fef9c3;border-radius:8px;font-size:11px;color:#713f12;line-height:1.5;">
+            ⚠️ <strong>Quando a taxa Selic mudar:</strong> consulte o saldo atualizado no banco, registre aqui o novo valor no campo "Valor Atualizado" e atualize a "Data da Atualização" para hoje. Isso congela os juros acumulados na taxa antiga — daqui em diante o cálculo usará a nova taxa.
+          </div>
           <input type="hidden" id="rf-edit-id" value="" />
         </div>
       </div>
@@ -3558,10 +3561,11 @@
         fetch('https://api.bcb.gov.br/dados/serie/bcdata.sgs.11/dados/ultimos/1?formato=json').then(r => r.json())
       ]);
       const taxaMeta   = parseFloat(String(meta[0].valor).replace(',', '.'));
-      _selicAnual = taxaMeta;
+      const taxaDiaria = parseFloat(String(diaria[0].valor).replace(',', '.'));
+      _selicAnual  = taxaMeta;
+      _selicDiaria = taxaDiaria; // taxa Over real diária (BCB série 11), ex: 0,0525%
       // Re-renderiza renda fixa agora que a Selic está disponível
       if (rendaFixa.length) { renderRendaFixa(); renderGraficoAlocacao(); }
-      const taxaDiaria = parseFloat(String(diaria[0].valor).replace(',', '.'));
       const dataMeta   = meta[0].data;
       // Selic mensal aproximada: (1 + anual/100)^(1/12) - 1
       const taxaMensal = (Math.pow(1 + taxaMeta / 100, 1 / 12) - 1) * 100;
@@ -3688,14 +3692,24 @@
     return count;
   }
 
+  // Retorna a taxa diária decimal para um item (usando Over real quando disponível)
+  function _rfTaxaDiaria(item) {
+    const pct = (item.percentualCDI || 100) / 100;
+    if (_selicDiaria > 0) {
+      // Taxa Over real do BCB série 11 (ex: 0,0525%) × % CDI
+      return (_selicDiaria / 100) * pct;
+    }
+    // Fallback: deriva da meta anual
+    return Math.pow(1 + _selicAnual * pct / 100, 1 / 252) - 1;
+  }
+
   function _rfCalcProvisionado(item) {
-    if (!item.valorAtualizado || !item.dataAtualizacao || !_selicAnual) return item.valorAtualizado || 0;
+    if (!item.valorAtualizado || !item.dataAtualizacao || (!_selicAnual && !_selicDiaria)) return item.valorAtualizado || 0;
     const hoje = new Date(); hoje.setHours(0,0,0,0);
     const base = new Date(item.dataAtualizacao + 'T00:00:00'); base.setHours(0,0,0,0);
     const diasUteis = _contarDiasUteis(base, hoje);
     if (diasUteis === 0) return item.valorAtualizado;
-    const selicEfetiva = _selicAnual * ((item.percentualCDI || 100) / 100);
-    const taxaDiaria   = Math.pow(1 + selicEfetiva / 100, 1 / 252) - 1;
+    const taxaDiaria = _rfTaxaDiaria(item);
     return item.valorAtualizado * Math.pow(1 + taxaDiaria, diasUteis);
   }
 
@@ -3889,9 +3903,9 @@
           const rendTotal  = item.provisionado - (item.valorAplicado || 0);
           const corP       = rendPeriodo >= 0 ? 'var(--success)' : 'var(--danger)';
           const corT       = rendTotal   >= 0 ? 'var(--success)' : 'var(--danger)';
-          const taxaDiaria = _selicAnual > 0
-            ? (Math.pow(1 + _selicAnual * (item.percentualCDI/100) / 100, 1/252) - 1) * 100
-            : 0;
+          // Usa a taxa Over real (BCB série 11) × % CDI — mesma base do cálculo
+          const taxaDiariaDecimal = (_selicDiaria > 0 || _selicAnual > 0) ? _rfTaxaDiaria(item) : 0;
+          const taxaDiaria        = taxaDiariaDecimal * 100; // em %
           const pctCDI     = Number(item.percentualCDI || 100).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:2});
           return '<tr style="border-bottom:1px solid var(--border);background:' + bg + ';">' +
             '<td style="padding:8px;font-size:12px;font-weight:700;">' + (item.instituicao || '—') +
@@ -3902,7 +3916,7 @@
             '<td style="padding:8px;font-size:12px;text-align:right;">' + fmt(item.valorAtualizado) + '</td>' +
             '<td style="padding:8px;font-size:12px;text-align:right;color:var(--text-muted);">' + fmtD(item.dataAtualizacao) + '</td>' +
             '<td style="padding:8px;font-size:12px;text-align:right;">' + item.dias + 'd</td>' +
-            '<td style="padding:8px;font-size:11px;text-align:right;color:var(--text-muted);">' + (_selicAnual > 0 ? taxaDiaria.toFixed(4) + '%' : '—') + '</td>' +
+            '<td style="padding:8px;font-size:11px;text-align:right;color:var(--text-muted);">' + (taxaDiaria > 0 ? taxaDiaria.toFixed(4) + '%' : '—') + '</td>' +
             '<td style="padding:8px;font-size:13px;font-weight:800;text-align:right;color:#7c3aed;">' + fmt(item.provisionado) + '</td>' +
             '<td style="padding:8px;font-size:12px;font-weight:700;text-align:right;color:' + corP + ';">' + (rendPeriodo >= 0 ? '+' : '') + fmt(rendPeriodo) + '</td>' +
             '<td style="padding:8px;font-size:12px;font-weight:700;text-align:right;color:' + corT + ';">' + (rendTotal >= 0 ? '+' : '') + fmt(rendTotal) + '</td>' +
@@ -4215,7 +4229,8 @@
   // ══════════════════════════════════════════
   let carteiras = [];
   let _dolarAtual    = 1;   // atualizado por buscarDolar()
-  let _selicAnual    = 0;   // atualizado por buscarSelic()
+  let _selicAnual    = 0;   // meta anual % a.a. — atualizado por buscarSelic()
+  let _selicDiaria   = 0;   // taxa Over diária real (BCB série 11) — atualizado por buscarSelic()
   let rendaFixa      = [];  // carteira de renda fixa
   let _chartAlocacao = null;
 
