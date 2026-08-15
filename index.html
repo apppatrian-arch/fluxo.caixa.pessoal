@@ -1378,12 +1378,18 @@
       <!-- CARDS SUPERIORES -->
       <div class="acoes-top-cards">
 
-        <!-- Token brapi (mesmo da aba Ações) -->
-        <div>
-          <div id="opcoes-token-info" style="background:#f0fdf4;border:1.5px solid #22c55e;border-radius:14px;padding:12px 16px;margin-bottom:14px;">
-            <div style="font-size:13px;font-weight:700;color:#15803d;">🔑 Usando token brapi.dev da aba Ações</div>
-            <div style="font-size:11px;color:#166534;margin-top:4px;">O preço da ação subjacente é buscado automaticamente. O prêmio da opção é informado manualmente.</div>
+        <!-- Cotação Atual -->
+        <div style="background:var(--card);border-radius:14px;padding:16px;">
+          <div style="font-size:14px;font-weight:700;margin-bottom:12px;">Cotação Atual</div>
+          <div style="display:flex;gap:8px;margin-bottom:12px;">
+            <input type="text" id="opcoes-ticker" placeholder="Ex: PETR4, SANB11..." maxlength="10"
+              style="flex:1;padding:11px 14px;border:1.5px solid var(--border);border-radius:10px;font-size:15px;font-weight:700;text-transform:uppercase;background:var(--bg);color:var(--text);"
+              oninput="this.value=this.value.toUpperCase()"
+              onkeydown="if(event.key==='Enter') buscarCotacao('opcoes-ticker','opcoes-resultado')" />
+            <button onclick="buscarCotacao('opcoes-ticker','opcoes-resultado')"
+              style="padding:11px 18px;background:var(--primary);color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap;">Buscar</button>
           </div>
+          <div id="opcoes-resultado"></div>
         </div>
 
         <!-- Resumo Geral -->
@@ -4628,10 +4634,12 @@
       '<div style="padding:12px;background:#fee2e2;border-radius:10px;color:#dc2626;font-size:13px;">❌ ' + msg + '</div>';
   }
 
-  async function buscarCotacao() {
-    const ticker = document.getElementById('acoes-ticker').value.trim().toUpperCase();
+  async function buscarCotacao(inputId, resultId) {
+    inputId  = inputId  || 'acoes-ticker';
+    resultId = resultId || 'acoes-resultado';
+    const ticker = document.getElementById(inputId).value.trim().toUpperCase();
     if (!ticker) { alert('Informe o ticker da ação.'); return; }
-    acoesLoading('acoes-resultado');
+    acoesLoading(resultId);
     try {
       const r = await fetch(brapiUrl('/quote/' + ticker + '?fundamental=false'));
       if (!r.ok) throw new Error('Erro ' + r.status + ' — verifique o token ou o ticker informado.');
@@ -4651,7 +4659,7 @@
       const sinalVar  = variacao >= 0 ? '+' : '';
       const hora      = q.regularMarketTime ? new Date(q.regularMarketTime * 1000).toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'}) : '';
 
-      document.getElementById('acoes-resultado').innerHTML =
+      document.getElementById(resultId).innerHTML =
         '<div style="background:var(--bg);border-radius:12px;padding:16px;">' +
           '<div style="font-size:11px;color:var(--text-muted);font-weight:700;margin-bottom:2px;">' + ticker + (hora?' · '+hora:'') + '</div>' +
           '<div style="font-size:13px;margin-bottom:10px;color:var(--text);">' + nome + '</div>' +
@@ -4680,7 +4688,7 @@
           (volume ? '<div style="margin-top:8px;font-size:11px;color:var(--text-muted);text-align:right;">Volume: ' + volume.toLocaleString('pt-BR') + '</div>' : '') +
         '</div>';
     } catch(e) {
-      acoesErro('acoes-resultado', e.message);
+      acoesErro(resultId, e.message);
     }
   }
 
