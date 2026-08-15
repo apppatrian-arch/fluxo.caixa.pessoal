@@ -4754,7 +4754,7 @@
     const bolsaiInfo = src === 'bolsai' && bsk
       ? '<div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
           '<span style="font-size:10px;color:var(--text-muted);">Fundamentos incluídos: P/L · P/VP · ROE · Margem Líquida</span>' +
-          '<button onclick="paulTestFundamentais()" style="padding:3px 8px;font-size:10px;font-weight:700;background:var(--surface);border:1px solid var(--border);border-radius:6px;cursor:pointer;color:var(--text);">🔬 Testar</button>' +
+          '<button onclick="paulTestFundamentais(this)" style="padding:3px 8px;font-size:10px;font-weight:700;background:var(--surface);border:1px solid var(--border);border-radius:6px;cursor:pointer;color:var(--text);">🔬 Testar</button>' +
         '</div>'
       : src === 'bolsai'
         ? '<div style="margin-top:6px;font-size:10px;color:var(--text-muted);">Fundamentos incluídos: P/L · P/VP · ROE · Margem Líquida</div>'
@@ -4812,36 +4812,65 @@
     }
   };
 
-  async function paulTestFundamentais() {
-    const key = _getBolsaiKey();
-    if (!key) { alert('Chave usebolsai.com não configurada.'); return; }
-    // Pega o primeiro ticker da primeira carteira ativa, ou usa BBAS3 como fallback
+  async function paulTestFundamentais(btn) {
+    if (btn) { btn.textContent = '⏳'; btn.disabled = true; }
     let ticker = 'BBAS3';
     if (carteiras && carteiras.length > 0) {
       const c = carteiras[0];
       if (c.acoes && c.acoes.length > 0) ticker = c.acoes[0].ticker.replace('.SA','').toUpperCase();
     }
-    const testBtn = event && event.target;
-    if (testBtn) { testBtn.textContent = '⏳'; testBtn.disabled = true; }
-    try {
-      const headers = { 'X-API-Key': key };
-      const [quoteRes, fundRes] = await Promise.all([
-        fetch('https://api.usebolsai.com/api/v1/stocks/' + ticker + '/quote', { headers }),
-        fetch('https://api.usebolsai.com/api/v1/fundamentals/' + ticker, { headers }),
-      ]);
-      const quoteJson = await quoteRes.json().catch(() => null);
-      const fundJson  = await fundRes.json().catch(() => null);
-      let msg = '=== TESTE BOLSAI: ' + ticker + ' ===\n\n';
-      msg += '--- /quote (HTTP ' + quoteRes.status + ') ---\n';
-      msg += quoteJson ? JSON.stringify({close: quoteJson.close}, null, 2) : '(sem resposta)';
-      msg += '\n\n--- /fundamentals (HTTP ' + fundRes.status + ') ---\n';
-      msg += fundJson  ? JSON.stringify({pl:fundJson.pl, pvp:fundJson.pvp, roe:fundJson.roe, net_margin:fundJson.net_margin, error:fundJson.error, detail:fundJson.detail}, null, 2) : '(sem resposta)';
-      alert(msg);
-    } catch(e) {
-      alert('Erro ao testar: ' + e.message);
-    } finally {
-      if (testBtn) { testBtn.textContent = '🔬 Testar'; testBtn.disabled = false; }
+    let msg = '=== DIAGNÓSTICO: ' + ticker + ' ===\n\n';
+
+    // Teste 1: bolsai quote (separado, com catch próprio)
+    const bkey = _getBolsaiKey();
+    if (bkey) {
+      try {
+        const r = await fetch('https://api.usebolsai.com/api/v1/stocks/' + ticker + '/quote', { headers: { 'X-API-Key': bkey } });
+        const j = await r.json().catch(() => null);
+        msg += '🟢 bolsai /quote HTTP ' + r.status + ': close=' + (j && j.close) + '\n';
+      } catch(e) { msg += '🔴 bolsai /quote: ' + e.message + '\n'; }
+
+      // Teste 2: bolsai fundamentals (separado, com catch próprio)
+      try {
+        const r2 = await fetch('https://api.usebolsai.com/api/v1/fundamentals/' + ticker, { headers: { 'X-API-Key': bkey } });
+        const j2 = await r2.json().catch(() => null);
+        msg += '🟢 bolsai /fundamentals HTTP ' + r2.status + ': pl=' + (j2 && j2.pl) + ' pvp=' + (j2 && j2.pvp) + '\n';
+      } catch(e) { msg += '🔴 bolsai /fundamentals (CORS?): ' + e.message + '\n'; }
+    } else {
+      msg += '⚪ bolsai: sem chave\n';
     }
+
+    msg += '\n';
+
+    // Teste 3: brapi.dev fundamentals
+    const bt = _getBrapiToken();
+    if (bt) {
+      try {
+        const url = brapiUrl('/quote/' + ticker + '?fundamental=true');
+        const r3 = await fetch(url);
+        const j3 = await r3.json().catch(() => null);
+        const q = j3 && j3.results && j3.results[0];
+        if (q) {
+          msg += '🟢 brapi /quote?fundamental=true HTTP ' + r3.status + ':\n';
+          msg += '   priceEarnings=' + q.priceEarnings + '\n';
+          msg += '   priceToBook=' + q.priceToBook + '\n';
+          msg += '   returnOnEquity=' + q.returnOnEquity + '\n';
+          msg += '   profitMargins=' + q.profitMargins + '\n';
+        } else {
+          msg += '🟡 brapi HTTP ' + r3.status + ': ' + JSON.stringify(j3).slice(0,100) + '\n';
+        }
+      } catch(e) { msg += '🔴 brapi: ' + e.message + '\n'; }
+    } else {
+      msg += '⚪ brapi.dev: sem token\n';
+    }
+
+    msg += '\n--- Chaves em uso ---\n';
+    msg += 'bolsai key: ' + (bkey ? bkey.slice(0,8)+'...' : 'vazio') + '\n';
+    msg += 'brapi token: ' + (bt ? bt.slice(0,8)+'...' : 'vazio') + '\n';
+    msg += 'fonte ativa: ' + _getApiSource() + '\n';
+
+    alert(msg);
+    if (btn) { btn.textContent = '🔬 Testar'; btn.disabled = false; }
   }
 
   function _buildNome(me, overrides) {
