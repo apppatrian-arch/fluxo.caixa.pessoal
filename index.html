@@ -4751,9 +4751,14 @@
         '</div>';
     };
 
-    const bolsaiInfo = src === 'bolsai'
-      ? '<div style="margin-top:6px;font-size:10px;color:var(--text-muted);">Fundamentos incluídos: P/L · P/VP · ROE · Margem Líquida</div>'
-      : '';
+    const bolsaiInfo = src === 'bolsai' && bsk
+      ? '<div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
+          '<span style="font-size:10px;color:var(--text-muted);">Fundamentos incluídos: P/L · P/VP · ROE · Margem Líquida</span>' +
+          '<button onclick="paulTestFundamentais()" style="padding:3px 8px;font-size:10px;font-weight:700;background:var(--surface);border:1px solid var(--border);border-radius:6px;cursor:pointer;color:var(--text);">🔬 Testar</button>' +
+        '</div>'
+      : src === 'bolsai'
+        ? '<div style="margin-top:6px;font-size:10px;color:var(--text-muted);">Fundamentos incluídos: P/L · P/VP · ROE · Margem Líquida</div>'
+        : '';
 
     card.innerHTML =
       '<div style="background:var(--card);border-radius:14px;padding:14px 16px;">' +
@@ -4806,6 +4811,38 @@
       renderTokenAcoes();
     }
   };
+
+  async function paulTestFundamentais() {
+    const key = _getBolsaiKey();
+    if (!key) { alert('Chave usebolsai.com não configurada.'); return; }
+    // Pega o primeiro ticker da primeira carteira ativa, ou usa BBAS3 como fallback
+    let ticker = 'BBAS3';
+    if (carteiras && carteiras.length > 0) {
+      const c = carteiras[0];
+      if (c.acoes && c.acoes.length > 0) ticker = c.acoes[0].ticker.replace('.SA','').toUpperCase();
+    }
+    const testBtn = event && event.target;
+    if (testBtn) { testBtn.textContent = '⏳'; testBtn.disabled = true; }
+    try {
+      const headers = { 'X-API-Key': key };
+      const [quoteRes, fundRes] = await Promise.all([
+        fetch('https://api.usebolsai.com/api/v1/stocks/' + ticker + '/quote', { headers }),
+        fetch('https://api.usebolsai.com/api/v1/fundamentals/' + ticker, { headers }),
+      ]);
+      const quoteJson = await quoteRes.json().catch(() => null);
+      const fundJson  = await fundRes.json().catch(() => null);
+      let msg = '=== TESTE BOLSAI: ' + ticker + ' ===\n\n';
+      msg += '--- /quote (HTTP ' + quoteRes.status + ') ---\n';
+      msg += quoteJson ? JSON.stringify({close: quoteJson.close}, null, 2) : '(sem resposta)';
+      msg += '\n\n--- /fundamentals (HTTP ' + fundRes.status + ') ---\n';
+      msg += fundJson  ? JSON.stringify({pl:fundJson.pl, pvp:fundJson.pvp, roe:fundJson.roe, net_margin:fundJson.net_margin, error:fundJson.error, detail:fundJson.detail}, null, 2) : '(sem resposta)';
+      alert(msg);
+    } catch(e) {
+      alert('Erro ao testar: ' + e.message);
+    } finally {
+      if (testBtn) { testBtn.textContent = '🔬 Testar'; testBtn.disabled = false; }
+    }
+  }
 
   function _buildNome(me, overrides) {
     const o = Object.assign({}, me, overrides);
