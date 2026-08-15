@@ -5386,12 +5386,17 @@
     let erros = 0;
 
     if (_getApiSource() === 'bolsai') {
+      const bkey = _getBolsaiKey();
+      if (!bkey) {
+        if (elBtn) { elBtn.textContent = '❌ sem chave'; elBtn.disabled = false; setTimeout(() => { if (elBtn) { elBtn.textContent = '🔄 bolsai'; } }, 3000); }
+        return;
+      }
       await Promise.all(uniqueTickers.map(async ticker => {
         try {
           const [quote, stats, fund] = await Promise.all([
             _bolsaiFetch('/stocks/' + ticker + '/quote'),
             _bolsaiFetch('/stocks/' + ticker + '/stats').catch(() => null),
-            _bolsaiFetch('/fundamentals/' + ticker).catch(() => null),
+            _bolsaiFetch('/fundamentals/' + ticker).catch(e => { console.warn('fund ' + ticker + ':', e.message); return null; }),
           ]);
           if (!quote || !quote.close) { erros++; return; }
           precos[ticker] = {
@@ -5402,14 +5407,15 @@
             var7dPct:  null,
             min52:     stats && stats.week_52_low  != null ? Number(stats.week_52_low)  : null,
             max52:     stats && stats.week_52_high != null ? Number(stats.week_52_high) : null,
-            fund: fund ? {
-              pl:        fund.pl         != null ? fund.pl         : null,
+            fund: fund && fund.pl != null ? {
+              pl:        fund.pl,
               pvp:       fund.pvp        != null ? fund.pvp        : null,
               roe:       fund.roe        != null ? fund.roe        : null,
               netMargin: fund.net_margin != null ? fund.net_margin : null,
             } : null,
           };
-        } catch(e) { erros++; }
+          console.log('bolsai ' + ticker + ' → preco:', quote.close, '| fund:', fund ? {pl:fund.pl,pvp:fund.pvp,roe:fund.roe} : 'null');
+        } catch(e) { console.error('bolsai erro ' + ticker + ':', e); erros++; }
       }));
     } else {
       await Promise.all(uniqueTickers.map(async ticker => {
@@ -5646,7 +5652,7 @@
         '<div style="background:var(--primary);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;">' +
           '<div style="color:white;font-size:13px;font-weight:700;">💼 ' + c.nome + '</div>' +
           '<div style="display:flex;gap:6px;">' +
-            '<button id="cbtn-atualizar-' + c.id + '" onclick="atualizarCotacoesCarteira(\'' + c.id + '\')" style="background:rgba(255,255,255,0.2);border:none;border-radius:6px;color:white;font-size:12px;padding:4px 10px;cursor:pointer;" title="Atualizar cotações">🔄</button>' +
+            '<button id="cbtn-atualizar-' + c.id + '" onclick="atualizarCotacoesCarteira(\'' + c.id + '\')" style="background:rgba(255,255,255,0.2);border:none;border-radius:6px;color:white;font-size:12px;padding:4px 10px;cursor:pointer;" title="Atualizar cotações via ' + (_getApiSource() === 'bolsai' ? 'usebolsai.com' : 'brapi.dev') + '">🔄 ' + (_getApiSource() === 'bolsai' ? 'bolsai' : 'brapi') + '</button>' +
             '<button onclick="toggleCarteiraView(\'' + c.id + '\')" style="background:' + (viewMode==='chart' ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.2)') + ';border:none;border-radius:6px;color:white;font-size:12px;padding:4px 10px;cursor:pointer;" title="Alternar gráfico/tabela">📊</button>' +
             '<button onclick="exportarCarteiraExcel(\'' + c.id + '\')" style="background:rgba(255,255,255,0.2);border:none;border-radius:6px;color:white;font-size:12px;padding:4px 10px;cursor:pointer;" title="Exportar para Excel">📥</button>' +
             '<button onclick="abrirModalCarteira(\'' + c.id + '\')" style="background:rgba(255,255,255,0.2);border:none;border-radius:6px;color:white;font-size:12px;padding:4px 10px;cursor:pointer;">✏️</button>' +
