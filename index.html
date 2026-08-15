@@ -5082,7 +5082,13 @@
   async function forcaSincCarteiras() {
     const loaded = await carregarCarteirasDB();
     if (!loaded) {
-      carteiras = JSON.parse(localStorage.getItem(_chavCarteiras()) || '[]');
+      const local = JSON.parse(localStorage.getItem(_chavCarteiras()) || '[]');
+      carteiras = local;
+      if (local.length > 0) {
+        // Tem dados no localStorage mas o banco está vazio — restaura automaticamente
+        _setSyncStatus('⬆️ Restaurando ' + local.length + ' carteira(s) no banco...', null);
+        await sincronizarCarteirasDB();
+      }
     }
     renderCarteiras();
   }
@@ -6327,7 +6333,9 @@
     }
     const me = paulGetMinhaConta();
     if (!me) { alert('Usuário não encontrado. Tente recarregar a página.'); return; }
-    if (!confirm('Nenhum outro administrador encontrado.\nDeseja restaurar seu acesso como administrador?')) return;
+    if (!confirm('Nenhum outro administrador encontrado.\nDeseja restaurar seu acesso como administrador?\n\n⚠️ Seus dados de carteiras serão resubidos automaticamente após a restauração.')) return;
+    // Salva carteiras localmente antes do DELETE para garantir que não se percam
+    const carteirasBkp = JSON.parse(localStorage.getItem(_chavCarteiras()) || '[]');
     try {
       // Email tem unique constraint — DELETE obrigatório antes do POST
       await paulFetch('DELETE', '/paulistinha/usuarios/' + me.id);
@@ -6344,7 +6352,13 @@
       }
       await paulUsuariosCarregar();
       paulAplicarAcessoUI();
-      alert('✅ Acesso de administrador restaurado!');
+      // Resubir carteiras ao banco se o cascade as apagou
+      if (carteirasBkp.length > 0) {
+        carteiras = carteirasBkp;
+        localStorage.setItem(_chavCarteiras(), JSON.stringify(carteiras));
+        await sincronizarCarteirasDB();
+      }
+      alert('✅ Acesso de administrador restaurado!' + (carteirasBkp.length > 0 ? '\n✅ ' + carteirasBkp.length + ' carteira(s) resincronizada(s) no banco.' : ''));
     } catch(e) {
       alert('❌ Erro ao recuperar acesso:\n' + e.message);
     }
