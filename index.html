@@ -1445,8 +1445,10 @@
               <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">Tipo</div>
               <select id="op-tipo"
                 style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text);box-sizing:border-box;">
-                <option value="call">📈 CALL (compra)</option>
-                <option value="put">📉 PUT (venda)</option>
+                <option value="call_compra">📈 CALL Compra</option>
+                <option value="call_venda">📉 CALL Venda</option>
+                <option value="put_compra">📈 PUT Compra</option>
+                <option value="put_venda">📉 PUT Venda</option>
               </select>
             </div>
             <div>
@@ -4232,10 +4234,15 @@
     return _contarDiasUteis(hoje, venc);
   }
 
+  // Retorna 'call' ou 'put' independente da direção (compra/venda)
+  function _opBase(tipo) { return tipo.startsWith('call') ? 'call' : 'put'; }
+  // Retorna 'compra' ou 'venda'
+  function _opDirecao(tipo) { return tipo.endsWith('venda') ? 'venda' : 'compra'; }
+
   function _opMoneyness(tipo, precoAcao, strike) {
     if (!precoAcao || !strike) return null;
     const diff = precoAcao - strike;
-    if (tipo === 'call') {
+    if (_opBase(tipo) === 'call') {
       if (diff > 0.01)  return 'ITM';
       if (diff < -0.01) return 'OTM';
       return 'ATM';
@@ -4248,8 +4255,13 @@
 
   function _opValorIntrinico(tipo, precoAcao, strike) {
     if (!precoAcao || !strike) return 0;
-    if (tipo === 'call') return Math.max(0, precoAcao - strike);
+    if (_opBase(tipo) === 'call') return Math.max(0, precoAcao - strike);
     return Math.max(0, strike - precoAcao);
+  }
+
+  // Resultado unitário: compra paga prêmio e recebe intrínseco; venda recebe prêmio e paga intrínseco
+  function _opResultadoUnit(tipo, vi, premio) {
+    return _opDirecao(tipo) === 'compra' ? vi - premio : premio - vi;
   }
 
   async function _opSalvarDB() {
@@ -4311,7 +4323,7 @@
       if (!item) return;
       document.getElementById('op-ticker-opcao').value   = item.tickerOpcao   || '';
       document.getElementById('op-ticker-acao').value    = item.tickerAcao    || '';
-      document.getElementById('op-tipo').value           = item.tipo          || 'call';
+      document.getElementById('op-tipo').value           = item.tipo          || 'call_compra';
       document.getElementById('op-data-operacao').value  = item.dataOperacao  || '';
       document.getElementById('op-vencimento').value     = item.vencimento    || '';
       document.getElementById('op-qtd').value            = item.qtd           || '';
@@ -4321,7 +4333,7 @@
     } else {
       document.getElementById('op-ticker-opcao').value   = '';
       document.getElementById('op-ticker-acao').value    = '';
-      document.getElementById('op-tipo').value           = 'call';
+      document.getElementById('op-tipo').value           = 'call_compra';
       document.getElementById('op-data-operacao').value  = new Date().toISOString().slice(0,10);
       document.getElementById('op-vencimento').value     = '';
       document.getElementById('op-qtd').value            = '';
@@ -4435,34 +4447,40 @@
     // Cálculos globais
     let totalInvestido = 0, totalValorIntrinico = 0, nCall = 0, nPut = 0;
     let totalResultado = 0;
+    let nCallC = 0, nCallV = 0, nPutC = 0, nPutV = 0;
     opcoes.forEach(o => {
       totalInvestido   += o.qtd * o.premio;
       const vi          = _opValorIntrinico(o.tipo, o.precoAcaoAtual, o.strike);
       totalValorIntrinico += o.qtd * vi;
-      totalResultado   += o.qtd * (vi - o.premio);
-      if (o.tipo === 'call') nCall++; else nPut++;
+      totalResultado   += o.qtd * _opResultadoUnit(o.tipo, vi, o.premio);
+      if (o.tipo === 'call_compra') nCallC++;
+      else if (o.tipo === 'call_venda') nCallV++;
+      else if (o.tipo === 'put_compra') nPutC++;
+      else nPutV++;
     });
     const corResult = totalResultado >= 0 ? 'var(--success)' : 'var(--danger)';
 
     if (elRes) {
       elRes.innerHTML =
         '<div style="display:flex;flex-direction:column;gap:6px;">' +
-          '<div style="display:flex;justify-content:space-between;"><span style="font-size:11px;color:var(--text-muted);">Prêmio Total Pago</span><span style="font-size:12px;font-weight:800;">' + fmt(totalInvestido) + '</span></div>' +
+          '<div style="display:flex;justify-content:space-between;"><span style="font-size:11px;color:var(--text-muted);">Prêmio Total</span><span style="font-size:12px;font-weight:800;">' + fmt(totalInvestido) + '</span></div>' +
           '<div style="display:flex;justify-content:space-between;"><span style="font-size:11px;color:var(--text-muted);">Valor Intrínseco</span><span style="font-size:12px;font-weight:800;color:var(--primary);">' + fmt(totalValorIntrinico) + '</span></div>' +
           '<div style="display:flex;justify-content:space-between;"><span style="font-size:11px;color:var(--text-muted);">Resultado Estimado</span><span style="font-size:12px;font-weight:800;color:' + corResult + ';">' + (totalResultado >= 0 ? '+' : '') + fmt(totalResultado) + '</span></div>' +
         '</div>';
     }
 
+    const _dot = c => '<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:' + c + ';flex-shrink:0;"></span>';
     if (elTipo) {
       elTipo.innerHTML =
-        '<div style="display:flex;flex-direction:column;gap:6px;">' +
-          '<div style="display:flex;justify-content:space-between;align-items:center;">' +
-            '<span style="display:flex;align-items:center;gap:5px;font-size:12px;"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#22c55e;"></span>CALL</span>' +
-            '<span style="font-size:13px;font-weight:800;">' + nCall + '</span></div>' +
-          '<div style="display:flex;justify-content:space-between;align-items:center;">' +
-            '<span style="display:flex;align-items:center;gap:5px;font-size:12px;"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#ef4444;"></span>PUT</span>' +
-            '<span style="font-size:13px;font-weight:800;">' + nPut + '</span></div>' +
-          '<div style="display:flex;justify-content:space-between;"><span style="font-size:11px;color:var(--text-muted);">Total</span><span style="font-size:13px;font-weight:800;">' + opcoes.length + '</span></div>' +
+        '<div style="display:flex;flex-direction:column;gap:5px;">' +
+          [['call_compra','CALL Compra','#22c55e',nCallC],['call_venda','CALL Venda','#86efac',nCallV],
+           ['put_compra','PUT Compra','#ef4444',nPutC],['put_venda','PUT Venda','#fca5a5',nPutV]]
+          .map(([,label,cor,n]) =>
+            '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+              '<span style="display:flex;align-items:center;gap:5px;font-size:11px;">' + _dot(cor) + label + '</span>' +
+              '<span style="font-size:12px;font-weight:800;">' + n + '</span></div>'
+          ).join('') +
+          '<div style="display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:4px;margin-top:2px;"><span style="font-size:11px;color:var(--text-muted);">Total</span><span style="font-size:13px;font-weight:800;">' + opcoes.length + '</span></div>' +
         '</div>';
     }
 
@@ -4496,15 +4514,14 @@
           const diasStr    = diasV === null ? '—' : diasV < 0 ? '<span style="color:var(--danger);">Vencida</span>' : diasV === 0 ? '<span style="color:#f59e0b;font-weight:700;">Hoje</span>' : diasV + 'd';
           const custo      = o.qtd * o.premio;
           const vi         = _opValorIntrinico(o.tipo, o.precoAcaoAtual, o.strike);
-          const resUnit    = vi - o.premio;
+          const resUnit    = _opResultadoUnit(o.tipo, vi, o.premio);
           const resTotal   = o.qtd * resUnit;
           const corRes     = resTotal >= 0 ? 'var(--success)' : 'var(--danger)';
           const money      = _opMoneyness(o.tipo, o.precoAcaoAtual, o.strike);
           const moneyColor = money === 'ITM' ? '#22c55e' : money === 'OTM' ? '#ef4444' : '#f59e0b';
           const moneyBg    = money === 'ITM' ? '#f0fdf4' : money === 'OTM' ? '#fef2f2' : '#fefce8';
-          const tipoCor    = o.tipo === 'call' ? '#22c55e' : '#ef4444';
-          const tipoBg     = o.tipo === 'call' ? '#f0fdf4' : '#fef2f2';
-          const tipoLabel  = o.tipo === 'call' ? 'CALL' : 'PUT';
+          const tipoMeta   = { call_compra:['CALL C','#22c55e','#f0fdf4'], call_venda:['CALL V','#16a34a','#dcfce7'], put_compra:['PUT C','#ef4444','#fef2f2'], put_venda:['PUT V','#dc2626','#fee2e2'] };
+          const [tipoLabel, tipoCor, tipoBg] = tipoMeta[o.tipo] || ['—','var(--text-muted)','var(--bg)'];
           return '<tr style="border-bottom:1px solid var(--border);background:' + bg + ';">' +
             '<td style="padding:8px;font-size:12px;font-weight:700;">' + (o.tickerOpcao || '—') +
               (o.observacao ? '<div style="font-size:10px;color:var(--text-muted);font-weight:400;">' + o.observacao + '</div>' : '') +
