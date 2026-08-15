@@ -5415,14 +5415,14 @@
             var7dPct:  null,
             min52:     stats && stats.week_52_low  != null ? Number(stats.week_52_low)  : null,
             max52:     stats && stats.week_52_high != null ? Number(stats.week_52_high) : null,
-            fund: fund && fund.pl != null ? {
-              pl:        fund.pl,
+            fund: fund ? {
+              pl:        fund.pl         != null ? fund.pl         : null,
               pvp:       fund.pvp        != null ? fund.pvp        : null,
               roe:       fund.roe        != null ? fund.roe        : null,
               netMargin: fund.net_margin != null ? fund.net_margin : null,
             } : null,
           };
-          console.log('bolsai ' + ticker + ' → preco:', quote.close, '| fund:', fund ? {pl:fund.pl,pvp:fund.pvp,roe:fund.roe} : 'null');
+          console.log('bolsai ' + ticker + ' → preco:', quote.close, '| fund:', fund ? {pl:fund.pl,pvp:fund.pvp,roe:fund.roe,nm:fund.net_margin} : 'null');
         } catch(e) { console.error('bolsai erro ' + ticker + ':', e); erros++; }
       }));
     } else {
@@ -5460,6 +5460,7 @@
       return;
     }
 
+    let fundOk = 0, fundTotal = 0;
     c.acoes.forEach(a => {
       const sym = a.ticker.replace('.SA','').toUpperCase();
       if (precos[sym]) {
@@ -5470,9 +5471,14 @@
         a.var7dPct   = precos[sym].var7dPct;
         a.min52      = precos[sym].min52;
         a.max52      = precos[sym].max52;
-        if (precos[sym].fund) a.fund = precos[sym].fund;
+        if ('fund' in precos[sym]) {
+          a.fund = precos[sym].fund;
+          fundTotal++;
+          if (precos[sym].fund && (precos[sym].fund.pl != null || precos[sym].fund.pvp != null || precos[sym].fund.roe != null)) fundOk++;
+        }
       }
     });
+    console.log('Fundamentos: ' + fundOk + '/' + fundTotal + ' tickers com dados');
     salvarCarteiras();
     renderCarteiras();
   }
