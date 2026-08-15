@@ -925,7 +925,8 @@
       <div id="paul-msg-pendente" style="display:none;background:rgba(245,158,11,0.1);border:1.5px solid #f59e0b;border-radius:12px;padding:16px;margin-bottom:14px;text-align:center;">
         <div style="font-size:22px;margin-bottom:6px;">⏳</div>
         <div style="font-size:13px;font-weight:700;color:#f59e0b;margin-bottom:4px;">Acesso aguardando aprovação</div>
-        <div style="font-size:12px;color:var(--text-muted);">Seu cadastro foi registrado. Aguarde o administrador liberar seu acesso.</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">Seu cadastro foi registrado. Aguarde o administrador liberar seu acesso.</div>
+        <button onclick="paulRecuperarAcesso()" style="padding:8px 16px;background:#f59e0b;color:white;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">🔑 Recuperar acesso de administrador</button>
       </div>
 
       <!-- Sub-abas -->
@@ -6302,8 +6303,9 @@
       if (!jaExiste) {
         const nome = (currentUser.split('@')[0] || 'Usuario').replace(/[._]/g, ' ');
         const nomeFormatado = nome.charAt(0).toUpperCase() + nome.slice(1);
-        // primeiro usuário da lista vira admin; demais ficam pendentes
-        const perfil = lista.length === 0 ? 'admin' : 'pendente';
+        // Admin se lista vazia OU se não existe nenhum admin ativo (evita sistema sem admin)
+        const temAdmin = lista.some(u => u.perfil === 'admin');
+        const perfil = (!temAdmin) ? 'admin' : 'pendente';
         await paulFetch('POST', '/paulistinha/usuarios', {
           nome: nomeFormatado + '|' + perfil,
           email: currentUser.toLowerCase(),
@@ -6313,6 +6315,33 @@
       }
     }
     paulAplicarAcessoUI();
+  }
+
+  async function paulRecuperarAcesso() {
+    await paulUsuariosCarregar();
+    const lista    = paulUsuariosCache();
+    const outroAdm = lista.some(u => u.perfil === 'admin' && u.email.toLowerCase() !== (currentUser||'').toLowerCase());
+    if (outroAdm) {
+      alert('Existe outro administrador ativo na conta. Peça para ele alterar seu perfil em ⚙️ Usuários.');
+      return;
+    }
+    const me = paulGetMinhaConta();
+    if (!me) { alert('Usuário não encontrado. Tente recarregar a página.'); return; }
+    if (!confirm('Nenhum outro administrador encontrado.\nDeseja restaurar seu acesso como administrador?')) return;
+    try {
+      // Salva o novo registro primeiro, só então apaga o pendente
+      await paulFetch('POST', '/paulistinha/usuarios', {
+        nome: me.nome + '|admin',
+        email: me.email,
+        senha_hash: 'x'
+      });
+      await paulFetch('DELETE', '/paulistinha/usuarios/' + me.id);
+      await paulUsuariosCarregar();
+      paulAplicarAcessoUI();
+      alert('✅ Acesso de administrador restaurado!');
+    } catch(e) {
+      alert('❌ Erro ao recuperar acesso:\n' + e.message);
+    }
   }
 
   // ── TIPOS DE LANÇAMENTO FINANCEIRO ──
