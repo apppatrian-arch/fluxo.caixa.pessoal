@@ -6329,13 +6329,19 @@
     if (!me) { alert('Usuário não encontrado. Tente recarregar a página.'); return; }
     if (!confirm('Nenhum outro administrador encontrado.\nDeseja restaurar seu acesso como administrador?')) return;
     try {
-      // Salva o novo registro primeiro, só então apaga o pendente
-      await paulFetch('POST', '/paulistinha/usuarios', {
-        nome: me.nome + '|admin',
-        email: me.email,
-        senha_hash: 'x'
-      });
+      // Email tem unique constraint — DELETE obrigatório antes do POST
       await paulFetch('DELETE', '/paulistinha/usuarios/' + me.id);
+      try {
+        await paulFetch('POST', '/paulistinha/usuarios', {
+          nome: me.nome + '|admin',
+          email: me.email,
+          senha_hash: 'x'
+        });
+      } catch(postErr) {
+        // POST falhou — restaura registro como pendente para não perder o cadastro
+        try { await paulFetch('POST', '/paulistinha/usuarios', { nome: me.nome + '|pendente', email: me.email, senha_hash: 'x' }); } catch(_) {}
+        throw postErr;
+      }
       await paulUsuariosCarregar();
       paulAplicarAcessoUI();
       alert('✅ Acesso de administrador restaurado!');
