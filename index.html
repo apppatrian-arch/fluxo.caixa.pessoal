@@ -4752,13 +4752,18 @@
     };
 
     const bolsaiInfo = src === 'bolsai' && bsk
-      ? '<div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
-          '<span style="font-size:10px;color:var(--text-muted);">Fundamentos incluídos: P/L · P/VP · ROE · Margem Líquida</span>' +
-          '<button onclick="paulTestFundamentais(this)" style="padding:3px 8px;font-size:10px;font-weight:700;background:var(--surface);border:1px solid var(--border);border-radius:6px;cursor:pointer;color:var(--text);">🔬 Testar</button>' +
+      ? '<div style="margin-top:8px;padding:8px 10px;background:#fef9c3;border:1px solid #fde047;border-radius:8px;font-size:10px;color:#713f12;">' +
+          '⚠️ <strong>usebolsai.com</strong> não suporta uso direto pelo browser (CORS). ' +
+          'O app usa <strong>brapi.dev como fallback</strong> automático para cotações e fundamentos. ' +
+          'Configure seu token brapi.dev no tab ao lado.' +
+          '<div style="margin-top:5px;display:flex;gap:6px;align-items:center;">' +
+            '<span style="color:#166534;">Fundamentos incluídos: P/L · P/VP · ROE · Margem Líquida</span>' +
+            '<button onclick="paulTestFundamentais(this)" style="padding:2px 7px;font-size:10px;font-weight:700;background:white;border:1px solid #d97706;border-radius:5px;cursor:pointer;color:#92400e;">🔬 Testar</button>' +
+          '</div>' +
         '</div>'
       : src === 'bolsai'
-        ? '<div style="margin-top:6px;font-size:10px;color:var(--text-muted);">Fundamentos incluídos: P/L · P/VP · ROE · Margem Líquida</div>'
-        : '';
+        ? '<div style="margin-top:6px;font-size:10px;color:var(--text-muted);">Configure a chave para usar como fonte de cotações.</div>'
+        : '<div style="margin-top:6px;font-size:10px;color:var(--text-muted);">Fundamentos incluídos: P/L · P/VP · ROE · Margem Líquida</div>';
 
     card.innerHTML =
       '<div style="background:var(--card);border-radius:14px;padding:14px 16px;">' +
@@ -5458,62 +5463,50 @@
     const precos = {};
     let erros = 0;
 
+    // Tenta bolsai se selecionado (pode falhar por CORS — API é server-side only)
     if (_getApiSource() === 'bolsai') {
       const bkey = _getBolsaiKey();
-      if (!bkey) {
-        if (elBtn) { elBtn.textContent = '❌ sem chave'; elBtn.disabled = false; setTimeout(() => { if (elBtn) { elBtn.textContent = '🔄 bolsai'; } }, 4000); }
-        _setSyncStatus('⚠️ Chave usebolsai.com não configurada neste dispositivo — acesse o card "API de Cotações" e salve sua chave.', false);
+      if (bkey) {
+        await Promise.all(uniqueTickers.map(async ticker => {
+          try {
+            const [quote, stats, fund] = await Promise.all([
+              _bolsaiFetch('/stocks/' + ticker + '/quote'),
+              _bolsaiFetch('/stocks/' + ticker + '/stats').catch(() => null),
+              _bolsaiFetch('/fundamentals/' + ticker).catch(() => null),
+            ]);
+            if (!quote || !quote.close) { erros++; return; }
+            precos[ticker] = {
+              preco:     Number(quote.close),
+              moeda:     'BRL',
+              varDiaPct: stats ? (stats.daily_change_pct != null ? Number(stats.daily_change_pct) : null) : null,
+              varDiaVal: stats ? (stats.daily_change     != null ? Number(stats.daily_change)     : null) : null,
+              var7dPct:  null,
+              min52:     stats && stats.week_52_low  != null ? Number(stats.week_52_low)  : null,
+              max52:     stats && stats.week_52_high != null ? Number(stats.week_52_high) : null,
+              fund: fund ? {
+                pl:        fund.pl         != null ? fund.pl         : null,
+                pvp:       fund.pvp        != null ? fund.pvp        : null,
+                roe:       fund.roe        != null ? fund.roe        : null,
+                netMargin: fund.net_margin != null ? fund.net_margin : null,
+              } : null,
+            };
+          } catch(e) { erros++; }
+        }));
+      }
+    }
+
+    // Brapi.dev: usado como fonte primária (modo brapi) ou fallback quando bolsai falha por CORS
+    if (Object.keys(precos).length === 0) {
+      const bt = _getBrapiToken();
+      if (!bt) {
+        const msg = _getApiSource() === 'bolsai'
+          ? '⚠️ usebolsai.com não suporta uso direto pelo browser (CORS bloqueado). Configure também um token brapi.dev para usar como fallback automático.'
+          : '⚠️ Token brapi.dev não configurado neste dispositivo — acesse o card "API de Cotações" e salve seu token.';
+        if (elBtn) { elBtn.textContent = '❌'; elBtn.disabled = false; setTimeout(() => { if (elBtn) elBtn.textContent = '🔄'; }, 3000); }
+        _setSyncStatus(msg, false);
         return;
       }
-      await Promise.all(uniqueTickers.map(async ticker => {
-        try {
-          const [quote, stats, fund] = await Promise.all([
-            _bolsaiFetch('/stocks/' + ticker + '/quote'),
-            _bolsaiFetch('/stocks/' + ticker + '/stats').catch(() => null),
-            _bolsaiFetch('/fundamentals/' + ticker).catch(e => { console.warn('fund ' + ticker + ':', e.message); return null; }),
-          ]);
-          if (!quote || !quote.close) { erros++; return; }
-          precos[ticker] = {
-            preco:     Number(quote.close),
-            moeda:     'BRL',
-            varDiaPct: stats ? (stats.daily_change_pct != null ? Number(stats.daily_change_pct) : null) : null,
-            varDiaVal: stats ? (stats.daily_change     != null ? Number(stats.daily_change)     : null) : null,
-            var7dPct:  null,
-            min52:     stats && stats.week_52_low  != null ? Number(stats.week_52_low)  : null,
-            max52:     stats && stats.week_52_high != null ? Number(stats.week_52_high) : null,
-            fund: fund ? {
-              pl:        fund.pl         != null ? fund.pl         : null,
-              pvp:       fund.pvp        != null ? fund.pvp        : null,
-              roe:       fund.roe        != null ? fund.roe        : null,
-              netMargin: fund.net_margin != null ? fund.net_margin : null,
-            } : null,
-          };
-          // Fallback: se bolsai/CORS não retornou fund, tenta brapi.dev com fundamental=true
-          if (!precos[ticker].fund) {
-            const bt = _getBrapiToken();
-            if (bt) {
-              try {
-                const br = await fetch(brapiUrl('/quote/' + ticker + '?fundamental=true'));
-                if (br.ok) {
-                  const brd = await br.json();
-                  const brq = brd && brd.results && brd.results[0];
-                  if (brq) {
-                    precos[ticker].fund = {
-                      pl:        brq.priceEarnings  != null ? Number(brq.priceEarnings)        : null,
-                      pvp:       brq.priceToBook    != null ? Number(brq.priceToBook)          : null,
-                      roe:       brq.returnOnEquity != null ? Number(brq.returnOnEquity) * 100 : null,
-                      netMargin: brq.profitMargins  != null ? Number(brq.profitMargins)  * 100 : null,
-                    };
-                    console.log('brapi fund fallback ' + ticker + ':', precos[ticker].fund);
-                  }
-                }
-              } catch(e) { console.warn('brapi fund fallback ' + ticker + ':', e); }
-            }
-          }
-          console.log('bolsai ' + ticker + ' → preco:', quote.close, '| fund:', precos[ticker].fund ? {pl:precos[ticker].fund.pl,pvp:precos[ticker].fund.pvp,roe:precos[ticker].fund.roe} : 'null');
-        } catch(e) { console.error('bolsai erro ' + ticker + ':', e); erros++; }
-      }));
-    } else {
+      erros = 0;
       await Promise.all(uniqueTickers.map(async ticker => {
         try {
           const r = await fetch(brapiUrl('/quote/' + ticker + '?range=5d&interval=1d&fundamental=true'));
@@ -5759,7 +5752,7 @@
         '<div style="background:var(--primary);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;">' +
           '<div style="color:white;font-size:13px;font-weight:700;">💼 ' + c.nome + '</div>' +
           '<div style="display:flex;gap:6px;">' +
-            '<button id="cbtn-atualizar-' + c.id + '" onclick="atualizarCotacoesCarteira(\'' + c.id + '\')" style="background:rgba(255,255,255,0.2);border:none;border-radius:6px;color:white;font-size:12px;padding:4px 10px;cursor:pointer;" title="Atualizar cotações via ' + (_getApiSource() === 'bolsai' ? 'usebolsai.com' : 'brapi.dev') + '">🔄 ' + (_getApiSource() === 'bolsai' ? 'bolsai' : 'brapi') + '</button>' +
+            '<button id="cbtn-atualizar-' + c.id + '" onclick="atualizarCotacoesCarteira(\'' + c.id + '\')" style="background:rgba(255,255,255,0.2);border:none;border-radius:6px;color:white;font-size:12px;padding:4px 10px;cursor:pointer;" title="Atualizar cotações via brapi.dev">🔄 brapi</button>' +
             '<button onclick="toggleCarteiraView(\'' + c.id + '\')" style="background:' + (viewMode==='chart' ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.2)') + ';border:none;border-radius:6px;color:white;font-size:12px;padding:4px 10px;cursor:pointer;" title="Alternar gráfico/tabela">📊</button>' +
             '<button onclick="exportarCarteiraExcel(\'' + c.id + '\')" style="background:rgba(255,255,255,0.2);border:none;border-radius:6px;color:white;font-size:12px;padding:4px 10px;cursor:pointer;" title="Exportar para Excel">📥</button>' +
             '<button onclick="abrirModalCarteira(\'' + c.id + '\')" style="background:rgba(255,255,255,0.2);border:none;border-radius:6px;color:white;font-size:12px;padding:4px 10px;cursor:pointer;">✏️</button>' +
