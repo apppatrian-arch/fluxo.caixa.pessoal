@@ -722,6 +722,7 @@
         <button class="tab tab-destaque active" id="tab-paulistinha" onclick="setTab('paulistinha')" style="white-space:nowrap;">🚬 Indústria B</button>
         <button class="tab" id="tab-pessoal" onclick="setTab('pessoal')" style="white-space:nowrap;">💼 Financeiro</button>
         <button class="tab" id="tab-acoes" onclick="setTab('acoes')" style="white-space:nowrap;">📈 Ações</button>
+        <button class="tab" id="tab-opcoes" onclick="setTab('opcoes')" style="white-space:nowrap;">🎯 Opções</button>
       </div>
       <button class="tabs-arrow" id="tabs-next" onclick="scrollTabs(1)" title="Próximo">›</button>
     </div>
@@ -1371,6 +1372,127 @@
 
     </div><!-- /painel-acoes -->
 
+    <!-- ── PAINEL OPÇÕES ── -->
+    <div id="painel-opcoes" style="display:none;">
+
+      <!-- CARDS SUPERIORES -->
+      <div class="acoes-top-cards">
+
+        <!-- Token brapi (mesmo da aba Ações) -->
+        <div>
+          <div id="opcoes-token-info" style="background:#f0fdf4;border:1.5px solid #22c55e;border-radius:14px;padding:12px 16px;margin-bottom:14px;">
+            <div style="font-size:13px;font-weight:700;color:#15803d;">🔑 Usando token brapi.dev da aba Ações</div>
+            <div style="font-size:11px;color:#166534;margin-top:4px;">O preço da ação subjacente é buscado automaticamente. O prêmio da opção é informado manualmente.</div>
+          </div>
+        </div>
+
+        <!-- Resumo Geral -->
+        <div style="background:var(--card);border-radius:14px;padding:16px;">
+          <div style="font-size:14px;font-weight:700;margin-bottom:10px;">📊 Resumo Geral</div>
+          <div id="opcoes-resumo-geral">
+            <div style="text-align:center;color:var(--text-muted);font-size:12px;padding:8px 0;">Sem posições</div>
+          </div>
+        </div>
+
+        <!-- Posições por Tipo -->
+        <div style="background:var(--card);border-radius:14px;padding:16px;">
+          <div style="font-size:14px;font-weight:700;margin-bottom:10px;">🔢 Por Tipo</div>
+          <div id="opcoes-por-tipo">
+            <div style="text-align:center;color:var(--text-muted);font-size:12px;padding:8px 0;">—</div>
+          </div>
+        </div>
+
+        <!-- Botão atualizar cotações -->
+        <div style="background:var(--card);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:8px;justify-content:center;">
+          <button onclick="atualizarCotacoesOpcoes()" id="btn-atualizar-opcoes"
+            style="width:100%;padding:12px;background:var(--primary);color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">
+            🔄 Atualizar Cotações
+          </button>
+          <div id="opcoes-sync-status" style="font-size:11px;color:var(--text-muted);text-align:center;"></div>
+        </div>
+
+      </div><!-- /acoes-top-cards -->
+
+      <!-- TABELA DE OPÇÕES -->
+      <div style="background:var(--card);border-radius:14px;padding:16px;margin-bottom:14px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <div style="font-size:14px;font-weight:700;">🎯 Carteira de Opções</div>
+          <button onclick="abrirFormOpcoes()"
+            style="padding:7px 14px;background:var(--primary);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">
+            + Nova Opção
+          </button>
+        </div>
+        <div id="opcoes-lista"></div>
+
+        <!-- FORMULÁRIO ADD/EDIT -->
+        <div id="op-form" style="display:none;background:var(--bg);border-radius:10px;padding:16px;margin-top:12px;border:1.5px solid var(--border);">
+          <div style="font-size:13px;font-weight:700;color:var(--text-muted);margin-bottom:12px;" id="op-form-titulo">+ Nova Opção</div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+            <div>
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">Ticker Opção</div>
+              <input id="op-ticker-opcao" type="text" placeholder="Ex: SANB11A170" maxlength="12"
+                oninput="this.value=this.value.toUpperCase()"
+                style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-weight:700;background:var(--surface);color:var(--text);box-sizing:border-box;" />
+            </div>
+            <div>
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">Ticker Ação (subjacente)</div>
+              <input id="op-ticker-acao" type="text" placeholder="Ex: SANB11" maxlength="10"
+                oninput="this.value=this.value.toUpperCase()"
+                style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-weight:700;background:var(--surface);color:var(--text);box-sizing:border-box;" />
+            </div>
+            <div>
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">Tipo</div>
+              <select id="op-tipo"
+                style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text);box-sizing:border-box;">
+                <option value="call">📈 CALL (compra)</option>
+                <option value="put">📉 PUT (venda)</option>
+              </select>
+            </div>
+            <div>
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">Data Operação</div>
+              <input id="op-data-operacao" type="date"
+                style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text);box-sizing:border-box;" />
+            </div>
+            <div>
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">Vencimento</div>
+              <input id="op-vencimento" type="date"
+                style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text);box-sizing:border-box;" />
+            </div>
+            <div>
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">Quantidade (contratos)</div>
+              <input id="op-qtd" type="number" placeholder="Ex: 100" min="1" step="1"
+                style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text);box-sizing:border-box;" />
+            </div>
+            <div>
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">Strike (R$)</div>
+              <input id="op-strike" type="number" placeholder="0,00" min="0" step="0.01"
+                style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text);box-sizing:border-box;" />
+            </div>
+            <div>
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">Prêmio unit. (R$)</div>
+              <input id="op-premio" type="number" placeholder="0,00" min="0" step="0.01"
+                style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text);box-sizing:border-box;" />
+            </div>
+            <div style="grid-column:1/-1;">
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">Observação (opcional)</div>
+              <input id="op-obs" type="text" placeholder="Ex: Coberta, Trava alta..." maxlength="80"
+                style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text);box-sizing:border-box;" />
+            </div>
+          </div>
+
+          <div style="display:flex;gap:8px;margin-top:4px;">
+            <button onclick="salvarItemOpcoes()"
+              style="padding:9px 20px;background:var(--primary);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">💾 Salvar</button>
+            <button onclick="fecharFormOpcoes()"
+              style="padding:9px 16px;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;font-size:13px;cursor:pointer;color:var(--text);">Cancelar</button>
+          </div>
+          <input type="hidden" id="op-edit-id" value="" />
+        </div>
+      </div>
+
+    </div><!-- /painel-opcoes -->
+
 <!-- MODAL NOVA/EDITAR CARTEIRA -->
 <div class="modal-overlay" id="modal-carteira">
   <div class="modal">
@@ -1864,18 +1986,19 @@
   }
 
   function setTab(tab) {
-    document.querySelector('.content').classList.toggle('content-wide', tab === 'acoes');
-    ['pessoal', 'paulistinha', 'acoes'].forEach(t => {
+    document.querySelector('.content').classList.toggle('content-wide', tab === 'acoes' || tab === 'opcoes');
+    ['pessoal', 'paulistinha', 'acoes', 'opcoes'].forEach(t => {
       document.getElementById('painel-' + t).style.display = (t === tab) ? 'block' : 'none';
       const btn = document.getElementById('tab-' + t);
       if (btn) btn.classList.toggle('active', t === tab);
     });
-    const titulos = { paulistinha: 'Indústria B', pessoal: 'Financeiro', acoes: 'Ações' };
+    const titulos = { paulistinha: 'Indústria B', pessoal: 'Financeiro', acoes: 'Ações', opcoes: 'Opções' };
     const el = document.getElementById('topbar-title');
     if (el) el.textContent = titulos[tab] || 'Dashboard';
     if (tab === 'paulistinha') initPaulistinha();
     if (tab === 'acoes')       initAcoes();
     if (tab === 'pessoal')     setFPTab(fpTabAtual);
+    if (tab === 'opcoes')      initOpcoes();
   }
 
   // ══════════════════════════════════════════
@@ -4092,6 +4215,324 @@
     '</div>';
   }
 
+  // ══════════════════════════════════════════
+  //  OPÇÕES
+  // ══════════════════════════════════════════
+
+  function _opPrefix()    { return '_opcoes_' + (currentUser || '').toLowerCase() + '|'; }
+  function _opChaveLocal(){ return chaveLocal('opcoes'); }
+  function _opNovoId()    { return 'op' + Date.now() + Math.random().toString(36).slice(2,6); }
+
+  function _opDiasVencimento(vencimento) {
+    if (!vencimento) return null;
+    const hoje = new Date(); hoje.setHours(0,0,0,0);
+    const venc = new Date(vencimento + 'T00:00:00'); venc.setHours(0,0,0,0);
+    if (venc < hoje) return -1; // vencida
+    if (venc.getTime() === hoje.getTime()) return 0; // vence hoje
+    return _contarDiasUteis(hoje, venc);
+  }
+
+  function _opMoneyness(tipo, precoAcao, strike) {
+    if (!precoAcao || !strike) return null;
+    const diff = precoAcao - strike;
+    if (tipo === 'call') {
+      if (diff > 0.01)  return 'ITM';
+      if (diff < -0.01) return 'OTM';
+      return 'ATM';
+    } else {
+      if (diff < -0.01) return 'ITM';
+      if (diff > 0.01)  return 'OTM';
+      return 'ATM';
+    }
+  }
+
+  function _opValorIntrinico(tipo, precoAcao, strike) {
+    if (!precoAcao || !strike) return 0;
+    if (tipo === 'call') return Math.max(0, precoAcao - strike);
+    return Math.max(0, strike - precoAcao);
+  }
+
+  async function _opSalvarDB() {
+    try {
+      if (!paulToken) await paulAuth();
+      const prefix  = _opPrefix();
+      const encoded = _cartB64Enc(opcoes);
+      const csz     = Math.max(40, 200 - prefix.length - 3);
+      const chunks  = [];
+      for (let i = 0; i < encoded.length; i += csz) chunks.push(encoded.slice(i, i + csz));
+      const records = await paulFetch('GET', '/paulistinha/financeiro');
+      const antigos = (records || []).filter(r => String(r.descricao || '').startsWith(prefix));
+      for (const r of antigos) { try { await paulFetch('DELETE', '/paulistinha/financeiro/' + r.id); } catch(_) {} }
+      for (let i = 0; i < chunks.length; i++) {
+        await paulFetch('POST', '/paulistinha/financeiro', {
+          data: _CFG_DATE, tipo: _CFG_TIPO, descricao: prefix + i + '|' + chunks[i], valor: 0.01
+        });
+      }
+    } catch(e) {}
+  }
+
+  async function _opCarregarDB() {
+    try {
+      if (!paulToken) await paulAuth();
+      const records = await paulFetch('GET', '/paulistinha/financeiro');
+      const prefix  = _opPrefix();
+      const cfgRecs = (records || []).filter(r => String(r.descricao || '').startsWith(prefix));
+      if (!cfgRecs.length) return false;
+      const chunks  = cfgRecs.map(r => {
+        const rest = String(r.descricao).slice(prefix.length);
+        const sep  = rest.indexOf('|');
+        return { idx: sep > -1 ? parseInt(rest.slice(0, sep)) || 0 : 0, data: sep > -1 ? rest.slice(sep + 1) : rest };
+      }).sort((a, b) => a.idx - b.idx);
+      let decoded = null;
+      try { decoded = _cartB64Dec(chunks.map(c => c.data).join('')); } catch(e) {}
+      if (!decoded || !Array.isArray(decoded)) return false;
+      opcoes = decoded;
+      localStorage.setItem(_opChaveLocal(), JSON.stringify(opcoes));
+      return true;
+    } catch(e) { return false; }
+  }
+
+  async function initOpcoes() {
+    if (!paulToken) await paulAuth();
+    const loaded = await _opCarregarDB();
+    if (!loaded) {
+      const local = localStorage.getItem(_opChaveLocal());
+      opcoes = local ? (JSON.parse(local) || []) : [];
+    }
+    renderOpcoes();
+  }
+
+  function abrirFormOpcoes(id) {
+    const form = document.getElementById('op-form');
+    document.getElementById('op-form-titulo').textContent = id ? '✏️ Editar Opção' : '+ Nova Opção';
+    document.getElementById('op-edit-id').value = id || '';
+    if (id) {
+      const item = opcoes.find(x => x.id === id);
+      if (!item) return;
+      document.getElementById('op-ticker-opcao').value   = item.tickerOpcao   || '';
+      document.getElementById('op-ticker-acao').value    = item.tickerAcao    || '';
+      document.getElementById('op-tipo').value           = item.tipo          || 'call';
+      document.getElementById('op-data-operacao').value  = item.dataOperacao  || '';
+      document.getElementById('op-vencimento').value     = item.vencimento    || '';
+      document.getElementById('op-qtd').value            = item.qtd           || '';
+      document.getElementById('op-strike').value         = item.strike        || '';
+      document.getElementById('op-premio').value         = item.premio        || '';
+      document.getElementById('op-obs').value            = item.observacao    || '';
+    } else {
+      document.getElementById('op-ticker-opcao').value   = '';
+      document.getElementById('op-ticker-acao').value    = '';
+      document.getElementById('op-tipo').value           = 'call';
+      document.getElementById('op-data-operacao').value  = new Date().toISOString().slice(0,10);
+      document.getElementById('op-vencimento').value     = '';
+      document.getElementById('op-qtd').value            = '';
+      document.getElementById('op-strike').value         = '';
+      document.getElementById('op-premio').value         = '';
+      document.getElementById('op-obs').value            = '';
+    }
+    form.style.display = 'block';
+    document.getElementById('op-ticker-opcao').focus();
+  }
+
+  function fecharFormOpcoes() { document.getElementById('op-form').style.display = 'none'; }
+
+  async function salvarItemOpcoes() {
+    const tickerOpcao  = document.getElementById('op-ticker-opcao').value.trim().toUpperCase();
+    const tickerAcao   = document.getElementById('op-ticker-acao').value.trim().toUpperCase();
+    const tipo         = document.getElementById('op-tipo').value;
+    const dataOperacao = document.getElementById('op-data-operacao').value;
+    const vencimento   = document.getElementById('op-vencimento').value;
+    const qtd          = parseFloat(document.getElementById('op-qtd').value) || 0;
+    const strike       = parseFloat(document.getElementById('op-strike').value) || 0;
+    const premio       = parseFloat(document.getElementById('op-premio').value) || 0;
+    const observacao   = document.getElementById('op-obs').value.trim();
+    const editId       = document.getElementById('op-edit-id').value;
+
+    if (!tickerOpcao)  { alert('Informe o ticker da opção.'); return; }
+    if (!tickerAcao)   { alert('Informe o ticker da ação subjacente.'); return; }
+    if (!vencimento)   { alert('Informe a data de vencimento.'); return; }
+    if (!strike)       { alert('Informe o strike.'); return; }
+    if (!premio)       { alert('Informe o prêmio.'); return; }
+    if (!qtd)          { alert('Informe a quantidade.'); return; }
+
+    // Mantém preço atual se já estava preenchido
+    const existente = editId ? opcoes.find(x => x.id === editId) : null;
+    const item = {
+      id: editId || _opNovoId(),
+      tickerOpcao, tickerAcao, tipo, dataOperacao, vencimento,
+      qtd, strike, premio, observacao,
+      precoAcaoAtual: existente ? (existente.precoAcaoAtual || null) : null,
+    };
+
+    if (editId) {
+      const idx = opcoes.findIndex(x => x.id === editId);
+      if (idx > -1) opcoes[idx] = item; else opcoes.push(item);
+    } else {
+      opcoes.push(item);
+    }
+    localStorage.setItem(_opChaveLocal(), JSON.stringify(opcoes));
+    await _opSalvarDB();
+    fecharFormOpcoes();
+    renderOpcoes();
+  }
+
+  async function removerItemOpcoes(id) {
+    if (!confirm('Excluir esta opção?')) return;
+    opcoes = opcoes.filter(x => x.id !== id);
+    localStorage.setItem(_opChaveLocal(), JSON.stringify(opcoes));
+    await _opSalvarDB();
+    renderOpcoes();
+  }
+
+  async function atualizarCotacoesOpcoes() {
+    const btn = document.getElementById('btn-atualizar-opcoes');
+    const status = document.getElementById('opcoes-sync-status');
+    if (!opcoes.length) return;
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Atualizando...'; }
+    if (status) status.textContent = 'Buscando cotações...';
+
+    const tickers = [...new Set(opcoes.map(o => o.tickerAcao.replace('.SA','').toUpperCase()))];
+    let atualizados = 0;
+    await Promise.all(tickers.map(async ticker => {
+      try {
+        const r = await fetch(brapiUrl('/quote/' + ticker + '?range=5d&interval=1d&fundamental=false'));
+        if (!r.ok) return;
+        const data = await r.json();
+        const q = (data.results || [])[0];
+        if (!q) return;
+        const preco = Number(q.regularMarketPrice);
+        opcoes.forEach(o => {
+          if (o.tickerAcao.replace('.SA','').toUpperCase() === ticker) {
+            o.precoAcaoAtual = preco;
+          }
+        });
+        atualizados++;
+      } catch(_) {}
+    }));
+
+    localStorage.setItem(_opChaveLocal(), JSON.stringify(opcoes));
+    await _opSalvarDB();
+    if (btn) { btn.disabled = false; btn.textContent = '🔄 Atualizar Cotações'; }
+    if (status) status.textContent = '✅ ' + atualizados + ' ticker(s) atualizado(s) · ' + new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+    renderOpcoes();
+  }
+
+  function renderOpcoes() {
+    const el     = document.getElementById('opcoes-lista');
+    const elRes  = document.getElementById('opcoes-resumo-geral');
+    const elTipo = document.getElementById('opcoes-por-tipo');
+    if (!el) return;
+
+    const fmt    = v => 'R$ ' + Number(v).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+    const fmtD   = d => { if (!d) return '—'; const [y,m,dd] = d.split('-'); return dd+'/'+m+'/'+y; };
+
+    if (!opcoes.length) {
+      el.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px;">Nenhuma opção cadastrada. Clique em <strong>+ Nova Opção</strong> para começar.</div>';
+      if (elRes) elRes.innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:12px;padding:8px 0;">Sem posições</div>';
+      if (elTipo) elTipo.innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:12px;padding:8px 0;">—</div>';
+      return;
+    }
+
+    // Cálculos globais
+    let totalInvestido = 0, totalValorIntrinico = 0, nCall = 0, nPut = 0;
+    let totalResultado = 0;
+    opcoes.forEach(o => {
+      totalInvestido   += o.qtd * o.premio;
+      const vi          = _opValorIntrinico(o.tipo, o.precoAcaoAtual, o.strike);
+      totalValorIntrinico += o.qtd * vi;
+      totalResultado   += o.qtd * (vi - o.premio);
+      if (o.tipo === 'call') nCall++; else nPut++;
+    });
+    const corResult = totalResultado >= 0 ? 'var(--success)' : 'var(--danger)';
+
+    if (elRes) {
+      elRes.innerHTML =
+        '<div style="display:flex;flex-direction:column;gap:6px;">' +
+          '<div style="display:flex;justify-content:space-between;"><span style="font-size:11px;color:var(--text-muted);">Prêmio Total Pago</span><span style="font-size:12px;font-weight:800;">' + fmt(totalInvestido) + '</span></div>' +
+          '<div style="display:flex;justify-content:space-between;"><span style="font-size:11px;color:var(--text-muted);">Valor Intrínseco</span><span style="font-size:12px;font-weight:800;color:var(--primary);">' + fmt(totalValorIntrinico) + '</span></div>' +
+          '<div style="display:flex;justify-content:space-between;"><span style="font-size:11px;color:var(--text-muted);">Resultado Estimado</span><span style="font-size:12px;font-weight:800;color:' + corResult + ';">' + (totalResultado >= 0 ? '+' : '') + fmt(totalResultado) + '</span></div>' +
+        '</div>';
+    }
+
+    if (elTipo) {
+      elTipo.innerHTML =
+        '<div style="display:flex;flex-direction:column;gap:6px;">' +
+          '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+            '<span style="display:flex;align-items:center;gap:5px;font-size:12px;"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#22c55e;"></span>CALL</span>' +
+            '<span style="font-size:13px;font-weight:800;">' + nCall + '</span></div>' +
+          '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+            '<span style="display:flex;align-items:center;gap:5px;font-size:12px;"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#ef4444;"></span>PUT</span>' +
+            '<span style="font-size:13px;font-weight:800;">' + nPut + '</span></div>' +
+          '<div style="display:flex;justify-content:space-between;"><span style="font-size:11px;color:var(--text-muted);">Total</span><span style="font-size:13px;font-weight:800;">' + opcoes.length + '</span></div>' +
+        '</div>';
+    }
+
+    // Tabela
+    const thS = 'padding:7px 8px;font-size:10px;color:var(--text-muted);font-weight:700;white-space:nowrap;text-align:';
+    el.innerHTML =
+      '<div style="overflow-x:auto;">' +
+      '<table style="width:100%;border-collapse:collapse;">' +
+        '<thead><tr style="background:var(--bg);">' +
+          '<th style="' + thS + 'left;">Ticker Opção</th>' +
+          '<th style="' + thS + 'left;">Ticker Ação</th>' +
+          '<th style="' + thS + 'center;">Tipo</th>' +
+          '<th style="' + thS + 'right;">Data Op.</th>' +
+          '<th style="' + thS + 'right;">Vencimento</th>' +
+          '<th style="' + thS + 'right;">Dias Úteis</th>' +
+          '<th style="' + thS + 'right;">Strike</th>' +
+          '<th style="' + thS + 'right;">Prêmio</th>' +
+          '<th style="' + thS + 'right;">Qtd</th>' +
+          '<th style="' + thS + 'right;">Custo Total</th>' +
+          '<th style="' + thS + 'right;">Preço Ação</th>' +
+          '<th style="' + thS + 'center;">Status</th>' +
+          '<th style="' + thS + 'right;">Val. Intrínseco</th>' +
+          '<th style="' + thS + 'right;">Res. Unit.</th>' +
+          '<th style="' + thS + 'right;">Res. Total</th>' +
+          '<th style="' + thS + 'center;">Ações</th>' +
+        '</tr></thead>' +
+        '<tbody>' +
+        opcoes.map((o, idx) => {
+          const bg         = idx % 2 === 0 ? 'var(--bg)' : 'var(--surface)';
+          const diasV      = _opDiasVencimento(o.vencimento);
+          const diasStr    = diasV === null ? '—' : diasV < 0 ? '<span style="color:var(--danger);">Vencida</span>' : diasV === 0 ? '<span style="color:#f59e0b;font-weight:700;">Hoje</span>' : diasV + 'd';
+          const custo      = o.qtd * o.premio;
+          const vi         = _opValorIntrinico(o.tipo, o.precoAcaoAtual, o.strike);
+          const resUnit    = vi - o.premio;
+          const resTotal   = o.qtd * resUnit;
+          const corRes     = resTotal >= 0 ? 'var(--success)' : 'var(--danger)';
+          const money      = _opMoneyness(o.tipo, o.precoAcaoAtual, o.strike);
+          const moneyColor = money === 'ITM' ? '#22c55e' : money === 'OTM' ? '#ef4444' : '#f59e0b';
+          const moneyBg    = money === 'ITM' ? '#f0fdf4' : money === 'OTM' ? '#fef2f2' : '#fefce8';
+          const tipoCor    = o.tipo === 'call' ? '#22c55e' : '#ef4444';
+          const tipoBg     = o.tipo === 'call' ? '#f0fdf4' : '#fef2f2';
+          const tipoLabel  = o.tipo === 'call' ? 'CALL' : 'PUT';
+          return '<tr style="border-bottom:1px solid var(--border);background:' + bg + ';">' +
+            '<td style="padding:8px;font-size:12px;font-weight:700;">' + (o.tickerOpcao || '—') +
+              (o.observacao ? '<div style="font-size:10px;color:var(--text-muted);font-weight:400;">' + o.observacao + '</div>' : '') +
+            '</td>' +
+            '<td style="padding:8px;font-size:12px;font-weight:700;">' + (o.tickerAcao || '—') + '</td>' +
+            '<td style="padding:8px;text-align:center;"><span style="background:' + tipoBg + ';color:' + tipoCor + ';font-size:10px;font-weight:800;border-radius:5px;padding:3px 7px;">' + tipoLabel + '</span></td>' +
+            '<td style="padding:8px;font-size:11px;text-align:right;color:var(--text-muted);">' + fmtD(o.dataOperacao) + '</td>' +
+            '<td style="padding:8px;font-size:11px;text-align:right;">' + fmtD(o.vencimento) + '</td>' +
+            '<td style="padding:8px;font-size:12px;text-align:right;font-weight:700;">' + diasStr + '</td>' +
+            '<td style="padding:8px;font-size:12px;text-align:right;">' + fmt(o.strike) + '</td>' +
+            '<td style="padding:8px;font-size:12px;text-align:right;">' + fmt(o.premio) + '</td>' +
+            '<td style="padding:8px;font-size:12px;text-align:right;">' + Number(o.qtd).toLocaleString('pt-BR') + '</td>' +
+            '<td style="padding:8px;font-size:12px;font-weight:700;text-align:right;">' + fmt(custo) + '</td>' +
+            '<td style="padding:8px;font-size:12px;text-align:right;font-weight:700;">' + (o.precoAcaoAtual != null ? fmt(o.precoAcaoAtual) : '<span style="color:var(--text-muted);">—</span>') + '</td>' +
+            '<td style="padding:8px;text-align:center;">' + (money ? '<span style="background:' + moneyBg + ';color:' + moneyColor + ';font-size:10px;font-weight:800;border-radius:5px;padding:3px 7px;">' + money + '</span>' : '<span style="color:var(--text-muted);">—</span>') + '</td>' +
+            '<td style="padding:8px;font-size:12px;font-weight:700;text-align:right;color:var(--primary);">' + fmt(vi) + '</td>' +
+            '<td style="padding:8px;font-size:12px;font-weight:700;text-align:right;color:' + (resUnit >= 0 ? 'var(--success)' : 'var(--danger)') + ';">' + (resUnit >= 0 ? '+' : '') + fmt(resUnit) + '</td>' +
+            '<td style="padding:8px;font-size:12px;font-weight:700;text-align:right;color:' + corRes + ';">' + (resTotal >= 0 ? '+' : '') + fmt(resTotal) + '</td>' +
+            '<td style="padding:8px;text-align:center;white-space:nowrap;">' +
+              '<button onclick="abrirFormOpcoes(\'' + o.id + '\')" title="Editar" style="background:#fef3c7;border:none;border-radius:6px;color:#92400e;font-size:13px;cursor:pointer;padding:4px 7px;margin-right:3px;">✏️</button>' +
+              '<button onclick="removerItemOpcoes(\'' + o.id + '\')" title="Excluir" style="background:#fee2e2;border:none;border-radius:6px;color:#dc2626;font-size:13px;cursor:pointer;padding:4px 7px;">🗑</button>' +
+            '</td>' +
+          '</tr>';
+        }).join('') +
+        '</tbody>' +
+      '</table></div>';
+  }
+
   function renderTokenAcoes() {
     const me      = paulGetMinhaConta();
     const token   = (me && me.btoken) || '';
@@ -4233,6 +4674,7 @@
   let _selicDiaria   = 0;   // taxa Over diária real (BCB série 11) — atualizado por buscarSelic()
   let rendaFixa      = [];  // carteira de renda fixa
   let _chartAlocacao = null;
+  let opcoes         = [];  // carteira de opções
 
   const _CFG_DATE = '2000-01-01';
   const _CFG_TIPO = 'cred';
