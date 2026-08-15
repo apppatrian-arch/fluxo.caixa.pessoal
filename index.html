@@ -4864,23 +4864,25 @@
         } else {
           msg += '🟡 brapi quote HTTP ' + r3.status + ': ' + JSON.stringify(j3).slice(0,100) + '\n';
         }
-        // Testa endpoint v2/statistics (fonte correta de fundamentais)
+        // Testa Yahoo Finance direto (fonte dos dados do brapi)
         try {
-          const bt2 = _getBrapiToken();
-          const urlStat = 'https://brapi.dev/api/v2/stocks/statistics?symbols=' + tickerTest2 + '&mode=current' + (bt2 ? '&token=' + bt2 : '');
-          const rs = await fetch(urlStat);
-          const js = await rs.json().catch(() => null);
-          const st = js && js.data && js.data[0] && js.data[0].statistics;
-          if (st) {
-            msg += '\n🟢 brapi v2/statistics HTTP ' + rs.status + ' (' + tickerTest2 + '):\n';
-            ['trailingPE','priceToBook','profitMargins','returnOnEquity','returnOnAssets',
-             'grossMargins','operatingMargins','earningsPerShare','bookValue'].forEach(f => {
-              if (st[f] !== undefined) msg += '   ' + f + '=' + st[f] + '\n';
-            });
+          const yhTicker = tickerTest2 + '.SA';
+          const yhUrl = 'https://query2.finance.yahoo.com/v10/finance/quoteSummary/' + yhTicker + '?modules=defaultKeyStatistics%2CfinancialData&corsDomain=finance.yahoo.com';
+          const ry = await fetch(yhUrl, { headers: { 'Accept': 'application/json' } });
+          const jy = await ry.json().catch(() => null);
+          const ks = jy && jy.quoteSummary && jy.quoteSummary.result && jy.quoteSummary.result[0];
+          if (ks) {
+            const dks = ks.defaultKeyStatistics || {};
+            const fd  = ks.financialData || {};
+            msg += '\n🟢 Yahoo Finance HTTP ' + ry.status + ' (' + yhTicker + '):\n';
+            msg += '   trailingPE=' + (dks.trailingPE && dks.trailingPE.raw) + '\n';
+            msg += '   priceToBook=' + (dks.priceToBook && dks.priceToBook.raw) + '\n';
+            msg += '   returnOnEquity=' + (fd.returnOnEquity && fd.returnOnEquity.raw) + '\n';
+            msg += '   profitMargins=' + (fd.profitMargins && fd.profitMargins.raw) + '\n';
           } else {
-            msg += '\n🟡 brapi v2/statistics HTTP ' + rs.status + ': ' + JSON.stringify(js).slice(0,150) + '\n';
+            msg += '\n🟡 Yahoo Finance HTTP ' + ry.status + ': ' + JSON.stringify(jy).slice(0,150) + '\n';
           }
-        } catch(e2) { msg += '\n🔴 brapi v2/statistics: ' + e2.message + '\n'; }
+        } catch(e2) { msg += '\n🔴 Yahoo Finance (CORS?): ' + e2.message + '\n'; }
       } catch(e) { msg += '🔴 brapi: ' + e.message + '\n'; }
     } else {
       msg += '⚪ brapi.dev: sem token\n';
