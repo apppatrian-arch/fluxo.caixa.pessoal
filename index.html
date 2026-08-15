@@ -1233,6 +1233,8 @@
 
         <!-- API de Cotações (preenchido por renderTokenAcoes) -->
         <div id="acoes-api-card" style="margin-bottom:14px;"></div>
+        <!-- Fundamentais Alpha Vantage (preenchido por renderFundCard) -->
+        <div id="acoes-fund-card" style="margin-bottom:14px;"></div>
 
         <!-- Cotação Atual -->
         <div style="background:var(--card);border-radius:14px;padding:16px;">
@@ -3648,6 +3650,7 @@
   // ══════════════════════════════════════════
   async function initAcoes() {
     renderTokenAcoes();
+    renderFundCard();
     buscarSelic();
     buscarDolar();
     // Garante autenticação antes de carregar do DB
@@ -4817,6 +4820,107 @@
     }
   };
 
+  // ── Alpha Vantage — fundamentais com cache 24h ──────────────────────────────
+  function _getAvKey()  { return localStorage.getItem(_apiLsKey('avk')) || ''; }
+  function _getAvDate() { return localStorage.getItem(_apiLsKey('avd')) || ''; }
+
+  function renderFundCard() {
+    const card = document.getElementById('acoes-fund-card');
+    if (!card) return;
+    const key = _getAvKey();
+    const dt  = _getAvDate();
+    if (key) {
+      card.innerHTML =
+        '<div style="background:var(--card);border-radius:14px;padding:12px 16px;">' +
+          '<div style="font-size:12px;font-weight:700;margin-bottom:8px;">📊 Fundamentalistas</div>' +
+          '<div style="background:#f0fdf4;border:1.5px solid #22c55e;border-radius:10px;padding:10px 12px;">' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">' +
+              '<div>' +
+                '<div style="font-size:11px;font-weight:700;color:#15803d;">✅ Alpha Vantage' + (dt ? ' · ' + dt : '') + '</div>' +
+                '<div style="font-size:10px;color:var(--text-muted);margin-top:2px;">P/VP · ROE · Margem Líquida · Cache 24h automático</div>' +
+              '</div>' +
+              '<div style="display:flex;gap:6px;">' +
+                '<button onclick="paulLimparCacheAV()" style="padding:5px 8px;font-size:11px;background:var(--surface);border:1px solid var(--border);border-radius:6px;cursor:pointer;" title="Limpar cache e forçar atualização">🗑️</button>' +
+                '<button onclick="renderFundCard._edit()" style="padding:5px 10px;font-size:11px;font-weight:700;background:var(--surface);border:1px solid var(--border);border-radius:6px;cursor:pointer;">✏️ Alterar</button>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+    } else {
+      card.innerHTML =
+        '<div style="background:var(--card);border-radius:14px;padding:12px 16px;">' +
+          '<div style="font-size:12px;font-weight:700;margin-bottom:6px;">📊 Fundamentalistas (P/VP · ROE · Marg.Liq)</div>' +
+          '<div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">Cadastre-se em <strong>alphavantage.co</strong> (gratuito · 25 req/dia) e cole sua chave abaixo. Os dados ficam em cache por 24h.</div>' +
+          '<div style="display:flex;gap:8px;">' +
+            '<input type="text" id="av-key-input" placeholder="Cole sua chave Alpha Vantage..." style="flex:1;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text);" />' +
+            '<button onclick="salvarChaveAV()" style="padding:9px 14px;background:var(--primary);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">Salvar</button>' +
+          '</div>' +
+        '</div>';
+    }
+  }
+  renderFundCard._edit = function() {
+    const card = document.getElementById('acoes-fund-card');
+    if (!card) return;
+    const curKey = _getAvKey();
+    const saved = card.querySelector('div[style*="border:1.5px solid #22c55e"]');
+    if (saved) {
+      saved.outerHTML =
+        '<div style="display:flex;gap:8px;margin-top:4px;">' +
+          '<input type="text" id="av-key-input" value="' + curKey + '" style="flex:1;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text);" />' +
+          '<button onclick="salvarChaveAV()" style="padding:9px 14px;background:var(--primary);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">Salvar</button>' +
+        '</div>';
+      const inp = card.querySelector('#av-key-input');
+      if (inp) { inp.focus(); inp.select(); }
+    } else { renderFundCard(); }
+  };
+
+  function salvarChaveAV() {
+    const inp = document.getElementById('av-key-input');
+    const key = inp ? inp.value.trim() : '';
+    if (!key) { alert('Cole a chave Alpha Vantage antes de salvar.'); return; }
+    const agora = new Date();
+    const dataStr = agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
+    localStorage.setItem(_apiLsKey('avk'), key);
+    localStorage.setItem(_apiLsKey('avd'), dataStr);
+    paulLimparCacheAV();
+    renderFundCard();
+  }
+
+  function paulLimparCacheAV() {
+    // Remove caches de fundamentos de todos os tickers
+    Object.keys(localStorage).filter(k => k.startsWith('fc_fund_')).forEach(k => localStorage.removeItem(k));
+  }
+
+  async function _fetchFundamentaisAV(ticker) {
+    const avKey = _getAvKey();
+    if (!avKey) return null;
+    const cacheKey = 'fc_fund_' + ticker.toLowerCase() + '_' + (currentUser || '').toLowerCase();
+    try {
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        const c = JSON.parse(cached);
+        if (c.ts && (Date.now() - c.ts) < 24 * 60 * 60 * 1000) return c;
+      }
+    } catch(e) {}
+    try {
+      const r = await fetch('https://www.alphavantage.co/query?function=OVERVIEW&symbol=' + ticker + '.SAO&apikey=' + avKey);
+      if (!r.ok) return null;
+      const j = await r.json();
+      if (!j || j.Information || !j.Symbol) return null;
+      const toNum = v => (v && v !== 'None') ? Number(v) : null;
+      const fund = {
+        pl:        toNum(j.PERatio),
+        pvp:       toNum(j.PriceToBookRatio),
+        roe:       toNum(j.ReturnOnEquityTTM) != null ? toNum(j.ReturnOnEquityTTM) * 100 : null,
+        netMargin: toNum(j.ProfitMargin)      != null ? toNum(j.ProfitMargin)      * 100 : null,
+        ts: Date.now(),
+      };
+      localStorage.setItem(cacheKey, JSON.stringify(fund));
+      return fund;
+    } catch(e) { console.warn('AV fund ' + ticker + ':', e); return null; }
+  }
+  // ────────────────────────────────────────────────────────────────────────────
+
   async function paulTestFundamentais(btn) {
     if (btn) { btn.textContent = '⏳'; btn.disabled = true; }
     let ticker = 'BBAS3';
@@ -4878,21 +4982,28 @@
           }
         } catch(esi) { msg += '\n🔴 Status Invest (CORS?): ' + esi.message + '\n'; }
 
-        // Testa Alpha Vantage (API gratuita, CORS-friendly)
-        try {
-          const avUrl = 'https://www.alphavantage.co/query?function=OVERVIEW&symbol=' + tickerTest2 + '.SAO&apikey=demo';
-          const rav = await fetch(avUrl);
-          const jav = await rav.json().catch(() => null);
-          if (jav && jav.PERatio !== undefined) {
-            msg += '\n🟢 Alpha Vantage HTTP ' + rav.status + ' (' + tickerTest2 + '):\n';
-            msg += '   PERatio=' + jav.PERatio + '\n';
-            msg += '   PriceToBookRatio=' + jav.PriceToBookRatio + '\n';
-            msg += '   ReturnOnEquityTTM=' + jav.ReturnOnEquityTTM + '\n';
-            msg += '   ProfitMargin=' + jav.ProfitMargin + '\n';
-          } else {
-            msg += '\n🟡 Alpha Vantage HTTP ' + rav.status + ': ' + JSON.stringify(jav).slice(0,150) + '\n';
-          }
-        } catch(eav) { msg += '\n🔴 Alpha Vantage (CORS?): ' + eav.message + '\n'; }
+        // Testa Alpha Vantage com chave salva
+        const avk = _getAvKey();
+        if (avk) {
+          try {
+            const avUrl = 'https://www.alphavantage.co/query?function=OVERVIEW&symbol=' + tickerTest2 + '.SAO&apikey=' + avk;
+            const rav = await fetch(avUrl);
+            const jav = await rav.json().catch(() => null);
+            if (jav && jav.Symbol) {
+              msg += '\n🟢 Alpha Vantage HTTP ' + rav.status + ' (' + tickerTest2 + '):\n';
+              msg += '   PERatio=' + jav.PERatio + '\n';
+              msg += '   PriceToBookRatio=' + jav.PriceToBookRatio + '\n';
+              msg += '   ReturnOnEquityTTM=' + jav.ReturnOnEquityTTM + '\n';
+              msg += '   ProfitMargin=' + jav.ProfitMargin + '\n';
+            } else if (jav && jav.Information) {
+              msg += '\n🟡 Alpha Vantage: chave demo ou limite atingido\n   ' + jav.Information.slice(0,100) + '\n';
+            } else {
+              msg += '\n🟡 Alpha Vantage HTTP ' + rav.status + ': ticker não encontrado ou sem dados\n   ' + JSON.stringify(jav).slice(0,100) + '\n';
+            }
+          } catch(eav) { msg += '\n🔴 Alpha Vantage: ' + eav.message + '\n'; }
+        } else {
+          msg += '\n⚪ Alpha Vantage: chave não configurada (veja card "Fundamentalistas")\n';
+        }
       } catch(e) { msg += '🔴 brapi: ' + e.message + '\n'; }
     } else {
       msg += '⚪ brapi.dev: sem token\n';
@@ -5573,6 +5684,15 @@
     if (erros > 0 && Object.keys(precos).length === 0) {
       if (elBtn) { elBtn.textContent = '❌'; elBtn.disabled = false; setTimeout(() => { if (elBtn) elBtn.textContent = '🔄'; }, 3000); }
       return;
+    }
+
+    // Fundamentais via Alpha Vantage (cache 24h, 1 req/ticker/dia)
+    if (_getAvKey()) {
+      await Promise.all(uniqueTickers.map(async sym => {
+        if (!precos[sym]) return;
+        const fund = await _fetchFundamentaisAV(sym);
+        if (fund) precos[sym].fund = fund;
+      }));
     }
 
     let fundOk = 0, fundTotal = 0;
