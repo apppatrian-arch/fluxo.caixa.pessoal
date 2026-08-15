@@ -4855,22 +4855,32 @@
         const r3 = await fetch(url);
         const j3 = await r3.json().catch(() => null);
         const q = j3 && j3.results && j3.results[0];
+        const tickerTest2 = 'BBAS3'; // testa também BBAS3 que tem dados completos
         if (q) {
           msg += '🟢 brapi /quote?fundamental=true HTTP ' + r3.status + ' (' + ticker + '):\n';
-          // Mostra todos os campos com valor (não undefined/null) para achar os nomes corretos
-          const fundFields = ['priceEarnings','priceToBook','returnOnEquity','profitMargins',
-            'earningsPerShare','bookValue','returnOnAssets','grossMargins','operatingMargins',
-            'revenuePerShare','ebitdaMargins','operatingCashflow','dividendYield',
-            'trailingPE','forwardPE','pegRatio','enterpriseToRevenue','enterpriseToEbitda'];
-          fundFields.forEach(f => { msg += '   ' + f + '=' + q[f] + '\n'; });
-          // Também mostra qualquer campo não-nulo que não esteja na lista acima
-          const known = new Set(fundFields.concat(['symbol','shortName','longName','currency','regularMarketPrice',
-            'regularMarketChange','regularMarketChangePercent','regularMarketDayHigh','regularMarketDayLow',
-            'regularMarketVolume','marketCap','historicalDataPrice','validRanges']));
-          Object.keys(q).forEach(k => { if (!known.has(k) && q[k] != null) msg += '   [extra] ' + k + '=' + q[k] + '\n'; });
+          msg += '   priceEarnings=' + q.priceEarnings + ' trailingPE=' + q.trailingPE + '\n';
+          msg += '   priceToBook=' + q.priceToBook + ' returnOnEquity=' + q.returnOnEquity + '\n';
+          msg += '   profitMargins=' + q.profitMargins + '\n';
         } else {
-          msg += '🟡 brapi HTTP ' + r3.status + ': ' + JSON.stringify(j3).slice(0,200) + '\n';
+          msg += '🟡 brapi quote HTTP ' + r3.status + ': ' + JSON.stringify(j3).slice(0,100) + '\n';
         }
+        // Testa endpoint v2/statistics (fonte correta de fundamentais)
+        try {
+          const bt2 = _getBrapiToken();
+          const urlStat = 'https://brapi.dev/api/v2/stocks/statistics?symbols=' + tickerTest2 + '&mode=current' + (bt2 ? '&token=' + bt2 : '');
+          const rs = await fetch(urlStat);
+          const js = await rs.json().catch(() => null);
+          const st = js && js.data && js.data[0] && js.data[0].statistics;
+          if (st) {
+            msg += '\n🟢 brapi v2/statistics HTTP ' + rs.status + ' (' + tickerTest2 + '):\n';
+            ['trailingPE','priceToBook','profitMargins','returnOnEquity','returnOnAssets',
+             'grossMargins','operatingMargins','earningsPerShare','bookValue'].forEach(f => {
+              if (st[f] !== undefined) msg += '   ' + f + '=' + st[f] + '\n';
+            });
+          } else {
+            msg += '\n🟡 brapi v2/statistics HTTP ' + rs.status + ': ' + JSON.stringify(js).slice(0,150) + '\n';
+          }
+        } catch(e2) { msg += '\n🔴 brapi v2/statistics: ' + e2.message + '\n'; }
       } catch(e) { msg += '🔴 brapi: ' + e.message + '\n'; }
     } else {
       msg += '⚪ brapi.dev: sem token\n';
