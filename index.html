@@ -5395,7 +5395,8 @@
     if (_getApiSource() === 'bolsai') {
       const bkey = _getBolsaiKey();
       if (!bkey) {
-        if (elBtn) { elBtn.textContent = '❌ sem chave'; elBtn.disabled = false; setTimeout(() => { if (elBtn) { elBtn.textContent = '🔄 bolsai'; } }, 3000); }
+        if (elBtn) { elBtn.textContent = '❌ sem chave'; elBtn.disabled = false; setTimeout(() => { if (elBtn) { elBtn.textContent = '🔄 bolsai'; } }, 4000); }
+        _setSyncStatus('⚠️ Chave usebolsai.com não configurada neste dispositivo — acesse o card "API de Cotações" e salve sua chave.', false);
         return;
       }
       await Promise.all(uniqueTickers.map(async ticker => {
