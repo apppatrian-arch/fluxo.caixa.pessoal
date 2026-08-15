@@ -5459,13 +5459,35 @@
               netMargin: fund.net_margin != null ? fund.net_margin : null,
             } : null,
           };
-          console.log('bolsai ' + ticker + ' → preco:', quote.close, '| fund:', fund ? {pl:fund.pl,pvp:fund.pvp,roe:fund.roe,nm:fund.net_margin} : 'null');
+          // Fallback: se bolsai/CORS não retornou fund, tenta brapi.dev com fundamental=true
+          if (!precos[ticker].fund) {
+            const bt = _getBrapiToken();
+            if (bt) {
+              try {
+                const br = await fetch(brapiUrl('/quote/' + ticker + '?fundamental=true'));
+                if (br.ok) {
+                  const brd = await br.json();
+                  const brq = brd && brd.results && brd.results[0];
+                  if (brq) {
+                    precos[ticker].fund = {
+                      pl:        brq.priceEarnings  != null ? Number(brq.priceEarnings)        : null,
+                      pvp:       brq.priceToBook    != null ? Number(brq.priceToBook)          : null,
+                      roe:       brq.returnOnEquity != null ? Number(brq.returnOnEquity) * 100 : null,
+                      netMargin: brq.profitMargins  != null ? Number(brq.profitMargins)  * 100 : null,
+                    };
+                    console.log('brapi fund fallback ' + ticker + ':', precos[ticker].fund);
+                  }
+                }
+              } catch(e) { console.warn('brapi fund fallback ' + ticker + ':', e); }
+            }
+          }
+          console.log('bolsai ' + ticker + ' → preco:', quote.close, '| fund:', precos[ticker].fund ? {pl:precos[ticker].fund.pl,pvp:precos[ticker].fund.pvp,roe:precos[ticker].fund.roe} : 'null');
         } catch(e) { console.error('bolsai erro ' + ticker + ':', e); erros++; }
       }));
     } else {
       await Promise.all(uniqueTickers.map(async ticker => {
         try {
-          const r = await fetch(brapiUrl('/quote/' + ticker + '?range=5d&interval=1d&fundamental=false'));
+          const r = await fetch(brapiUrl('/quote/' + ticker + '?range=5d&interval=1d&fundamental=true'));
           if (!r.ok) { erros++; return; }
           const data = await r.json();
           const q = data && data.results && data.results[0];
@@ -5486,7 +5508,12 @@
             var7dPct,
             min52: q.fiftyTwoWeekLow  != null ? Number(q.fiftyTwoWeekLow)  : null,
             max52: q.fiftyTwoWeekHigh != null ? Number(q.fiftyTwoWeekHigh) : null,
-            fund: null,
+            fund: (q.priceEarnings != null || q.priceToBook != null || q.returnOnEquity != null) ? {
+              pl:        q.priceEarnings  != null ? Number(q.priceEarnings)        : null,
+              pvp:       q.priceToBook    != null ? Number(q.priceToBook)          : null,
+              roe:       q.returnOnEquity != null ? Number(q.returnOnEquity) * 100 : null,
+              netMargin: q.profitMargins  != null ? Number(q.profitMargins)  * 100 : null,
+            } : null,
           };
         } catch(e) { erros++; }
       }));
