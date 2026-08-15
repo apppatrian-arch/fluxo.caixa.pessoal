@@ -1417,10 +1417,12 @@
       <div style="background:var(--card);border-radius:14px;padding:16px;margin-bottom:14px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
           <div style="font-size:14px;font-weight:700;">🎯 Carteira de Opções</div>
-          <button onclick="abrirFormOpcoes()"
-            style="padding:7px 14px;background:var(--primary);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">
-            + Nova Opção
-          </button>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <button onclick="exportarOpcoesExcel()" title="Exportar para Excel (.csv)"
+              style="padding:6px 10px;background:transparent;border:1.5px solid var(--border);border-radius:8px;font-size:12px;cursor:pointer;color:var(--text-muted);">📥 Excel</button>
+            <button onclick="abrirFormOpcoes()"
+              style="padding:7px 14px;background:var(--primary);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">+ Nova Opção</button>
+          </div>
         </div>
         <div id="opcoes-lista"></div>
 
@@ -4904,6 +4906,50 @@
       partes.push('');
     });
     _downloadCsv(partes.join('\r\n'), 'carteiras_' + hoje + '.csv');
+  }
+
+  function exportarOpcoesExcel() {
+    if (!opcoes.length) { alert('Nenhuma opção para exportar.'); return; }
+    const hoje  = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
+    const fmtN  = v => v != null ? Number(v).toFixed(2).replace('.', ',') : '';
+    const fmtD  = d => { if (!d) return ''; const [y,m,dd] = d.split('-'); return dd+'/'+m+'/'+y; };
+    const tipoLabels = { call_compra:'CALL Compra', call_venda:'CALL Venda', put_compra:'PUT Compra', put_venda:'PUT Venda' };
+
+    const header = _csvRow([
+      'Ticker Opção','Ticker Ação','Tipo','Data Operação','Vencimento',
+      'Dias Úteis Venc.','Strike (R$)','Prêmio (R$)','Qtd',
+      'Custo Total (R$)','Preço Ação Atual (R$)','Status (ITM/ATM/OTM)',
+      'Val. Intrínseco (R$)','Res. Unit. (R$)','Res. Total (R$)','Observação'
+    ]);
+
+    const linhas = opcoes.map(o => {
+      const dias   = _opDiasVencimento(o.vencimento);
+      const diasStr= dias === null ? '' : dias < 0 ? 'Vencida' : String(dias);
+      const vi     = _opValorIntrinico(o.tipo, o.precoAcaoAtual, o.strike);
+      const resU   = _opResultadoUnit(o.tipo, vi, o.premio);
+      const resT   = o.qtd * resU;
+      const money  = _opMoneyness(o.tipo, o.precoAcaoAtual, o.strike) || '';
+      return _csvRow([
+        o.tickerOpcao || '',
+        o.tickerAcao  || '',
+        tipoLabels[o.tipo] || o.tipo,
+        fmtD(o.dataOperacao),
+        fmtD(o.vencimento),
+        diasStr,
+        fmtN(o.strike),
+        fmtN(o.premio),
+        o.qtd,
+        fmtN(o.qtd * o.premio),
+        o.precoAcaoAtual != null ? fmtN(o.precoAcaoAtual) : '',
+        money,
+        fmtN(vi),
+        fmtN(resU),
+        fmtN(resT),
+        o.observacao || ''
+      ]);
+    });
+
+    _downloadCsv([header, ...linhas].join('\r\n'), 'opcoes_' + hoje + '.csv');
   }
 
   // Controla seleção Compra / Venda no formulário de cada carteira
