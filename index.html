@@ -4679,15 +4679,31 @@
     });
   }
 
+  // Tokens ficam em localStorage (sem limite de tamanho, sem expor no campo nome)
+  function _apiLsKey(suffix) {
+    return 'fc_api_' + suffix + '_' + (currentUser || '').toLowerCase();
+  }
+
   function _getApiSource() {
+    return localStorage.getItem(_apiLsKey('src')) || 'brapi';
+  }
+
+  function _getBrapiToken() {
+    const ls = localStorage.getItem(_apiLsKey('btoken'));
+    if (ls) return ls;
+    // migração: lê do campo nome (formato antigo) e move para localStorage
     const me = paulGetMinhaConta();
-    return (me && me.src) || 'brapi';
+    const old = (me && me.btoken) || '';
+    if (old) localStorage.setItem(_apiLsKey('btoken'), old);
+    return old;
   }
 
   function _getBolsaiKey() {
-    const me = paulGetMinhaConta();
-    return (me && me.bsk) || '';
+    return localStorage.getItem(_apiLsKey('bsk')) || '';
   }
+
+  function _getBrapiDate()  { return localStorage.getItem(_apiLsKey('bdate')) || ''; }
+  function _getBolsaiDate() { return localStorage.getItem(_apiLsKey('bsd'))   || ''; }
 
   function _maskToken(t) {
     if (!t) return '';
@@ -4697,13 +4713,12 @@
   function renderTokenAcoes() {
     const card = document.getElementById('acoes-api-card');
     if (!card) return;
-    const me  = paulGetMinhaConta();
-    const src = (me && me.src) || 'brapi';
 
-    const btoken = (me && me.btoken) || '';
-    const bdate  = (me && me.bdate)  || '';
-    const bsk    = (me && me.bsk)    || '';
-    const bsd    = (me && me.bsd)    || '';
+    const src    = _getApiSource();
+    const btoken = _getBrapiToken();
+    const bdate  = _getBrapiDate();
+    const bsk    = _getBolsaiKey();
+    const bsd    = _getBolsaiDate();
 
     const btnTab = (id, label, active) =>
       '<button onclick="renderTokenAcoes._switchSrc(\'' + id + '\')" style="flex:1;padding:8px 0;font-size:12px;font-weight:700;cursor:pointer;border:none;border-radius:8px;' +
@@ -4754,17 +4769,9 @@
       '</div>';
   }
 
-  renderTokenAcoes._switchSrc = async function(newSrc) {
-    const me = paulGetMinhaConta();
-    if (!me) return;
-    const agora = new Date();
-    const nomeNovo = _buildNome(me, { src: newSrc });
-    try {
-      await paulFetch('DELETE', '/paulistinha/usuarios/' + me.id);
-      await paulFetch('POST', '/paulistinha/usuarios', { nome: nomeNovo, email: me.email, senha_hash: 'x' });
-      await paulUsuariosCarregar();
-      renderTokenAcoes();
-    } catch(e) { alert('Erro: ' + e.message); }
+  renderTokenAcoes._switchSrc = function(newSrc) {
+    localStorage.setItem(_apiLsKey('src'), newSrc);
+    renderTokenAcoes();
   };
 
   renderTokenAcoes._editSrc = function(src) {
@@ -4809,33 +4816,28 @@
       '|src:' + (o.src || 'brapi');
   }
 
-  async function salvarTokenAcoes(source) {
+  function salvarTokenAcoes(source) {
     source = source || 'brapi';
     const inputId = source === 'bolsai' ? 'token-input-bolsai' : 'token-input-brapi';
     const inp = document.getElementById(inputId);
     const token = inp ? inp.value.trim() : '';
     if (!token) { alert('Cole o token antes de salvar.'); return; }
-    const me = paulGetMinhaConta();
-    if (!me) { alert('Usuário não encontrado. Tente recarregar a página.'); return; }
     const agora = new Date();
     const dataStr = agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
-    const updates = source === 'bolsai'
-      ? { bsk: token, bsd: dataStr, src: 'bolsai' }
-      : { btoken: token, bdate: dataStr, src: 'brapi' };
-    const nomeNovo = _buildNome(me, updates);
-    try {
-      await paulFetch('DELETE', '/paulistinha/usuarios/' + me.id);
-      await paulFetch('POST', '/paulistinha/usuarios', { nome: nomeNovo, email: me.email, senha_hash: 'x' });
-      await paulUsuariosCarregar();
-      renderTokenAcoes();
-    } catch(e) {
-      alert('❌ Erro ao salvar token:\n' + e.message);
+    if (source === 'bolsai') {
+      localStorage.setItem(_apiLsKey('bsk'),  token);
+      localStorage.setItem(_apiLsKey('bsd'),  dataStr);
+      localStorage.setItem(_apiLsKey('src'),  'bolsai');
+    } else {
+      localStorage.setItem(_apiLsKey('btoken'), token);
+      localStorage.setItem(_apiLsKey('bdate'),  dataStr);
+      localStorage.setItem(_apiLsKey('src'),    'brapi');
     }
+    renderTokenAcoes();
   }
 
   function copiarTokenAcoes() {
-    const me = paulGetMinhaConta();
-    const token = _getApiSource() === 'bolsai' ? (me && me.bsk) : (me && me.btoken);
+    const token = _getApiSource() === 'bolsai' ? _getBolsaiKey() : _getBrapiToken();
     if (!token) return;
     navigator.clipboard.writeText(token).catch(() => alert('Token: ' + token));
   }
@@ -4843,8 +4845,7 @@
   function alterarTokenAcoes() { renderTokenAcoes._editSrc(_getApiSource()); }
 
   function brapiUrl(path) {
-    const me    = paulGetMinhaConta();
-    const token = (me && me.btoken) || '';
+    const token = _getBrapiToken();
     const sep   = path.includes('?') ? '&' : '?';
     return 'https://brapi.dev/api' + path + (token ? sep + 'token=' + token : '');
   }
