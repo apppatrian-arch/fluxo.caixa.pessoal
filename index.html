@@ -4864,25 +4864,35 @@
         } else {
           msg += '🟡 brapi quote HTTP ' + r3.status + ': ' + JSON.stringify(j3).slice(0,100) + '\n';
         }
-        // Testa Yahoo Finance direto (fonte dos dados do brapi)
+        // Testa Status Invest (API interna brasileira)
         try {
-          const yhTicker = tickerTest2 + '.SA';
-          const yhUrl = 'https://query2.finance.yahoo.com/v10/finance/quoteSummary/' + yhTicker + '?modules=defaultKeyStatistics%2CfinancialData&corsDomain=finance.yahoo.com';
-          const ry = await fetch(yhUrl, { headers: { 'Accept': 'application/json' } });
-          const jy = await ry.json().catch(() => null);
-          const ks = jy && jy.quoteSummary && jy.quoteSummary.result && jy.quoteSummary.result[0];
-          if (ks) {
-            const dks = ks.defaultKeyStatistics || {};
-            const fd  = ks.financialData || {};
-            msg += '\n🟢 Yahoo Finance HTTP ' + ry.status + ' (' + yhTicker + '):\n';
-            msg += '   trailingPE=' + (dks.trailingPE && dks.trailingPE.raw) + '\n';
-            msg += '   priceToBook=' + (dks.priceToBook && dks.priceToBook.raw) + '\n';
-            msg += '   returnOnEquity=' + (fd.returnOnEquity && fd.returnOnEquity.raw) + '\n';
-            msg += '   profitMargins=' + (fd.profitMargins && fd.profitMargins.raw) + '\n';
+          const siUrl = 'https://statusinvest.com.br/acoes/getbysticker?ticker=' + tickerTest2;
+          const rsi = await fetch(siUrl, { headers: { 'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0' } });
+          const jsi = await rsi.json().catch(() => null);
+          if (jsi && jsi.pl !== undefined) {
+            msg += '\n🟢 Status Invest HTTP ' + rsi.status + ' (' + tickerTest2 + '):\n';
+            msg += '   pl=' + jsi.pl + ' pvp=' + jsi.pvp + '\n';
+            msg += '   roe=' + jsi.roe + ' margem_liq=' + (jsi.margem_liquida || jsi.margemLiquida || jsi.ml) + '\n';
           } else {
-            msg += '\n🟡 Yahoo Finance HTTP ' + ry.status + ': ' + JSON.stringify(jy).slice(0,150) + '\n';
+            msg += '\n🟡 Status Invest HTTP ' + rsi.status + ': ' + JSON.stringify(jsi).slice(0,150) + '\n';
           }
-        } catch(e2) { msg += '\n🔴 Yahoo Finance (CORS?): ' + e2.message + '\n'; }
+        } catch(esi) { msg += '\n🔴 Status Invest (CORS?): ' + esi.message + '\n'; }
+
+        // Testa Alpha Vantage (API gratuita, CORS-friendly)
+        try {
+          const avUrl = 'https://www.alphavantage.co/query?function=OVERVIEW&symbol=' + tickerTest2 + '.SAO&apikey=demo';
+          const rav = await fetch(avUrl);
+          const jav = await rav.json().catch(() => null);
+          if (jav && jav.PERatio !== undefined) {
+            msg += '\n🟢 Alpha Vantage HTTP ' + rav.status + ' (' + tickerTest2 + '):\n';
+            msg += '   PERatio=' + jav.PERatio + '\n';
+            msg += '   PriceToBookRatio=' + jav.PriceToBookRatio + '\n';
+            msg += '   ReturnOnEquityTTM=' + jav.ReturnOnEquityTTM + '\n';
+            msg += '   ProfitMargin=' + jav.ProfitMargin + '\n';
+          } else {
+            msg += '\n🟡 Alpha Vantage HTTP ' + rav.status + ': ' + JSON.stringify(jav).slice(0,150) + '\n';
+          }
+        } catch(eav) { msg += '\n🔴 Alpha Vantage (CORS?): ' + eav.message + '\n'; }
       } catch(e) { msg += '🔴 brapi: ' + e.message + '\n'; }
     } else {
       msg += '⚪ brapi.dev: sem token\n';
