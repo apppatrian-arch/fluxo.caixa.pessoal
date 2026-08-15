@@ -1501,6 +1501,15 @@
         </div>
       </div>
 
+      <!-- GRÁFICO CARTEIRA ATIVA DE OPÇÕES -->
+      <div style="background:var(--card);border-radius:14px;padding:16px;margin-bottom:14px;">
+        <div style="font-size:14px;font-weight:700;margin-bottom:4px;">📊 Distribuição da Carteira Ativa</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:14px;">Considera apenas posições ainda não vencidas · peso pelo custo total (Qtd × Prêmio)</div>
+        <div id="opcoes-grafico-wrap">
+          <div style="text-align:center;color:var(--text-muted);font-size:13px;padding:24px 0;">Sem posições ativas.</div>
+        </div>
+      </div>
+
     </div><!-- /painel-opcoes -->
 
 <!-- MODAL NOVA/EDITAR CARTEIRA -->
@@ -4556,6 +4565,139 @@
         }).join('') +
         '</tbody>' +
       '</table></div>';
+
+    renderGraficoOpcoes();
+  }
+
+  function renderGraficoOpcoes() {
+    const wrap = document.getElementById('opcoes-grafico-wrap');
+    if (!wrap) return;
+
+    // Apenas posições não vencidas
+    const ativas = opcoes.filter(o => {
+      const d = _opDiasVencimento(o.vencimento);
+      return d !== null && d >= 0;
+    });
+
+    if (!ativas.length) {
+      if (_chartOpcoes) { _chartOpcoes.destroy(); _chartOpcoes = null; }
+      wrap.innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:13px;padding:24px 0;">Sem posições ativas.</div>';
+      return;
+    }
+
+    // Agrupa por tickerOpcao, acumula custo total
+    const grupos = {};
+    ativas.forEach(o => {
+      const key = o.tickerOpcao || '?';
+      if (!grupos[key]) grupos[key] = { ticker: key, tickerAcao: o.tickerAcao, tipo: o.tipo, custo: 0, qtd: 0 };
+      grupos[key].custo += o.qtd * o.premio;
+      grupos[key].qtd   += o.qtd;
+    });
+    const itens      = Object.values(grupos).sort((a, b) => b.custo - a.custo);
+    const totalCusto = itens.reduce((s, x) => s + x.custo, 0);
+
+    const fmt    = v => 'R$ ' + Number(v).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+    const fmtPct = v => Number(v).toLocaleString('pt-BR', {minimumFractionDigits:1, maximumFractionDigits:1}) + '%';
+
+    // Paleta — cores distintas para até 10 tickers
+    const PALETA = ['#3b82f6','#22c55e','#f59e0b','#8b5cf6','#06b6d4','#ec4899','#f97316','#14b8a6','#6366f1','#a3e635'];
+
+    const labels  = itens.map(x => x.ticker);
+    const valores = itens.map(x => x.custo);
+    const cores   = itens.map((_, i) => PALETA[i % PALETA.length]);
+
+    if (_chartOpcoes) { _chartOpcoes.destroy(); _chartOpcoes = null; }
+
+    wrap.innerHTML =
+      '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:24px;">' +
+        // Donut
+        '<div style="position:relative;width:180px;height:180px;flex-shrink:0;">' +
+          '<canvas id="chart-opcoes-donut" width="180" height="180"></canvas>' +
+          '<div id="opcoes-donut-centro" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;"></div>' +
+        '</div>' +
+        // Legenda + barras
+        '<div style="flex:1;min-width:200px;">' +
+          '<div style="font-size:10px;font-weight:700;color:var(--text-muted);letter-spacing:.05em;text-transform:uppercase;margin-bottom:10px;">' +
+            ativas.length + ' posição(ões) ativa(s) · ' + itens.length + ' ticker(s)' +
+          '</div>' +
+          itens.map((x, i) => {
+            const pct = totalCusto > 0 ? (x.custo / totalCusto * 100) : 0;
+            const cor = cores[i];
+            const tipoMeta = { call_compra:'C↑', call_venda:'C↓', put_compra:'P↑', put_venda:'P↓' };
+            const tipoTag  = tipoMeta[x.tipo] || '';
+            return '<div style="margin-bottom:10px;">' +
+              '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">' +
+                '<div style="display:flex;align-items:center;gap:6px;">' +
+                  '<div style="width:10px;height:10px;border-radius:50%;background:' + cor + ';flex-shrink:0;"></div>' +
+                  '<span style="font-size:12px;font-weight:700;color:var(--text);">' + x.ticker + '</span>' +
+                  (tipoTag ? '<span style="font-size:9px;color:var(--text-muted);background:var(--bg);border-radius:4px;padding:1px 4px;">' + tipoTag + '</span>' : '') +
+                  (x.tickerAcao ? '<span style="font-size:10px;color:var(--text-muted);">(' + x.tickerAcao + ')</span>' : '') +
+                '</div>' +
+                '<span style="font-size:11px;font-weight:700;color:var(--text-muted);">' + fmtPct(pct) + '</span>' +
+              '</div>' +
+              '<div style="height:6px;background:var(--border);border-radius:99px;overflow:hidden;">' +
+                '<div style="height:100%;width:' + pct.toFixed(1) + '%;background:' + cor + ';border-radius:99px;transition:width .4s ease;"></div>' +
+              '</div>' +
+              '<div style="display:flex;justify-content:space-between;margin-top:2px;">' +
+                '<span style="font-size:10px;color:var(--text-muted);">Qtd: ' + Number(x.qtd).toLocaleString('pt-BR') + '</span>' +
+                '<span style="font-size:10px;color:var(--text-muted);">' + fmt(x.custo) + '</span>' +
+              '</div>' +
+            '</div>';
+          }).join('') +
+          '<div style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px;display:flex;justify-content:space-between;align-items:center;">' +
+            '<span style="font-size:11px;color:var(--text-muted);font-weight:700;">Total Ativo</span>' +
+            '<span style="font-size:13px;font-weight:800;color:var(--primary);">' + fmt(totalCusto) + '</span>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+
+    // Centro do donut
+    const centro = document.getElementById('opcoes-donut-centro');
+    if (centro) {
+      centro.innerHTML =
+        '<div style="font-size:9px;color:var(--text-muted);font-weight:600;letter-spacing:.03em;">ATIVO</div>' +
+        '<div style="font-size:11px;font-weight:800;color:var(--text);line-height:1.2;">' + fmt(totalCusto).replace('R$ ','') + '</div>' +
+        '<div style="font-size:9px;color:var(--text-muted);">' + ativas.length + ' pos.</div>';
+    }
+
+    const ctx = document.getElementById('chart-opcoes-donut');
+    if (!ctx) return;
+    _chartOpcoes = new Chart(ctx.getContext('2d'), {
+      type: 'doughnut',
+      data: {
+        labels,
+        datasets: [{
+          data: valores,
+          backgroundColor: cores,
+          borderColor: 'transparent',
+          borderWidth: 2,
+          hoverBorderColor: 'var(--card)',
+          hoverBorderWidth: 3,
+          hoverOffset: 6,
+        }]
+      },
+      options: {
+        cutout: '65%',
+        animation: { duration: 500 },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => {
+                const v   = ctx.parsed;
+                const pct = totalCusto > 0 ? (v / totalCusto * 100) : 0;
+                return '  ' + fmt(v) + '  (' + fmtPct(pct) + ')';
+              }
+            },
+            backgroundColor: 'rgba(0,0,0,.82)',
+            titleColor: '#e6edf3',
+            bodyColor: '#c9d1d9',
+            padding: 10,
+            cornerRadius: 8,
+          }
+        }
+      }
+    });
   }
 
   function renderTokenAcoes() {
@@ -4700,8 +4842,9 @@
   let _selicAnual    = 0;   // meta anual % a.a. — atualizado por buscarSelic()
   let _selicDiaria   = 0;   // taxa Over diária real (BCB série 11) — atualizado por buscarSelic()
   let rendaFixa      = [];  // carteira de renda fixa
-  let _chartAlocacao = null;
-  let opcoes         = [];  // carteira de opções
+  let _chartAlocacao  = null;
+  let _chartOpcoes    = null;
+  let opcoes          = [];  // carteira de opções
 
   const _CFG_DATE = '2000-01-01';
   const _CFG_TIPO = 'cred';
