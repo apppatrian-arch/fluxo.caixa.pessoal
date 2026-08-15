@@ -4856,13 +4856,20 @@
         const j3 = await r3.json().catch(() => null);
         const q = j3 && j3.results && j3.results[0];
         if (q) {
-          msg += '🟢 brapi /quote?fundamental=true HTTP ' + r3.status + ':\n';
-          msg += '   priceEarnings=' + q.priceEarnings + '\n';
-          msg += '   priceToBook=' + q.priceToBook + '\n';
-          msg += '   returnOnEquity=' + q.returnOnEquity + '\n';
-          msg += '   profitMargins=' + q.profitMargins + '\n';
+          msg += '🟢 brapi /quote?fundamental=true HTTP ' + r3.status + ' (' + ticker + '):\n';
+          // Mostra todos os campos com valor (não undefined/null) para achar os nomes corretos
+          const fundFields = ['priceEarnings','priceToBook','returnOnEquity','profitMargins',
+            'earningsPerShare','bookValue','returnOnAssets','grossMargins','operatingMargins',
+            'revenuePerShare','ebitdaMargins','operatingCashflow','dividendYield',
+            'trailingPE','forwardPE','pegRatio','enterpriseToRevenue','enterpriseToEbitda'];
+          fundFields.forEach(f => { msg += '   ' + f + '=' + q[f] + '\n'; });
+          // Também mostra qualquer campo não-nulo que não esteja na lista acima
+          const known = new Set(fundFields.concat(['symbol','shortName','longName','currency','regularMarketPrice',
+            'regularMarketChange','regularMarketChangePercent','regularMarketDayHigh','regularMarketDayLow',
+            'regularMarketVolume','marketCap','historicalDataPrice','validRanges']));
+          Object.keys(q).forEach(k => { if (!known.has(k) && q[k] != null) msg += '   [extra] ' + k + '=' + q[k] + '\n'; });
         } else {
-          msg += '🟡 brapi HTTP ' + r3.status + ': ' + JSON.stringify(j3).slice(0,100) + '\n';
+          msg += '🟡 brapi HTTP ' + r3.status + ': ' + JSON.stringify(j3).slice(0,200) + '\n';
         }
       } catch(e) { msg += '🔴 brapi: ' + e.message + '\n'; }
     } else {
