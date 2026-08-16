@@ -1233,8 +1233,6 @@
 
         <!-- API de Cotações (preenchido por renderTokenAcoes) -->
         <div id="acoes-api-card" style="margin-bottom:14px;"></div>
-        <!-- Fundamentais Alpha Vantage (preenchido por renderFundCard) -->
-        <div id="acoes-fund-card" style="margin-bottom:14px;"></div>
 
         <!-- Cotação Atual -->
         <div style="background:var(--card);border-radius:14px;padding:16px;">
@@ -3650,7 +3648,6 @@
   // ══════════════════════════════════════════
   async function initAcoes() {
     renderTokenAcoes();
-    renderFundCard();
     buscarSelic();
     buscarDolar();
     // Garante autenticação antes de carregar do DB
@@ -4403,16 +4400,11 @@
     await Promise.all(tickers.map(async ticker => {
       try {
         let preco = null;
-        if (_getApiSource() === 'bolsai') {
-          const quote = await _bolsaiFetch('/stocks/' + ticker + '/quote');
-          if (quote && quote.close) preco = Number(quote.close);
-        } else {
-          const r = await fetch(brapiUrl('/quote/' + ticker + '?range=5d&interval=1d&fundamental=false'));
-          if (!r.ok) return;
-          const data = await r.json();
-          const q = (data.results || [])[0];
-          if (q && q.regularMarketPrice) preco = Number(q.regularMarketPrice);
-        }
+        const r = await fetch(brapiUrl('/quote/' + ticker + '?range=5d&interval=1d&fundamental=false'));
+        if (!r.ok) return;
+        const data = await r.json();
+        const q = (data.results || [])[0];
+        if (q && q.regularMarketPrice) preco = Number(q.regularMarketPrice);
         if (preco == null) return;
         opcoes.forEach(o => {
           if (o.tickerAcao.replace('.SA','').toUpperCase() === ticker) o.precoAcaoAtual = preco;
@@ -4688,10 +4680,6 @@
     return 'fc_api_' + suffix + '_' + (currentUser || '').toLowerCase();
   }
 
-  function _getApiSource() {
-    return localStorage.getItem(_apiLsKey('src')) || 'brapi';
-  }
-
   function _getBrapiToken() {
     const ls = localStorage.getItem(_apiLsKey('btoken'));
     if (ls) return ls;
@@ -4702,12 +4690,7 @@
     return old;
   }
 
-  function _getBolsaiKey() {
-    return localStorage.getItem(_apiLsKey('bsk')) || '';
-  }
-
   function _getBrapiDate()  { return localStorage.getItem(_apiLsKey('bdate')) || ''; }
-  function _getBolsaiDate() { return localStorage.getItem(_apiLsKey('bsd'))   || ''; }
 
   function _maskToken(t) {
     if (!t) return '';
@@ -4718,307 +4701,53 @@
     const card = document.getElementById('acoes-api-card');
     if (!card) return;
 
-    const src    = _getApiSource();
     const btoken = _getBrapiToken();
     const bdate  = _getBrapiDate();
-    const bsk    = _getBolsaiKey();
-    const bsd    = _getBolsaiDate();
-
-    const btnTab = (id, label, active) =>
-      '<button onclick="renderTokenAcoes._switchSrc(\'' + id + '\')" style="flex:1;padding:8px 0;font-size:12px;font-weight:700;cursor:pointer;border:none;border-radius:8px;' +
-      (active ? 'background:var(--primary);color:white;' : 'background:var(--bg);color:var(--text-muted);') + '">' + label + '</button>';
-
-    const tokenRow = (key, dateStr, inputId, saveSrc) => {
-      if (key) {
-        return '<div style="background:' + (saveSrc==='bolsai'?'#f0fdf4':'#fffbeb') + ';border:1.5px solid ' + (saveSrc==='bolsai'?'#22c55e':'#f59e0b') + ';border-radius:10px;padding:10px 12px;">' +
-          '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">' +
-            '<div>' +
-              '<div style="font-size:12px;font-weight:700;color:' + (saveSrc==='bolsai'?'#15803d':'#92400e') + ';">✅ Chave salva' + (dateStr ? ' · ' + dateStr : '') + '</div>' +
-              '<div style="font-size:11px;font-family:monospace;color:' + (saveSrc==='bolsai'?'#16a34a':'#78350f') + ';margin-top:3px;">' + _maskToken(key) + '</div>' +
-            '</div>' +
-            '<div style="display:flex;gap:6px;">' +
-              '<button onclick="navigator.clipboard.writeText(\'' + key + '\').then(()=>{})" style="padding:5px 10px;background:' + (saveSrc==='bolsai'?'#22c55e':'#f59e0b') + ';color:white;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;">📋</button>' +
-              '<button onclick="renderTokenAcoes._editSrc(\'' + saveSrc + '\')" style="padding:5px 10px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;color:var(--text);">✏️ Alterar</button>' +
-            '</div>' +
-          '</div>' +
-        '</div>';
-      }
-      const ph = saveSrc === 'bolsai' ? 'Cole sua chave usebolsai.com...' : 'Cole seu token brapi.dev...';
-      const hint = saveSrc === 'bolsai'
-        ? '<div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">Acesse <strong>usebolsai.com</strong>, crie uma conta e cole sua chave abaixo. Plano Free: 200 req/dia · Fundamentos grátis.</div>'
-        : '<div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">Acesse <strong>brapi.dev</strong>, crie uma conta gratuita e cole seu token abaixo.</div>';
-      return hint +
-        '<div style="display:flex;gap:8px;">' +
-          '<input type="text" id="' + inputId + '" placeholder="' + ph + '" style="flex:1;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text);" />' +
-          '<button onclick="salvarTokenAcoes(\'' + saveSrc + '\')" style="padding:9px 14px;background:var(--primary);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">Salvar</button>' +
-        '</div>';
-    };
-
-    const bolsaiInfo = src === 'bolsai' && bsk
-      ? '<div style="margin-top:8px;padding:8px 10px;background:#fef9c3;border:1px solid #fde047;border-radius:8px;font-size:10px;color:#713f12;">' +
-          '⚠️ <strong>usebolsai.com</strong> não suporta uso direto pelo browser (CORS). ' +
-          'O app usa <strong>brapi.dev como fallback</strong> automático para cotações e fundamentos. ' +
-          'Configure seu token brapi.dev no tab ao lado.' +
-          '<div style="margin-top:5px;display:flex;gap:6px;align-items:center;">' +
-            '<span style="color:#166534;">Fundamentos incluídos: P/L · P/VP · ROE · Margem Líquida</span>' +
-            '<button onclick="paulTestFundamentais(this)" style="padding:2px 7px;font-size:10px;font-weight:700;background:white;border:1px solid #d97706;border-radius:5px;cursor:pointer;color:#92400e;">🔬 Testar</button>' +
-          '</div>' +
-        '</div>'
-      : src === 'bolsai'
-        ? '<div style="margin-top:6px;font-size:10px;color:var(--text-muted);">Configure a chave para usar como fonte de cotações.</div>'
-        : '<div style="margin-top:6px;font-size:10px;color:var(--text-muted);">Fundamentos incluídos: P/L · P/VP · ROE · Margem Líquida</div>';
 
     card.innerHTML =
       '<div style="background:var(--card);border-radius:14px;padding:14px 16px;">' +
         '<div style="font-size:13px;font-weight:700;margin-bottom:10px;">🔑 API de Cotações</div>' +
-        '<div style="display:flex;gap:6px;background:var(--surface);border-radius:10px;padding:4px;margin-bottom:14px;">' +
-          btnTab('brapi',   '📊 brapi.dev',       src === 'brapi') +
-          btnTab('bolsai',  '🇧🇷 usebolsai.com', src === 'bolsai') +
-        '</div>' +
-        (src === 'brapi'
-          ? tokenRow(btoken, bdate, 'token-input-brapi', 'brapi')
-          : tokenRow(bsk,    bsd,   'token-input-bolsai','bolsai')
+        (btoken
+          ? '<div style="background:#fffbeb;border:1.5px solid #f59e0b;border-radius:10px;padding:10px 12px;">' +
+              '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">' +
+                '<div>' +
+                  '<div style="font-size:12px;font-weight:700;color:#92400e;">✅ brapi.dev' + (bdate ? ' · ' + bdate : '') + '</div>' +
+                  '<div style="font-size:11px;font-family:monospace;color:#78350f;margin-top:3px;">' + _maskToken(btoken) + '</div>' +
+                '</div>' +
+                '<div style="display:flex;gap:6px;">' +
+                  '<button onclick="navigator.clipboard.writeText(\'' + btoken + '\').then(()=>{})" style="padding:5px 10px;background:#f59e0b;color:white;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;">📋</button>' +
+                  '<button onclick="renderTokenAcoes._edit()" style="padding:5px 10px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;color:var(--text);">✏️ Alterar</button>' +
+                '</div>' +
+              '</div>' +
+            '</div>'
+          : '<div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">Acesse <strong>brapi.dev</strong>, crie uma conta gratuita e cole seu token abaixo.</div>' +
+            '<div style="display:flex;gap:8px;">' +
+              '<input type="text" id="token-input-brapi" placeholder="Cole seu token brapi.dev..." style="flex:1;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text);" />' +
+              '<button onclick="salvarTokenAcoes(\'brapi\')" style="padding:9px 14px;background:var(--primary);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">Salvar</button>' +
+            '</div>'
         ) +
-        bolsaiInfo +
       '</div>';
   }
 
-  renderTokenAcoes._switchSrc = function(newSrc) {
-    localStorage.setItem(_apiLsKey('src'), newSrc);
-    renderTokenAcoes();
-  };
-
-  renderTokenAcoes._editSrc = function(src) {
-    // Re-render showing the input (empty key triggers input mode)
-    const me = paulGetMinhaConta();
-    if (!me) return;
+  renderTokenAcoes._edit = function() {
     const card = document.getElementById('acoes-api-card');
     if (!card) return;
-    // Temporarily blank the key in display without saving
-    const inputId = src === 'bolsai' ? 'token-input-bolsai' : 'token-input-brapi';
-    const currentVal = src === 'bolsai' ? (me.bsk || '') : (me.btoken || '');
-    const ph = src === 'bolsai' ? 'Cole sua chave usebolsai.com...' : 'Cole seu token brapi.dev...';
-    const hint = src === 'bolsai'
-      ? '<div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">Acesse <strong>usebolsai.com</strong>, crie uma conta e cole sua chave abaixo. Plano Free: 200 req/dia · Fundamentos grátis.</div>'
-      : '<div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">Acesse <strong>brapi.dev</strong>, crie uma conta gratuita e cole seu token abaixo.</div>';
-    const editArea = card.querySelector('#token-edit-area');
-    // Find the token row div and replace it with input
-    const rows = card.querySelectorAll('[style*="border-radius:10px"]');
-    // Simpler: just re-render with a temporary flag stored inline
-    // We patch the existing input section inside the card directly
+    const curToken = _getBrapiToken();
     const existing = card.querySelector('div[style*="border:1.5px solid"]');
     if (existing) {
-      existing.outerHTML = hint +
+      existing.outerHTML =
+        '<div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">Acesse <strong>brapi.dev</strong>, crie uma conta gratuita e cole seu token abaixo.</div>' +
         '<div style="display:flex;gap:8px;">' +
-          '<input type="text" id="' + inputId + '" placeholder="' + ph + '" value="' + currentVal + '" style="flex:1;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text);" />' +
-          '<button onclick="salvarTokenAcoes(\'' + src + '\')" style="padding:9px 14px;background:var(--primary);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">Salvar</button>' +
+          '<input type="text" id="token-input-brapi" placeholder="Cole seu token brapi.dev..." value="' + curToken + '" style="flex:1;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text);" />' +
+          '<button onclick="salvarTokenAcoes(\'brapi\')" style="padding:9px 14px;background:var(--primary);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">Salvar</button>' +
         '</div>';
-      const inp = card.querySelector('#' + inputId);
+      const inp = card.querySelector('#token-input-brapi');
       if (inp) { inp.focus(); inp.select(); }
     } else {
       renderTokenAcoes();
     }
   };
 
-  // ── Financial Modeling Prep — fundamentais com cache 24h ────────────────────
-  function _getAvKey()  { return localStorage.getItem(_apiLsKey('fmpk')) || ''; }
-  function _getAvDate() { return localStorage.getItem(_apiLsKey('fmpd')) || ''; }
-
-  function renderFundCard() {
-    const card = document.getElementById('acoes-fund-card');
-    if (!card) return;
-    const key = _getAvKey();
-    const dt  = _getAvDate();
-    if (key) {
-      card.innerHTML =
-        '<div style="background:var(--card);border-radius:14px;padding:12px 16px;">' +
-          '<div style="font-size:12px;font-weight:700;margin-bottom:8px;">📊 Fundamentalistas</div>' +
-          '<div style="background:#f0fdf4;border:1.5px solid #22c55e;border-radius:10px;padding:10px 12px;">' +
-            '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">' +
-              '<div>' +
-                '<div style="font-size:11px;font-weight:700;color:#15803d;">✅ Financial Modeling Prep' + (dt ? ' · ' + dt : '') + '</div>' +
-                '<div style="font-size:10px;color:var(--text-muted);margin-top:2px;">P/VP · ROE · Margem Líquida · Cache 24h automático</div>' +
-              '</div>' +
-              '<div style="display:flex;gap:6px;">' +
-                '<button onclick="paulLimparCacheAV()" style="padding:5px 8px;font-size:11px;background:var(--surface);border:1px solid var(--border);border-radius:6px;cursor:pointer;" title="Limpar cache e forçar atualização">🗑️</button>' +
-                '<button onclick="renderFundCard._edit()" style="padding:5px 10px;font-size:11px;font-weight:700;background:var(--surface);border:1px solid var(--border);border-radius:6px;cursor:pointer;">✏️ Alterar</button>' +
-              '</div>' +
-            '</div>' +
-          '</div>' +
-        '</div>';
-    } else {
-      card.innerHTML =
-        '<div style="background:var(--card);border-radius:14px;padding:12px 16px;">' +
-          '<div style="font-size:12px;font-weight:700;margin-bottom:6px;">📊 Fundamentalistas (P/VP · ROE · Marg.Liq)</div>' +
-          '<div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">Cadastre-se em <strong>financialmodelingprep.com</strong> (gratuito · 250 req/dia · ações B3) e cole sua chave abaixo. Dados em cache 24h.</div>' +
-          '<div style="display:flex;gap:8px;">' +
-            '<input type="text" id="av-key-input" placeholder="Cole sua chave FMP..." style="flex:1;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text);" />' +
-            '<button onclick="salvarChaveAV()" style="padding:9px 14px;background:var(--primary);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">Salvar</button>' +
-          '</div>' +
-        '</div>';
-    }
-  }
-  renderFundCard._edit = function() {
-    const card = document.getElementById('acoes-fund-card');
-    if (!card) return;
-    const curKey = _getAvKey();
-    const saved = card.querySelector('div[style*="border:1.5px solid #22c55e"]');
-    if (saved) {
-      saved.outerHTML =
-        '<div style="display:flex;gap:8px;margin-top:4px;">' +
-          '<input type="text" id="av-key-input" value="' + curKey + '" style="flex:1;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text);" />' +
-          '<button onclick="salvarChaveAV()" style="padding:9px 14px;background:var(--primary);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">Salvar</button>' +
-        '</div>';
-      const inp = card.querySelector('#av-key-input');
-      if (inp) { inp.focus(); inp.select(); }
-    } else { renderFundCard(); }
-  };
-
-  function salvarChaveAV() {
-    const inp = document.getElementById('av-key-input');
-    const key = inp ? inp.value.trim() : '';
-    if (!key) { alert('Cole a chave FMP antes de salvar.'); return; }
-    const agora = new Date();
-    const dataStr = agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
-    localStorage.setItem(_apiLsKey('fmpk'), key);
-    localStorage.setItem(_apiLsKey('fmpd'), dataStr);
-    paulLimparCacheAV();
-    renderFundCard();
-  }
-
-  function paulLimparCacheAV() {
-    Object.keys(localStorage).filter(k => k.startsWith('fc_fund_')).forEach(k => localStorage.removeItem(k));
-  }
-
-  async function _fetchFundamentaisAV(ticker) {
-    const fmpKey = _getAvKey();
-    if (!fmpKey) return null;
-    const cacheKey = 'fc_fund_' + ticker.toLowerCase() + '_' + (currentUser || '').toLowerCase();
-    try {
-      const cached = localStorage.getItem(cacheKey);
-      if (cached) {
-        const c = JSON.parse(cached);
-        if (c.ts && (Date.now() - c.ts) < 24 * 60 * 60 * 1000) return c;
-      }
-    } catch(e) {}
-    try {
-      // Financial Modeling Prep: tickers B3 usam sufixo .SA
-      const r = await fetch('https://financialmodelingprep.com/api/v3/ratios-ttm/' + ticker + '.SA?apikey=' + fmpKey);
-      if (!r.ok) return null;
-      const j = await r.json();
-      if (!j || !j.length || !j[0]) return null;
-      const d = j[0];
-      const toNum = v => (v != null && v !== '' && !isNaN(v)) ? Number(v) : null;
-      const fund = {
-        pl:        toNum(d.peRatioTTM),
-        pvp:       toNum(d.priceToBookRatioTTM),
-        roe:       toNum(d.returnOnEquityTTM)   != null ? toNum(d.returnOnEquityTTM)   * 100 : null,
-        netMargin: toNum(d.netProfitMarginTTM)  != null ? toNum(d.netProfitMarginTTM)  * 100 : null,
-        ts: Date.now(),
-      };
-      localStorage.setItem(cacheKey, JSON.stringify(fund));
-      return fund;
-    } catch(e) { console.warn('FMP fund ' + ticker + ':', e); return null; }
-  }
-  // ────────────────────────────────────────────────────────────────────────────
-
-  async function paulTestFundamentais(btn) {
-    if (btn) { btn.textContent = '⏳'; btn.disabled = true; }
-    let ticker = 'BBAS3';
-    if (carteiras && carteiras.length > 0) {
-      const c = carteiras[0];
-      if (c.acoes && c.acoes.length > 0) ticker = c.acoes[0].ticker.replace('.SA','').toUpperCase();
-    }
-    let msg = '=== DIAGNÓSTICO: ' + ticker + ' ===\n\n';
-
-    // Teste 1: bolsai quote (separado, com catch próprio)
-    const bkey = _getBolsaiKey();
-    if (bkey) {
-      try {
-        const r = await fetch('https://api.usebolsai.com/api/v1/stocks/' + ticker + '/quote', { headers: { 'X-API-Key': bkey } });
-        const j = await r.json().catch(() => null);
-        msg += '🟢 bolsai /quote HTTP ' + r.status + ': close=' + (j && j.close) + '\n';
-      } catch(e) { msg += '🔴 bolsai /quote: ' + e.message + '\n'; }
-
-      // Teste 2: bolsai fundamentals (separado, com catch próprio)
-      try {
-        const r2 = await fetch('https://api.usebolsai.com/api/v1/fundamentals/' + ticker, { headers: { 'X-API-Key': bkey } });
-        const j2 = await r2.json().catch(() => null);
-        msg += '🟢 bolsai /fundamentals HTTP ' + r2.status + ': pl=' + (j2 && j2.pl) + ' pvp=' + (j2 && j2.pvp) + '\n';
-      } catch(e) { msg += '🔴 bolsai /fundamentals (CORS?): ' + e.message + '\n'; }
-    } else {
-      msg += '⚪ bolsai: sem chave\n';
-    }
-
-    msg += '\n';
-
-    // Teste 3: brapi.dev fundamentals
-    const bt = _getBrapiToken();
-    if (bt) {
-      try {
-        const url = brapiUrl('/quote/' + ticker + '?fundamental=true');
-        const r3 = await fetch(url);
-        const j3 = await r3.json().catch(() => null);
-        const q = j3 && j3.results && j3.results[0];
-        const tickerTest2 = 'BBAS3'; // testa também BBAS3 que tem dados completos
-        if (q) {
-          msg += '🟢 brapi /quote?fundamental=true HTTP ' + r3.status + ' (' + ticker + '):\n';
-          msg += '   priceEarnings=' + q.priceEarnings + ' trailingPE=' + q.trailingPE + '\n';
-          msg += '   priceToBook=' + q.priceToBook + ' returnOnEquity=' + q.returnOnEquity + '\n';
-          msg += '   profitMargins=' + q.profitMargins + '\n';
-        } else {
-          msg += '🟡 brapi quote HTTP ' + r3.status + ': ' + JSON.stringify(j3).slice(0,100) + '\n';
-        }
-        // Testa Status Invest (API interna brasileira)
-        try {
-          const siUrl = 'https://statusinvest.com.br/acoes/getbysticker?ticker=' + tickerTest2;
-          const rsi = await fetch(siUrl, { headers: { 'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0' } });
-          const jsi = await rsi.json().catch(() => null);
-          if (jsi && jsi.pl !== undefined) {
-            msg += '\n🟢 Status Invest HTTP ' + rsi.status + ' (' + tickerTest2 + '):\n';
-            msg += '   pl=' + jsi.pl + ' pvp=' + jsi.pvp + '\n';
-            msg += '   roe=' + jsi.roe + ' margem_liq=' + (jsi.margem_liquida || jsi.margemLiquida || jsi.ml) + '\n';
-          } else {
-            msg += '\n🟡 Status Invest HTTP ' + rsi.status + ': ' + JSON.stringify(jsi).slice(0,150) + '\n';
-          }
-        } catch(esi) { msg += '\n🔴 Status Invest (CORS?): ' + esi.message + '\n'; }
-
-        // Testa Financial Modeling Prep com chave salva
-        const fmpk = _getAvKey();
-        if (fmpk) {
-          try {
-            const fmpUrl = 'https://financialmodelingprep.com/api/v3/ratios-ttm/' + tickerTest2 + '.SA?apikey=' + fmpk;
-            const rfmp = await fetch(fmpUrl);
-            const jfmp = await rfmp.json().catch(() => null);
-            if (jfmp && jfmp.length && jfmp[0] && jfmp[0].peRatioTTM !== undefined) {
-              const d = jfmp[0];
-              msg += '\n🟢 FMP ratios-ttm HTTP ' + rfmp.status + ' (' + tickerTest2 + '):\n';
-              msg += '   peRatioTTM=' + d.peRatioTTM + '\n';
-              msg += '   priceToBookRatioTTM=' + d.priceToBookRatioTTM + '\n';
-              msg += '   returnOnEquityTTM=' + d.returnOnEquityTTM + '\n';
-              msg += '   netProfitMarginTTM=' + d.netProfitMarginTTM + '\n';
-            } else if (jfmp && jfmp['Error Message']) {
-              msg += '\n🔴 FMP: ' + jfmp['Error Message'] + '\n';
-            } else {
-              msg += '\n🟡 FMP HTTP ' + rfmp.status + ': ' + JSON.stringify(jfmp).slice(0,120) + '\n';
-            }
-          } catch(efmp) { msg += '\n🔴 FMP (CORS?): ' + efmp.message + '\n'; }
-        } else {
-          msg += '\n⚪ FMP: chave não configurada (veja card "📊 Fundamentalistas")\n';
-        }
-      } catch(e) { msg += '🔴 brapi: ' + e.message + '\n'; }
-    } else {
-      msg += '⚪ brapi.dev: sem token\n';
-    }
-
-    msg += '\n--- Chaves em uso ---\n';
-    msg += 'bolsai key: ' + (bkey ? bkey.slice(0,8)+'...' : 'vazio') + '\n';
-    msg += 'brapi token: ' + (bt ? bt.slice(0,8)+'...' : 'vazio') + '\n';
-    msg += 'fonte ativa: ' + _getApiSource() + '\n';
-
-    alert(msg);
-    if (btn) { btn.textContent = '🔬 Testar'; btn.disabled = false; }
-  }
 
   function _buildNome(me, overrides) {
     const o = Object.assign({}, me, overrides);
@@ -5031,48 +4760,29 @@
   }
 
   function salvarTokenAcoes(source) {
-    source = source || 'brapi';
-    const inputId = source === 'bolsai' ? 'token-input-bolsai' : 'token-input-brapi';
-    const inp = document.getElementById(inputId);
+    const inp = document.getElementById('token-input-brapi');
     const token = inp ? inp.value.trim() : '';
     if (!token) { alert('Cole o token antes de salvar.'); return; }
     const agora = new Date();
     const dataStr = agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
-    if (source === 'bolsai') {
-      localStorage.setItem(_apiLsKey('bsk'),  token);
-      localStorage.setItem(_apiLsKey('bsd'),  dataStr);
-      localStorage.setItem(_apiLsKey('src'),  'bolsai');
-    } else {
-      localStorage.setItem(_apiLsKey('btoken'), token);
-      localStorage.setItem(_apiLsKey('bdate'),  dataStr);
-      localStorage.setItem(_apiLsKey('src'),    'brapi');
-    }
+    localStorage.setItem(_apiLsKey('btoken'), token);
+    localStorage.setItem(_apiLsKey('bdate'),  dataStr);
+    localStorage.setItem(_apiLsKey('src'),    'brapi');
     renderTokenAcoes();
   }
 
   function copiarTokenAcoes() {
-    const token = _getApiSource() === 'bolsai' ? _getBolsaiKey() : _getBrapiToken();
+    const token = _getBrapiToken();
     if (!token) return;
     navigator.clipboard.writeText(token).catch(() => alert('Token: ' + token));
   }
 
-  function alterarTokenAcoes() { renderTokenAcoes._editSrc(_getApiSource()); }
+  function alterarTokenAcoes() { renderTokenAcoes._edit(); }
 
   function brapiUrl(path) {
     const token = _getBrapiToken();
     const sep   = path.includes('?') ? '&' : '?';
     return 'https://brapi.dev/api' + path + (token ? sep + 'token=' + token : '');
-  }
-
-  async function _bolsaiFetch(path) {
-    const key = _getBolsaiKey();
-    if (!key) throw new Error('Chave usebolsai.com não configurada.');
-    const r = await fetch('https://api.usebolsai.com/api/v1' + path, { headers: { 'X-API-Key': key } });
-    if (!r.ok) {
-      const err = await r.json().catch(() => ({}));
-      throw new Error(err.error || err.detail || 'Erro ' + r.status);
-    }
-    return r.json();
   }
 
   function acoesLoading(elId) {
@@ -5100,59 +4810,6 @@
       '</div>';
 
     try {
-      if (_getApiSource() === 'bolsai') {
-        const [quote, stats, fund] = await Promise.all([
-          _bolsaiFetch('/stocks/' + ticker + '/quote'),
-          _bolsaiFetch('/stocks/' + ticker + '/stats').catch(() => null),
-          _bolsaiFetch('/fundamentals/' + ticker).catch(() => null),
-        ]);
-        const preco   = Number(quote.close || 0);
-        const varVal  = stats ? Number(stats.daily_change     || 0) : 0;
-        const varPct  = stats ? Number(stats.daily_change_pct || 0) : 0;
-        const min52   = stats && stats.week_52_low  ? Number(stats.week_52_low)  : null;
-        const max52   = stats && stats.week_52_high ? Number(stats.week_52_high) : null;
-        const volume  = Number(quote.volume || 0);
-        const corVar  = varPct >= 0 ? 'var(--success)' : 'var(--danger)';
-        const sinal   = varPct >= 0 ? '+' : '';
-        const razao   = fund && fund.corporate_name ? fund.corporate_name : ticker;
-        const fmtF    = (v, dec, suf) => v != null ? Number(v).toLocaleString('pt-BR', {minimumFractionDigits:dec||1,maximumFractionDigits:dec||1}) + (suf||'') : '—';
-
-        document.getElementById(resultId).innerHTML =
-          '<div style="background:var(--bg);border-radius:12px;padding:16px;">' +
-            '<div style="font-size:11px;color:var(--text-muted);font-weight:700;margin-bottom:2px;">' + ticker + ' · usebolsai.com</div>' +
-            '<div style="font-size:12px;margin-bottom:10px;color:var(--text-muted);">' + razao + '</div>' +
-            '<div style="display:flex;align-items:flex-end;gap:12px;margin-bottom:14px;">' +
-              '<div style="font-size:32px;font-weight:800;color:var(--text);">' + fmtR(preco) + '</div>' +
-              '<div style="font-size:15px;font-weight:700;color:' + corVar + ';margin-bottom:4px;">' + sinal + fmtF(varPct,2,'%') + '</div>' +
-            '</div>' +
-            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">' +
-              miniCard('Var. Dia R$', '<span style="color:' + corVar + ';">' + sinal + fmtR(varVal) + '</span>') +
-              miniCard('Volume', volume ? Number(volume).toLocaleString('pt-BR') : '—') +
-              (min52 ? miniCard('Mín. 52sem', fmtR(min52)) : '') +
-              (max52 ? miniCard('Máx. 52sem', fmtR(max52)) : '') +
-              (stats && stats.ytd_return_pct != null ? miniCard('Retorno YTD', '<span style="color:' + (stats.ytd_return_pct>=0?'var(--success)':'var(--danger)') + ';">' + (stats.ytd_return_pct>=0?'+':'') + fmtF(stats.ytd_return_pct,1,'%') + '</span>') : '') +
-              (stats && stats.avg_volume_52w ? miniCard('Vol. Médio 52s', Number(stats.avg_volume_52w).toLocaleString('pt-BR')) : '') +
-            '</div>' +
-            (fund ?
-              '<div style="border-top:1px solid var(--border);padding-top:10px;">' +
-                '<div style="font-size:10px;font-weight:700;color:var(--text-muted);letter-spacing:.05em;text-transform:uppercase;margin-bottom:8px;">Fundamentos</div>' +
-                '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">' +
-                  miniCard('P/L',      fmtF(fund.pl,  1, 'x')) +
-                  miniCard('P/VP',     fmtF(fund.pvp, 2, 'x')) +
-                  miniCard('ROE',      '<span style="color:' + (fund.roe>=15?'var(--success)':fund.roe>0?'var(--text)':'var(--danger)') + ';">' + fmtF(fund.roe,1,'%') + '</span>') +
-                  miniCard('Marg.Líq', '<span style="color:' + (fund.net_margin>=10?'var(--success)':fund.net_margin>0?'var(--text)':'var(--danger)') + ';">' + fmtF(fund.net_margin,1,'%') + '</span>') +
-                  miniCard('EV/EBITDA',fmtF(fund.ev_ebitda,1,'x')) +
-                  miniCard('ROA',      fmtF(fund.roa,1,'%')) +
-                  miniCard('ROIC',     fmtF(fund.roic,1,'%')) +
-                  miniCard('DívLiq/PL',fmtF(fund.net_debt_equity,2,'x')) +
-                '</div>' +
-              '</div>'
-            : '') +
-          '</div>';
-        return;
-      }
-
-      // brapi path
       const r = await fetch(brapiUrl('/quote/' + ticker + '?fundamental=false'));
       if (!r.ok) throw new Error('Erro ' + r.status + ' — verifique o token ou o ticker informado.');
       const data = await r.json();
@@ -5605,99 +5262,47 @@
     const precos = {};
     let erros = 0;
 
-    // Tenta bolsai se selecionado (pode falhar por CORS — API é server-side only)
-    if (_getApiSource() === 'bolsai') {
-      const bkey = _getBolsaiKey();
-      if (bkey) {
-        await Promise.all(uniqueTickers.map(async ticker => {
-          try {
-            const [quote, stats, fund] = await Promise.all([
-              _bolsaiFetch('/stocks/' + ticker + '/quote'),
-              _bolsaiFetch('/stocks/' + ticker + '/stats').catch(() => null),
-              _bolsaiFetch('/fundamentals/' + ticker).catch(() => null),
-            ]);
-            if (!quote || !quote.close) { erros++; return; }
-            precos[ticker] = {
-              preco:     Number(quote.close),
-              moeda:     'BRL',
-              varDiaPct: stats ? (stats.daily_change_pct != null ? Number(stats.daily_change_pct) : null) : null,
-              varDiaVal: stats ? (stats.daily_change     != null ? Number(stats.daily_change)     : null) : null,
-              var7dPct:  null,
-              min52:     stats && stats.week_52_low  != null ? Number(stats.week_52_low)  : null,
-              max52:     stats && stats.week_52_high != null ? Number(stats.week_52_high) : null,
-              fund: fund ? {
-                pl:        fund.pl         != null ? fund.pl         : null,
-                pvp:       fund.pvp        != null ? fund.pvp        : null,
-                roe:       fund.roe        != null ? fund.roe        : null,
-                netMargin: fund.net_margin != null ? fund.net_margin : null,
-              } : null,
-            };
-          } catch(e) { erros++; }
-        }));
-      }
+    // Brapi.dev: fonte de cotações
+    const bt = _getBrapiToken();
+    if (!bt) {
+      const msg = '⚠️ Token brapi.dev não configurado neste dispositivo — acesse o card "API de Cotações" e salve seu token.';
+      if (elBtn) { elBtn.textContent = '❌'; elBtn.disabled = false; setTimeout(() => { if (elBtn) elBtn.textContent = '🔄'; }, 3000); }
+      _setSyncStatus(msg, false);
+      return;
     }
 
-    // Brapi.dev: usado como fonte primária (modo brapi) ou fallback quando bolsai falha por CORS
-    if (Object.keys(precos).length === 0) {
-      const bt = _getBrapiToken();
-      if (!bt) {
-        const msg = _getApiSource() === 'bolsai'
-          ? '⚠️ usebolsai.com não suporta uso direto pelo browser (CORS bloqueado). Configure também um token brapi.dev para usar como fallback automático.'
-          : '⚠️ Token brapi.dev não configurado neste dispositivo — acesse o card "API de Cotações" e salve seu token.';
-        if (elBtn) { elBtn.textContent = '❌'; elBtn.disabled = false; setTimeout(() => { if (elBtn) elBtn.textContent = '🔄'; }, 3000); }
-        _setSyncStatus(msg, false);
-        return;
-      }
-      erros = 0;
-      await Promise.all(uniqueTickers.map(async ticker => {
-        try {
-          const r = await fetch(brapiUrl('/quote/' + ticker + '?range=5d&interval=1d&fundamental=true'));
-          if (!r.ok) { erros++; return; }
-          const data = await r.json();
-          const q = data && data.results && data.results[0];
-          if (!q || !q.regularMarketPrice) { erros++; return; }
-          const sym  = (q.symbol || ticker).replace('.SA','').toUpperCase();
-          const hist = q.historicalDataPrice || [];
-          const getClose = h => h && (h.close || h.adjustedClose || 0);
-          let var7dPct = null;
-          if (hist.length >= 2) {
-            const base = getClose(hist[0]);
-            if (base > 0) var7dPct = (Number(q.regularMarketPrice) - base) / base * 100;
-          }
-          precos[sym] = {
-            preco:     Number(q.regularMarketPrice),
-            moeda:     (q.currency || 'BRL').toUpperCase(),
-            varDiaPct: q.regularMarketChangePercent != null ? Number(q.regularMarketChangePercent) : null,
-            varDiaVal: q.regularMarketChange        != null ? Number(q.regularMarketChange)        : null,
-            var7dPct,
-            min52: q.fiftyTwoWeekLow  != null ? Number(q.fiftyTwoWeekLow)  : null,
-            max52: q.fiftyTwoWeekHigh != null ? Number(q.fiftyTwoWeekHigh) : null,
-            fund: (q.priceEarnings != null || q.priceToBook != null || q.returnOnEquity != null) ? {
-              pl:        q.priceEarnings  != null ? Number(q.priceEarnings)        : null,
-              pvp:       q.priceToBook    != null ? Number(q.priceToBook)          : null,
-              roe:       q.returnOnEquity != null ? Number(q.returnOnEquity) * 100 : null,
-              netMargin: q.profitMargins  != null ? Number(q.profitMargins)  * 100 : null,
-            } : null,
-          };
-        } catch(e) { erros++; }
-      }));
-    }
+    await Promise.all(uniqueTickers.map(async ticker => {
+      try {
+        const r = await fetch(brapiUrl('/quote/' + ticker + '?range=5d&interval=1d&fundamental=false'));
+        if (!r.ok) { erros++; return; }
+        const data = await r.json();
+        const q = data && data.results && data.results[0];
+        if (!q || !q.regularMarketPrice) { erros++; return; }
+        const sym  = (q.symbol || ticker).replace('.SA','').toUpperCase();
+        const hist = q.historicalDataPrice || [];
+        const getClose = h => h && (h.close || h.adjustedClose || 0);
+        let var7dPct = null;
+        if (hist.length >= 2) {
+          const base = getClose(hist[0]);
+          if (base > 0) var7dPct = (Number(q.regularMarketPrice) - base) / base * 100;
+        }
+        precos[sym] = {
+          preco:     Number(q.regularMarketPrice),
+          moeda:     (q.currency || 'BRL').toUpperCase(),
+          varDiaPct: q.regularMarketChangePercent != null ? Number(q.regularMarketChangePercent) : null,
+          varDiaVal: q.regularMarketChange        != null ? Number(q.regularMarketChange)        : null,
+          var7dPct,
+          min52: q.fiftyTwoWeekLow  != null ? Number(q.fiftyTwoWeekLow)  : null,
+          max52: q.fiftyTwoWeekHigh != null ? Number(q.fiftyTwoWeekHigh) : null,
+        };
+      } catch(e) { erros++; }
+    }));
 
     if (erros > 0 && Object.keys(precos).length === 0) {
       if (elBtn) { elBtn.textContent = '❌'; elBtn.disabled = false; setTimeout(() => { if (elBtn) elBtn.textContent = '🔄'; }, 3000); }
       return;
     }
 
-    // Fundamentais via Alpha Vantage (cache 24h, 1 req/ticker/dia)
-    if (_getAvKey()) {
-      await Promise.all(uniqueTickers.map(async sym => {
-        if (!precos[sym]) return;
-        const fund = await _fetchFundamentaisAV(sym);
-        if (fund) precos[sym].fund = fund;
-      }));
-    }
-
-    let fundOk = 0, fundTotal = 0;
     c.acoes.forEach(a => {
       const sym = a.ticker.replace('.SA','').toUpperCase();
       if (precos[sym]) {
@@ -5708,14 +5313,8 @@
         a.var7dPct   = precos[sym].var7dPct;
         a.min52      = precos[sym].min52;
         a.max52      = precos[sym].max52;
-        if ('fund' in precos[sym]) {
-          a.fund = precos[sym].fund;
-          fundTotal++;
-          if (precos[sym].fund && (precos[sym].fund.pl != null || precos[sym].fund.pvp != null || precos[sym].fund.roe != null)) fundOk++;
-        }
       }
     });
-    console.log('Fundamentos: ' + fundOk + '/' + fundTotal + ' tickers com dados');
     salvarCarteiras();
     renderCarteiras();
   }
@@ -5776,10 +5375,6 @@
           if (ss.col === 'max52')     return x.max52 != null ? x.max52 : -Infinity;
           if (ss.col === 'vsmin52')   return x.precoAtual != null && x.min52 > 0 ? (x.precoAtual - x.min52) / x.min52 * 100 : -Infinity;
           if (ss.col === 'vsmax52')   return x.precoAtual != null && x.max52 > 0 ? (x.precoAtual - x.max52) / x.max52 * 100 : -Infinity;
-          if (ss.col === 'pl')        return x.fund && x.fund.pl        != null ? x.fund.pl        : Infinity;
-          if (ss.col === 'pvp')       return x.fund && x.fund.pvp       != null ? x.fund.pvp       : Infinity;
-          if (ss.col === 'roe')       return x.fund && x.fund.roe       != null ? x.fund.roe       : -Infinity;
-          if (ss.col === 'netmargin') return x.fund && x.fund.netMargin != null ? x.fund.netMargin : -Infinity;
           return 0;
         };
         const va = valFn(a), vb = valFn(b);
@@ -5831,10 +5426,6 @@
           '<td style="padding:8px;font-size:12px;text-align:right;">' + Number(a.qtd).toLocaleString('pt-BR') + '</td>' +
           '<td style="padding:8px;font-size:12px;text-align:right;">' + fmtUSD(a.custo) + (isUSD ? ' <span style="font-size:9px;background:#dbeafe;color:#1d4ed8;border-radius:4px;padding:1px 4px;font-weight:700;">USD</span>' : '') + '</td>' +
           '<td style="padding:8px;font-size:12px;text-align:right;color:' + (a.precoAtual ? 'var(--text)' : 'var(--text-muted)') + ';">' + (a.precoAtual ? fmtUSD(a.precoAtual) : '—') + '</td>' +
-          '<td style="padding:8px;font-size:11px;text-align:right;">' + (a.fund && a.fund.pl        != null ? Number(a.fund.pl).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'x' : '<span style="color:var(--text-muted);">—</span>') + '</td>' +
-          '<td style="padding:8px;font-size:11px;text-align:right;">' + (a.fund && a.fund.pvp       != null ? Number(a.fund.pvp).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'x' : '<span style="color:var(--text-muted);">—</span>') + '</td>' +
-          '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + (a.fund && a.fund.roe != null ? (a.fund.roe >= 15 ? 'var(--success)' : a.fund.roe > 0 ? 'var(--text)' : 'var(--danger)') : 'var(--text-muted)') + ';">' + (a.fund && a.fund.roe != null ? Number(a.fund.roe).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%' : '—') + '</td>' +
-          '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + (a.fund && a.fund.netMargin != null ? (a.fund.netMargin >= 10 ? 'var(--success)' : a.fund.netMargin > 0 ? 'var(--text)' : 'var(--danger)') : 'var(--text-muted)') + ';">' + (a.fund && a.fund.netMargin != null ? Number(a.fund.netMargin).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%' : '—') + '</td>' +
           '<td style="padding:8px;font-size:11px;text-align:right;color:' + (a.min52 ? 'var(--danger)' : 'var(--text-muted)') + ';">' + (a.min52 ? fmtUSD(a.min52) : '—') + '</td>' +
           '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + corVsMin + ';">' + (vsMin52 != null ? fmtPct2(vsMin52) : '—') + '</td>' +
           '<td style="padding:8px;font-size:11px;text-align:right;color:' + (a.max52 ? 'var(--success)' : 'var(--text-muted)') + ';">' + (a.max52 ? fmtUSD(a.max52) : '—') + '</td>' +
@@ -5849,7 +5440,7 @@
           '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + corAcao + ';">' + fmtPct(varAcao) + '</td>' +
           '<td style="padding:8px;">' + acoes + '</td>' +
         '</tr>';
-      }).join('') : '<tr><td colspan="21" style="padding:12px;text-align:center;color:var(--text-muted);font-size:12px;">Nenhuma ação. Adicione abaixo.</td></tr>';
+      }).join('') : '<tr><td colspan="17" style="padding:12px;text-align:center;color:var(--text-muted);font-size:12px;">Nenhuma ação. Adicione abaixo.</td></tr>';
 
       const lucroTotal   = totalAtual - totalCusto;
       const corLucroTot  = lucroTotal >= 0 ? 'var(--success)' : 'var(--danger)';
@@ -5862,7 +5453,6 @@
         '<td colspan="2" style="padding:8px;font-size:12px;font-weight:700;">Total</td>' +
         '<td style="padding:8px;font-size:11px;color:var(--text-muted);text-align:right;">' + fmt(totalCusto) + '</td>' +
         '<td style="padding:8px;font-size:11px;color:var(--text-muted);text-align:right;">' + fmt(totalAtual) + '</td>' +
-        '<td colspan="4" style="padding:8px;font-size:11px;color:var(--text-muted);text-align:center;">—</td>' +
         '<td colspan="4" style="padding:8px;font-size:11px;color:var(--text-muted);text-align:center;">—</td>' +
         '<td colspan="3" style="padding:8px;font-size:11px;color:var(--text-muted);text-align:center;">—</td>' +
         '<td style="padding:8px;font-size:12px;font-weight:800;text-align:right;color:' + (temDiaTot ? corDiaTot : 'var(--text-muted)') + ';">' + (temDiaTot ? prefDiaTot + fmt(saldoDiaTotal) : '—') + '</td>' +
@@ -5903,7 +5493,7 @@
         '<div style="background:var(--primary);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;">' +
           '<div style="color:white;font-size:13px;font-weight:700;">💼 ' + c.nome + '</div>' +
           '<div style="display:flex;gap:6px;">' +
-            '<button id="cbtn-atualizar-' + c.id + '" onclick="atualizarCotacoesCarteira(\'' + c.id + '\')" style="background:rgba(255,255,255,0.2);border:none;border-radius:6px;color:white;font-size:12px;padding:4px 10px;cursor:pointer;" title="Atualizar cotações via brapi.dev">🔄 brapi</button>' +
+            '<button id="cbtn-atualizar-' + c.id + '" onclick="atualizarCotacoesCarteira(\'' + c.id + '\')" style="background:rgba(255,255,255,0.2);border:none;border-radius:6px;color:white;font-size:12px;padding:4px 10px;cursor:pointer;" title="Atualizar cotações via brapi.dev">🔄</button>' +
             '<button onclick="toggleCarteiraView(\'' + c.id + '\')" style="background:' + (viewMode==='chart' ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.2)') + ';border:none;border-radius:6px;color:white;font-size:12px;padding:4px 10px;cursor:pointer;" title="Alternar gráfico/tabela">📊</button>' +
             '<button onclick="exportarCarteiraExcel(\'' + c.id + '\')" style="background:rgba(255,255,255,0.2);border:none;border-radius:6px;color:white;font-size:12px;padding:4px 10px;cursor:pointer;" title="Exportar para Excel">📥</button>' +
             '<button onclick="abrirModalCarteira(\'' + c.id + '\')" style="background:rgba(255,255,255,0.2);border:none;border-radius:6px;color:white;font-size:12px;padding:4px 10px;cursor:pointer;">✏️</button>' +
@@ -5934,10 +5524,6 @@
             th('qtd',       'Qtd',        'right') +
             th('custo',     'Custo',      'right') +
             th('atual',     'Atual',      'right') +
-            th('pl',        'P/L',        'right') +
-            th('pvp',       'P/VP',       'right') +
-            th('roe',       'ROE%',       'right') +
-            th('netmargin', 'Marg.Liq',   'right') +
             th('min52',     'Mín.52sem',  'right') +
             th('vsmin52',   '%vsMin',     'right') +
             th('max52',     'Máx.52sem',  'right') +
