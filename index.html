@@ -4490,9 +4490,11 @@
           '<th style="' + thS + 'right;">Dias Úteis</th>' +
           '<th style="' + thS + 'right;">Strike</th>' +
           '<th style="' + thS + 'right;">Prêmio</th>' +
+          '<th style="' + thS + 'right;">Prêmio %</th>' +
           '<th style="' + thS + 'right;">Qtd</th>' +
           '<th style="' + thS + 'right;">Custo Total</th>' +
           '<th style="' + thS + 'right;">Preço Ação</th>' +
+          '<th style="' + thS + 'right;">Dist. Strike</th>' +
           '<th style="' + thS + 'center;">Status</th>' +
           '<th style="' + thS + 'right;">Val. Intrínseco</th>' +
           '<th style="' + thS + 'right;">Res. Unit.</th>' +
@@ -4510,6 +4512,8 @@
           const resTotal   = o.qtd * resUnit;
           const corRes     = resTotal >= 0 ? 'var(--success)' : 'var(--danger)';
           const money      = _opMoneyness(o.tipo, o.precoAcaoAtual, o.strike);
+          const premioPerc = (o.precoAcaoAtual != null && o.precoAcaoAtual > 0) ? (o.premio / o.precoAcaoAtual * 100) : null;
+          const difStrike  = (o.precoAcaoAtual != null) ? (o.strike - o.precoAcaoAtual) : null;
           const moneyColor = money === 'ITM' ? '#22c55e' : money === 'OTM' ? '#ef4444' : '#f59e0b';
           const moneyBg    = money === 'ITM' ? '#f0fdf4' : money === 'OTM' ? '#fef2f2' : '#fefce8';
           const tipoMeta   = { call_compra:['CALL C','#22c55e','#f0fdf4'], call_venda:['CALL V','#16a34a','#dcfce7'], put_compra:['PUT C','#ef4444','#fef2f2'], put_venda:['PUT V','#dc2626','#fee2e2'] };
@@ -4525,9 +4529,11 @@
             '<td style="padding:8px;font-size:12px;text-align:right;font-weight:700;">' + diasStr + '</td>' +
             '<td style="padding:8px;font-size:12px;text-align:right;">' + fmt(o.strike) + '</td>' +
             '<td style="padding:8px;font-size:12px;text-align:right;">' + fmt(o.premio) + '</td>' +
+            '<td style="padding:8px;font-size:12px;text-align:right;font-weight:700;color:var(--primary);">' + (premioPerc !== null ? premioPerc.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}) + '%' : '<span style="color:var(--text-muted);">—</span>') + '</td>' +
             '<td style="padding:8px;font-size:12px;text-align:right;">' + Number(o.qtd).toLocaleString('pt-BR') + '</td>' +
             '<td style="padding:8px;font-size:12px;font-weight:700;text-align:right;">' + fmt(custo) + '</td>' +
             '<td style="padding:8px;font-size:12px;text-align:right;font-weight:700;">' + (o.precoAcaoAtual != null ? fmt(o.precoAcaoAtual) : '<span style="color:var(--text-muted);">—</span>') + '</td>' +
+            '<td style="padding:8px;font-size:12px;text-align:right;font-weight:700;color:' + (difStrike !== null ? (difStrike >= 0 ? 'var(--success)' : 'var(--danger)') : 'var(--text-muted)') + ';">' + (difStrike !== null ? (difStrike >= 0 ? '+' : '') + fmt(difStrike) : '—') + '</td>' +
             '<td style="padding:8px;text-align:center;">' + (money ? '<span style="background:' + moneyBg + ';color:' + moneyColor + ';font-size:10px;font-weight:800;border-radius:5px;padding:3px 7px;">' + money + '</span>' : '<span style="color:var(--text-muted);">—</span>') + '</td>' +
             '<td style="padding:8px;font-size:12px;font-weight:700;text-align:right;color:var(--primary);">' + fmt(vi) + '</td>' +
             '<td style="padding:8px;font-size:12px;font-weight:700;text-align:right;color:' + (resUnit >= 0 ? 'var(--success)' : 'var(--danger)') + ';">' + (resUnit >= 0 ? '+' : '') + fmt(resUnit) + '</td>' +
