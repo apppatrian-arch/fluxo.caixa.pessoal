@@ -1,4 +1,4 @@
-﻿const CACHE = 'fluxo-caixa-v172';
+const CACHE = 'fluxo-caixa-v173';
 const ASSETS = [
   './manifest.json',
   './icon.svg',
@@ -22,7 +22,7 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  // Nunca cacheia HTML â€” sempre busca da rede para garantir versÃ£o mais recente
+  // Nunca cacheia HTML — sempre busca da rede para garantir versão mais recente
   if (e.request.mode === 'navigate' || e.request.headers.get('Accept')?.includes('text/html')) {
     e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
     return;

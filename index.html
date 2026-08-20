@@ -5266,7 +5266,6 @@
 
     const uniqueTickers = [...new Set(c.acoes.map(a => a.ticker.replace('.SA','').toUpperCase()))];
     const precos = {};
-    const tipos  = {};
     let erros = 0;
 
     // Brapi.dev: fonte de cotações
@@ -5305,19 +5304,6 @@
       } catch(e) { erros++; }
     }));
 
-    // Busca tipo do ativo (ação, units, fii, etf, bdr) em paralelo
-    await Promise.all(uniqueTickers.map(async ticker => {
-      try {
-        const r = await fetch(brapiUrl('/v2/assets?search=' + ticker));
-        if (!r.ok) return;
-        const data = await r.json();
-        const stocks = data && data.stocks;
-        if (!stocks || !stocks.length) return;
-        const match = stocks.find(s => (s.stock || '').toUpperCase() === ticker) || stocks[0];
-        if (match && match.type) tipos[ticker] = match.type.toLowerCase();
-      } catch(e) {}
-    }));
-
     if (erros > 0 && Object.keys(precos).length === 0) {
       if (elBtn) { elBtn.textContent = '❌'; elBtn.disabled = false; setTimeout(() => { if (elBtn) elBtn.textContent = '🔄'; }, 3000); }
       return;
@@ -5334,7 +5320,6 @@
         a.min52      = precos[sym].min52;
         a.max52      = precos[sym].max52;
       }
-      if (tipos[sym]) a.tipoAtivo = tipos[sym];
     });
     salvarCarteiras();
     renderCarteiras();
@@ -5442,14 +5427,8 @@
         const corVsMin   = vsMin52 == null ? 'var(--text-muted)' : vsMin52 >= 0 ? 'var(--success)' : 'var(--danger)';
         const corVsMax   = vsMáx52 == null ? 'var(--text-muted)' : vsMáx52 >= 0 ? 'var(--success)' : 'var(--danger)';
         const fmtPct2 = v => (v >= 0 ? '+' : '') + Number(v).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}) + '%';
-        const tipoMeta = { stock:['Ação','#dbeafe','#1d4ed8'], units:['Units','#ede9fe','#6d28d9'], fii:['FII','#dcfce7','#15803d'], etf:['ETF','#fef3c7','#92400e'], bdr:['BDR','#f1f5f9','#475569'] };
-        const [tipoLabel, tipoBadgeBg, tipoBadgeCor] = tipoMeta[a.tipoAtivo] || [null,null,null];
-        const tipoBadge = tipoLabel
-          ? '<span style="background:' + tipoBadgeBg + ';color:' + tipoBadgeCor + ';font-size:10px;font-weight:800;border-radius:5px;padding:2px 6px;white-space:nowrap;">' + tipoLabel + '</span>'
-          : '<span style="color:var(--text-muted);font-size:11px;">—</span>';
         return '<tr style="border-bottom:1px solid var(--border);background:' + bgLinha + ';">' +
           '<td style="padding:8px;font-size:12px;font-weight:700;white-space:nowrap;">' + a.ticker + '</td>' +
-          '<td style="padding:8px;text-align:center;">' + tipoBadge + '</td>' +
           '<td style="padding:8px;font-size:12px;text-align:right;">' + Number(a.qtd).toLocaleString('pt-BR') + '</td>' +
           '<td style="padding:8px;font-size:12px;text-align:right;">' + fmtUSD(a.custo) + (isUSD ? ' <span style="font-size:9px;background:#dbeafe;color:#1d4ed8;border-radius:4px;padding:1px 4px;font-weight:700;">USD</span>' : '') + '</td>' +
           '<td style="padding:8px;font-size:12px;text-align:right;color:' + (a.precoAtual ? 'var(--text)' : 'var(--text-muted)') + ';">' + (a.precoAtual ? fmtUSD(a.precoAtual) : '—') + '</td>' +
@@ -5467,7 +5446,7 @@
           '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + corAcao + ';">' + fmtPct(varAcao) + '</td>' +
           '<td style="padding:8px;">' + acoes + '</td>' +
         '</tr>';
-      }).join('') : '<tr><td colspan="18" style="padding:12px;text-align:center;color:var(--text-muted);font-size:12px;">Nenhuma ação. Adicione abaixo.</td></tr>';
+      }).join('') : '<tr><td colspan="17" style="padding:12px;text-align:center;color:var(--text-muted);font-size:12px;">Nenhuma ação. Adicione abaixo.</td></tr>';
 
       const lucroTotal   = totalAtual - totalCusto;
       const corLucroTot  = lucroTotal >= 0 ? 'var(--success)' : 'var(--danger)';
@@ -5477,7 +5456,7 @@
       const corDiaTot    = saldoDiaTotal >= 0 ? 'var(--success)' : 'var(--danger)';
       const prefDiaTot   = saldoDiaTotal >= 0 ? '+' : '';
       const rodape = c.acoes.length ? '<tr style="background:var(--bg);">' +
-        '<td colspan="3" style="padding:8px;font-size:12px;font-weight:700;">Total</td>' +
+        '<td colspan="2" style="padding:8px;font-size:12px;font-weight:700;">Total</td>' +
         '<td style="padding:8px;font-size:11px;color:var(--text-muted);text-align:right;">' + fmt(totalCusto) + '</td>' +
         '<td style="padding:8px;font-size:11px;color:var(--text-muted);text-align:right;">' + fmt(totalAtual) + '</td>' +
         '<td colspan="4" style="padding:8px;font-size:11px;color:var(--text-muted);text-align:center;">—</td>' +
@@ -5548,7 +5527,6 @@
         '<table style="width:100%;border-collapse:collapse;">' +
           '<thead><tr style="background:var(--bg);">' +
             th('ticker',    'Ticker',     'left') +
-            '<th style="padding:7px 8px;font-size:10px;color:var(--text-muted);font-weight:700;text-align:center;">Tipo</th>' +
             th('qtd',       'Qtd',        'right') +
             th('custo',     'Custo',      'right') +
             th('atual',     'Atual',      'right') +
