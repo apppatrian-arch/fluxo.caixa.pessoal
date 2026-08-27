@@ -1317,11 +1317,16 @@
                 style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text);box-sizing:border-box;" />
             </div>
             <div>
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">Data da Aplicação (início)</div>
+              <input id="rf-data-aplicacao" type="date"
+                style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text);box-sizing:border-box;" />
+            </div>
+            <div>
               <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">Data da Atualização</div>
               <input id="rf-data" type="date"
                 style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text);box-sizing:border-box;" />
             </div>
-            <div>
+            <div style="grid-column:1/-1;">
               <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">Observação (opcional)</div>
               <input id="rf-obs" type="text" placeholder="CDB 1 ano, LCI etc." maxlength="80"
                 style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text);box-sizing:border-box;" />
@@ -3831,6 +3836,27 @@
     return item.valorAtualizado * Math.pow(1 + taxaDiaria, diasUteis);
   }
 
+  // Tabela regressiva de IR sobre rendimento de renda fixa (dias corridos)
+  function _rfAliquotaIR(diasCorridos) {
+    if (diasCorridos <= 180) return 22.5;
+    if (diasCorridos <= 360) return 20;
+    if (diasCorridos <= 720) return 17.5;
+    return 15;
+  }
+
+  // Retorna { liquido, ir, aliquota } sobre o rendimento total desde a data de aplicação
+  function _rfCalcLiquidoIR(item, provisionado) {
+    const inicio = item.dataAplicacao || item.dataAtualizacao;
+    if (!inicio) return { liquido: provisionado, ir: 0, aliquota: 22.5 };
+    const base = new Date(inicio + 'T00:00:00'); base.setHours(0,0,0,0);
+    const hoje = new Date(); hoje.setHours(0,0,0,0);
+    const diasCorridos = Math.max(0, Math.round((hoje - base) / 86400000));
+    const aliquota = _rfAliquotaIR(diasCorridos);
+    const rendBruto = Math.max(0, provisionado - (item.valorAplicado || item.valorAtualizado || 0));
+    const ir = rendBruto * aliquota / 100;
+    return { liquido: provisionado - ir, ir, aliquota, diasCorridos };
+  }
+
   function _rfSalvarLocal() {
     localStorage.setItem(_rfChaveLocal(), JSON.stringify(rendaFixa));
   }
@@ -3890,19 +3916,21 @@
     if (id) {
       const item = rendaFixa.find(x => x.id === id);
       if (!item) return;
-      document.getElementById('rf-inst').value      = item.instituicao    || '';
-      document.getElementById('rf-pct').value       = item.percentualCDI  || 100;
-      document.getElementById('rf-aplicado').value  = item.valorAplicado  || '';
-      document.getElementById('rf-atualizado').value= item.valorAtualizado|| '';
-      document.getElementById('rf-data').value      = item.dataAtualizacao|| '';
-      document.getElementById('rf-obs').value       = item.observacao     || '';
+      document.getElementById('rf-inst').value           = item.instituicao     || '';
+      document.getElementById('rf-pct').value            = item.percentualCDI   || 100;
+      document.getElementById('rf-aplicado').value       = item.valorAplicado   || '';
+      document.getElementById('rf-atualizado').value     = item.valorAtualizado || '';
+      document.getElementById('rf-data-aplicacao').value = item.dataAplicacao   || '';
+      document.getElementById('rf-data').value           = item.dataAtualizacao || '';
+      document.getElementById('rf-obs').value            = item.observacao      || '';
     } else {
-      document.getElementById('rf-inst').value       = '';
-      document.getElementById('rf-pct').value        = 100;
-      document.getElementById('rf-aplicado').value   = '';
-      document.getElementById('rf-atualizado').value = '';
-      document.getElementById('rf-data').value       = new Date().toISOString().slice(0,10);
-      document.getElementById('rf-obs').value        = '';
+      document.getElementById('rf-inst').value           = '';
+      document.getElementById('rf-pct').value            = 100;
+      document.getElementById('rf-aplicado').value       = '';
+      document.getElementById('rf-atualizado').value     = '';
+      document.getElementById('rf-data-aplicacao').value = new Date().toISOString().slice(0,10);
+      document.getElementById('rf-data').value           = new Date().toISOString().slice(0,10);
+      document.getElementById('rf-obs').value            = '';
     }
     form.style.display = 'block';
     document.getElementById('rf-inst').focus();
@@ -3913,20 +3941,22 @@
   }
 
   async function salvarItemRendaFixa() {
-    const inst     = document.getElementById('rf-inst').value.trim();
-    const pct      = parseFloat(document.getElementById('rf-pct').value) || 100;
-    const aplicado = parseFloat(document.getElementById('rf-aplicado').value) || 0;
-    const atual    = parseFloat(document.getElementById('rf-atualizado').value) || 0;
-    const data     = document.getElementById('rf-data').value;
-    const obs      = document.getElementById('rf-obs').value.trim();
-    const editId   = document.getElementById('rf-edit-id').value;
+    const inst          = document.getElementById('rf-inst').value.trim();
+    const pct           = parseFloat(document.getElementById('rf-pct').value) || 100;
+    const aplicado      = parseFloat(document.getElementById('rf-aplicado').value) || 0;
+    const atual         = parseFloat(document.getElementById('rf-atualizado').value) || 0;
+    const dataAplicacao = document.getElementById('rf-data-aplicacao').value;
+    const data          = document.getElementById('rf-data').value;
+    const obs           = document.getElementById('rf-obs').value.trim();
+    const editId        = document.getElementById('rf-edit-id').value;
 
     if (!inst)    { alert('Informe o nome da instituição.'); return; }
     if (!atual)   { alert('Informe o valor atualizado.'); return; }
     if (!data)    { alert('Informe a data da atualização.'); return; }
 
     const item = { id: editId || _rfNovoId(), instituicao: inst, percentualCDI: pct,
-                   valorAplicado: aplicado, valorAtualizado: atual, dataAtualizacao: data, observacao: obs };
+                   valorAplicado: aplicado, valorAtualizado: atual,
+                   dataAplicacao: dataAplicacao || data, dataAtualizacao: data, observacao: obs };
     if (editId) {
       const idx = rendaFixa.findIndex(x => x.id === editId);
       if (idx > -1) rendaFixa[idx] = item; else rendaFixa.push(item);
@@ -3960,39 +3990,47 @@
       return;
     }
 
-    // Calcula provisionados e totais
+    // Calcula provisionados, IR e totais
     const itens = rendaFixa.map(item => {
       const prov   = _rfCalcProvisionado(item);
+      const irInfo = _rfCalcLiquidoIR(item, prov);
       const hoje   = new Date(); hoje.setHours(0,0,0,0);
       const base   = new Date(item.dataAtualizacao + 'T00:00:00'); base.setHours(0,0,0,0);
       const dias   = _contarDiasUteis(base, hoje);
-      return { ...item, provisionado: prov, dias };
+      return { ...item, provisionado: prov, dias, ...irInfo };
     });
 
     const totalAplicado    = itens.reduce((s, x) => s + (x.valorAplicado || 0), 0);
     const totalAtualizado  = itens.reduce((s, x) => s + (x.valorAtualizado || 0), 0);
     const totalProvisionado= itens.reduce((s, x) => s + x.provisionado, 0);
+    const totalLiquidoIR   = itens.reduce((s, x) => s + x.liquido, 0);
+    const totalIR          = itens.reduce((s, x) => s + x.ir, 0);
     const rendTot          = totalProvisionado - totalAplicado;
     const corRend          = rendTot >= 0 ? 'var(--success)' : 'var(--danger)';
 
     elRes.style.display = 'block';
     elRes.innerHTML =
-      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;">' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:10px;">' +
         '<div style="background:var(--bg);border-radius:10px;padding:12px;text-align:center;">' +
           '<div style="font-size:10px;color:var(--text-muted);margin-bottom:4px;">Total Aplicado</div>' +
-          '<div style="font-size:18px;font-weight:800;color:var(--text);">' + fmt(totalAplicado) + '</div>' +
+          '<div style="font-size:17px;font-weight:800;color:var(--text);">' + fmt(totalAplicado) + '</div>' +
         '</div>' +
         '<div style="background:var(--bg);border-radius:10px;padding:12px;text-align:center;">' +
           '<div style="font-size:10px;color:var(--text-muted);margin-bottom:4px;">Valor Atualizado</div>' +
-          '<div style="font-size:18px;font-weight:800;color:var(--primary);">' + fmt(totalAtualizado) + '</div>' +
+          '<div style="font-size:17px;font-weight:800;color:var(--primary);">' + fmt(totalAtualizado) + '</div>' +
         '</div>' +
         '<div style="background:var(--bg);border-radius:10px;padding:12px;text-align:center;">' +
           '<div style="font-size:10px;color:var(--text-muted);margin-bottom:4px;">Total Provisionado</div>' +
-          '<div style="font-size:18px;font-weight:800;color:#7c3aed;">' + fmt(totalProvisionado) + '</div>' +
+          '<div style="font-size:17px;font-weight:800;color:#7c3aed;">' + fmt(totalProvisionado) + '</div>' +
+        '</div>' +
+        '<div style="background:var(--bg);border-radius:10px;padding:12px;text-align:center;">' +
+          '<div style="font-size:10px;color:var(--text-muted);margin-bottom:4px;">Prov. Líq. IR (est.)</div>' +
+          '<div style="font-size:17px;font-weight:800;color:#059669;">' + fmt(totalLiquidoIR) + '</div>' +
+          '<div style="font-size:10px;color:var(--danger);margin-top:2px;">IR est.: −' + fmt(totalIR) + '</div>' +
         '</div>' +
         '<div style="background:var(--bg);border-radius:10px;padding:12px;text-align:center;">' +
           '<div style="font-size:10px;color:var(--text-muted);margin-bottom:4px;">Rendimento Total</div>' +
-          '<div style="font-size:18px;font-weight:800;color:' + corRend + ';">' + (rendTot >= 0 ? '+' : '') + fmt(rendTot) + '</div>' +
+          '<div style="font-size:17px;font-weight:800;color:' + corRend + ';">' + (rendTot >= 0 ? '+' : '') + fmt(rendTot) + '</div>' +
         '</div>' +
       '</div>';
 
@@ -4009,7 +4047,9 @@
           '<th style="' + thS + 'right;">Data Atualiz.</th>' +
           '<th style="' + thS + 'right;">Dias Úteis</th>' +
           '<th style="' + thS + 'right;">Taxa Diária</th>' +
-          '<th style="' + thS + 'right;color:#7c3aed;">Valor Provisionado</th>' +
+          '<th style="' + thS + 'right;color:#7c3aed;">Prov. Bruto</th>' +
+          '<th style="' + thS + 'right;color:#059669;">Prov. Líq. IR</th>' +
+          '<th style="' + thS + 'right;">IR (alíq.)</th>' +
           '<th style="' + thS + 'right;">Rend. Período</th>' +
           '<th style="' + thS + 'right;">Rend. Total</th>' +
           '<th style="' + thS + 'center;">Ações</th>' +
@@ -4036,6 +4076,11 @@
             '<td style="padding:8px;font-size:12px;text-align:right;">' + item.dias + 'd</td>' +
             '<td style="padding:8px;font-size:11px;text-align:right;color:var(--text-muted);">' + (taxaDiaria > 0 ? taxaDiaria.toFixed(4) + '%' : '—') + '</td>' +
             '<td style="padding:8px;font-size:13px;font-weight:800;text-align:right;color:#7c3aed;">' + fmt(item.provisionado) + '</td>' +
+            '<td style="padding:8px;font-size:13px;font-weight:800;text-align:right;color:#059669;">' + fmt(item.liquido) + '</td>' +
+            '<td style="padding:8px;font-size:11px;text-align:right;">' +
+              '<span style="background:#fee2e2;color:#dc2626;border-radius:5px;padding:2px 6px;font-weight:700;font-size:10px;">' + item.aliquota.toFixed(1) + '%</span>' +
+              '<div style="font-size:10px;color:var(--danger);margin-top:2px;">−' + fmt(item.ir) + '</div>' +
+            '</td>' +
             '<td style="padding:8px;font-size:12px;font-weight:700;text-align:right;color:' + corP + ';">' + (rendPeriodo >= 0 ? '+' : '') + fmt(rendPeriodo) + '</td>' +
             '<td style="padding:8px;font-size:12px;font-weight:700;text-align:right;color:' + corT + ';">' + (rendTotal >= 0 ? '+' : '') + fmt(rendTotal) + '</td>' +
             '<td style="padding:8px;text-align:center;white-space:nowrap;">' +
