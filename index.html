@@ -1228,8 +1228,8 @@
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
             <div style="font-size:13px;font-weight:700;">📈 Evolução Mensal</div>
             <div style="display:flex;gap:6px;">
-              <button id="pest-chart-btn-area" onclick="pestSetVista('area')" style="font-size:11px;padding:4px 10px;border-radius:20px;border:1.5px solid var(--primary);background:var(--primary);color:white;cursor:pointer;font-weight:600;">Área</button>
-              <button id="pest-chart-btn-bar" onclick="pestSetVista('bar')" style="font-size:11px;padding:4px 10px;border-radius:20px;border:1.5px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-weight:600;">Barras</button>
+              <button id="pest-chart-btn-area" onclick="pestSetVista('area')" style="font-size:11px;padding:4px 10px;border-radius:20px;border:1.5px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-weight:600;">Área</button>
+              <button id="pest-chart-btn-bar" onclick="pestSetVista('bar')" style="font-size:11px;padding:4px 10px;border-radius:20px;border:1.5px solid var(--primary);background:var(--primary);color:white;cursor:pointer;font-weight:600;">Barras</button>
             </div>
           </div>
           <div style="height:160px;"><canvas id="pest-chart-evo"></canvas></div>
@@ -2231,7 +2231,7 @@
 
   // ── GRÁFICOS PAULISTINHA ──
   let pfin_chart = null, pest_chart = null, pvend_chart = null;
-  let pfin_vista = 'area', pest_vista = 'area', pvend_vista = 'bar';
+  let pfin_vista = 'area', pest_vista = 'bar', pvend_vista = 'bar';
 
   function paulChartOpts() {
     const dark = document.body.classList.contains('dark');
