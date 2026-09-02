@@ -2089,7 +2089,7 @@
   }
 
   function setTab(tab) {
-    document.querySelector('.content').classList.toggle('content-wide', tab === 'acoes' || tab === 'opcoes');
+    document.querySelector('.content').classList.toggle('content-wide', tab === 'acoes' || tab === 'opcoes' || tab === 'paulistinha');
     ['pessoal', 'paulistinha', 'acoes', 'opcoes'].forEach(t => {
       document.getElementById('painel-' + t).style.display = (t === tab) ? 'block' : 'none';
       const btn = document.getElementById('tab-' + t);
