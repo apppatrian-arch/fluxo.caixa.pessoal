@@ -276,18 +276,40 @@
       .pvend-filtro-acoes .pvend-btn-buscar { flex: none; }
     }
 
-    /* Cards de tipo: 1 col → 2 col → 3 col */
+    /* Cards de tipo: 1 col → 2 col */
     #pvend-por-tipo {
       display: grid;
       grid-template-columns: 1fr;
       gap: 10px;
       margin-bottom: 12px;
     }
-    @media (min-width: 500px) {
+    @media (min-width: 500px) and (max-width: 1023px) {
       #pvend-por-tipo { grid-template-columns: 1fr 1fr; }
     }
+
+    /* Wrapper cards + gráfico: mobile = empilhado, desktop = lado a lado */
+    .pvend-resumo-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 0;
+    }
     @media (min-width: 1024px) {
-      #pvend-por-tipo { grid-template-columns: repeat(3, 1fr); }
+      .pvend-resumo-wrap {
+        flex-direction: row;
+        align-items: flex-start;
+        gap: 16px;
+      }
+      .pvend-resumo-wrap #pvend-por-tipo {
+        flex: 0 0 300px;
+        grid-template-columns: 1fr;
+        margin-bottom: 0;
+      }
+      .pvend-resumo-wrap .pvend-chart-card {
+        flex: 1;
+        margin-top: 0;
+      }
+      .pvend-resumo-wrap #pvend-chart-evo-wrap { height: 320px; }
     }
 
     /* Gráfico: altura adaptável */
@@ -299,7 +321,7 @@
       background: var(--card);
       border-radius: 14px;
       padding: 16px;
-      margin-top: 12px;
+      margin-top: 0;
     }
 
     /* Tabela de detalhe */
@@ -1263,18 +1285,20 @@
           <span id="pvend-total-pag" style="display:none;"></span>
           <span id="pvend-total-pend" style="display:none;"></span>
           <span id="pvend-total-kg" style="display:none;"></span>
-          <!-- Cards por tipo de transação -->
-          <div id="pvend-por-tipo"></div>
-          <!-- Gráfico evolução mensal -->
-          <div class="pvend-chart-card">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-              <div style="font-size:13px;font-weight:700;">📈 Evolução Mensal</div>
-              <div style="display:flex;gap:6px;">
-                <button id="pvend-chart-btn-area" onclick="pvendSetVista('area')" style="font-size:11px;padding:4px 10px;border-radius:20px;border:1.5px solid var(--primary);background:var(--primary);color:white;cursor:pointer;font-weight:600;">Área</button>
-                <button id="pvend-chart-btn-bar" onclick="pvendSetVista('bar')" style="font-size:11px;padding:4px 10px;border-radius:20px;border:1.5px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-weight:600;">Barras</button>
+          <!-- Cards por tipo + Gráfico: lado a lado no desktop -->
+          <div class="pvend-resumo-wrap">
+            <div id="pvend-por-tipo"></div>
+            <!-- Gráfico evolução mensal -->
+            <div class="pvend-chart-card">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                <div style="font-size:13px;font-weight:700;">📈 Evolução Mensal</div>
+                <div style="display:flex;gap:6px;">
+                  <button id="pvend-chart-btn-area" onclick="pvendSetVista('area')" style="font-size:11px;padding:4px 10px;border-radius:20px;border:1.5px solid var(--primary);background:var(--primary);color:white;cursor:pointer;font-weight:600;">Área</button>
+                  <button id="pvend-chart-btn-bar" onclick="pvendSetVista('bar')" style="font-size:11px;padding:4px 10px;border-radius:20px;border:1.5px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-weight:600;">Barras</button>
+                </div>
               </div>
+              <div id="pvend-chart-evo-wrap"><canvas id="pvend-chart-evo"></canvas></div>
             </div>
-            <div id="pvend-chart-evo-wrap"><canvas id="pvend-chart-evo"></canvas></div>
           </div>
           <span id="pvend-resumo-mensal" style="display:none;"></span>
         </div>
@@ -2215,8 +2239,8 @@
   let histVista  = 'area';
 
   // ── HELPERS TIPO INDUSTRIA A ──
-  function _isPosType(t) { const s = (t||'').trim(); const c = s.toLowerCase().split(' ')[0]; return c === 'venda' || c === 'entrega' || c === 'encomenda' || /- c$/i.test(s); }
-  function _isDevType(t) { const s = (t||'').trim(); const c = s.toLowerCase().split(' ')[0]; return c === 'devolucao' || c === 'devolução' || /- d$/i.test(s); }
+  function _isPosType(t) { const s = (t||'').trim(); const c = s.toLowerCase().split(' ')[0]; return c === 'venda' || c === 'entrega' || c === 'encomenda' || /- c$/i.test(s) || s.startsWith('(+)'); }
+  function _isDevType(t) { const s = (t||'').trim(); const c = s.toLowerCase().split(' ')[0]; return c === 'devolucao' || c === 'devolução' || /- d$/i.test(s) || s.startsWith('(-)'); }
 
   // ── GRÁFICOS PAULISTINHA ──
   let pfin_chart = null, pest_chart = null, pvend_chart = null;
@@ -2512,17 +2536,15 @@
   }
 
   function renderPvendChart(dados) {
-    const TIPO_ORDER = '(+) order - c';
-    const TIPO_RETURN = '(-) return - d';
     const grupos = {};
     dados.forEach(v => {
       const mes = String(v.data_pedido||'').slice(0,7);
       if (!mes || mes.length < 7) return;
-      const tipoLow = (v.tipo||'').toLowerCase().trim();
-      if (tipoLow !== TIPO_ORDER && tipoLow !== TIPO_RETURN) return;
+      const tipo = (v.tipo||'').trim();
+      if (!_isPosType(tipo) && !_isDevType(tipo)) return;
       if (!grupos[mes]) grupos[mes] = { v1: 0, v2: 0 };
       const val = Number(v.valdup || 0);
-      if (tipoLow === TIPO_ORDER) grupos[mes].v1 += val;
+      if (_isPosType(tipo)) grupos[mes].v1 += val;
       else grupos[mes].v2 += val;
     });
     const meses = Object.keys(grupos).sort();
