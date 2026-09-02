@@ -249,72 +249,80 @@
     }
 
     /* ── INDÚSTRIA A — RESPONSIVO ── */
-    /* Filtro: mobile = grid 2 col + botões abaixo; desktop = flex linha única */
+
+    /* Filtro: mobile = datas em grid 2col + botões linha abaixo */
     .pvend-filtro-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 8px;
     }
     .pvend-filtro-acoes {
+      grid-column: 1 / -1;
       display: flex;
       gap: 8px;
-      margin-top: 8px;
     }
-    .pvend-filtro-acoes button { flex: 1; }
+    .pvend-filtro-acoes .pvend-btn-buscar { flex: 1; }
+    /* Desktop: tudo em linha */
     @media (min-width: 640px) {
       .pvend-filtro-grid {
         display: flex;
         align-items: flex-end;
         gap: 10px;
       }
-      .pvend-filtro-grid > div { flex: 1; min-width: 140px; }
       .pvend-filtro-acoes {
-        display: contents; /* botões entram na linha do flex pai */
+        grid-column: auto;
+        flex: none;
       }
-      .pvend-filtro-acoes button { flex: none; }
+      .pvend-filtro-acoes .pvend-btn-buscar { flex: none; }
     }
 
-    /* Cards de tipo: 1 col mobile → 2 col tablet → 3 col desktop */
+    /* Cards de tipo: 1 col → 2 col → 3 col */
     #pvend-por-tipo {
       display: grid;
       grid-template-columns: 1fr;
       gap: 10px;
       margin-bottom: 12px;
     }
-    @media (min-width: 540px) {
+    @media (min-width: 500px) {
       #pvend-por-tipo { grid-template-columns: 1fr 1fr; }
     }
-    @media (min-width: 900px) {
+    @media (min-width: 1024px) {
       #pvend-por-tipo { grid-template-columns: repeat(3, 1fr); }
     }
 
-    /* Layout desktop: coluna esquerda (cards) + direita (gráfico) */
-    .pvend-body-wrap {
-      display: block;
-    }
-    @media (min-width: 900px) {
-      .pvend-body-wrap {
-        display: grid;
-        grid-template-columns: 1fr 380px;
-        gap: 14px;
-        align-items: start;
-      }
-      .pvend-chart-card { margin-top: 0 !important; }
-      #pvend-chart-evo-wrap { height: 260px !important; }
+    /* Gráfico: altura adaptável */
+    #pvend-chart-evo-wrap { height: 180px; }
+    @media (min-width: 768px) { #pvend-chart-evo-wrap { height: 240px; } }
+
+    /* Card gráfico evolução */
+    .pvend-chart-card {
+      background: var(--card);
+      border-radius: 14px;
+      padding: 16px;
+      margin-top: 12px;
     }
 
-    /* Tabela de detalhe: card com visual melhorado */
+    /* Tabela de detalhe */
     .pvend-tabela-card {
       background: var(--card);
       border-radius: 14px;
       padding: 16px;
       margin-top: 14px;
     }
-    .pvend-tabela-card .pvend-tabela-titulo {
+    .pvend-tabela-titulo {
       font-size: 13px;
       font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .pvend-count {
+      font-size: 11px;
+      color: var(--text-muted);
       margin-bottom: 10px;
-      color: var(--text);
+    }
+    /* Tabela desktop: fontes maiores */
+    @media (min-width: 768px) {
+      .pvend-tabela-card table td,
+      .pvend-tabela-card table th { font-size: 13px !important; padding: 11px 14px !important; }
     }
 
     /* ── SALDO CARD ── */
@@ -1233,7 +1241,7 @@
       <div id="ppainel-vendas" style="display:none;">
         <!-- Filtro de período -->
         <div style="background:var(--card);border-radius:14px;padding:16px;margin-bottom:14px;">
-          <div style="font-size:13px;font-weight:700;margin-bottom:10px;">📋 Vendas por Período</div>
+          <div style="font-size:13px;font-weight:700;margin-bottom:12px;">📋 Vendas por Período</div>
           <div class="pvend-filtro-grid">
             <div>
               <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">De</div>
@@ -1244,42 +1252,36 @@
               <input type="date" id="pvend-data-fim" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--bg);color:var(--text);box-sizing:border-box;" />
             </div>
             <div class="pvend-filtro-acoes">
-              <button onclick="buscarVendas()" style="padding:10px 18px;background:var(--primary);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">🔍 Buscar</button>
+              <button class="pvend-btn-buscar" onclick="buscarVendas()" style="padding:10px 18px;background:var(--primary);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">🔍 Buscar</button>
               <button onclick="exportarPaulVendas()" style="padding:10px 14px;background:var(--surface);color:var(--text);border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;" title="Exportar Excel">📥</button>
             </div>
           </div>
         </div>
-        <!-- Cards de resumo -->
+        <!-- Cards de resumo + gráfico (mostrados após busca) -->
         <div id="pvend-resumo" style="display:none;">
-          <!-- ids mantidos para compatibilidade com JS (elementos ocultos) -->
           <span id="pvend-total-fat" style="display:none;"></span>
           <span id="pvend-total-pag" style="display:none;"></span>
           <span id="pvend-total-pend" style="display:none;"></span>
           <span id="pvend-total-kg" style="display:none;"></span>
-          <!-- Layout adaptável: cards + gráfico lado a lado no desktop -->
-          <div class="pvend-body-wrap">
-            <!-- Coluna esquerda: cards por tipo -->
-            <div>
-              <div id="pvend-por-tipo"></div>
-            </div>
-            <!-- Coluna direita (ou abaixo no mobile): gráfico evolução -->
-            <div class="pvend-chart-card" style="background:var(--card);border-radius:14px;padding:16px;margin-top:10px;">
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-                <div style="font-size:13px;font-weight:700;">📈 Evolução Mensal</div>
-                <div style="display:flex;gap:6px;">
-                  <button id="pvend-chart-btn-area" onclick="pvendSetVista('area')" style="font-size:11px;padding:4px 10px;border-radius:20px;border:1.5px solid var(--primary);background:var(--primary);color:white;cursor:pointer;font-weight:600;">Área</button>
-                  <button id="pvend-chart-btn-bar" onclick="pvendSetVista('bar')" style="font-size:11px;padding:4px 10px;border-radius:20px;border:1.5px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-weight:600;">Barras</button>
-                </div>
+          <!-- Cards por tipo de transação -->
+          <div id="pvend-por-tipo"></div>
+          <!-- Gráfico evolução mensal -->
+          <div class="pvend-chart-card">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+              <div style="font-size:13px;font-weight:700;">📈 Evolução Mensal</div>
+              <div style="display:flex;gap:6px;">
+                <button id="pvend-chart-btn-area" onclick="pvendSetVista('area')" style="font-size:11px;padding:4px 10px;border-radius:20px;border:1.5px solid var(--primary);background:var(--primary);color:white;cursor:pointer;font-weight:600;">Área</button>
+                <button id="pvend-chart-btn-bar" onclick="pvendSetVista('bar')" style="font-size:11px;padding:4px 10px;border-radius:20px;border:1.5px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-weight:600;">Barras</button>
               </div>
-              <div id="pvend-chart-evo-wrap" style="height:190px;"><canvas id="pvend-chart-evo"></canvas></div>
             </div>
+            <div id="pvend-chart-evo-wrap"><canvas id="pvend-chart-evo"></canvas></div>
           </div>
           <span id="pvend-resumo-mensal" style="display:none;"></span>
         </div>
-        <!-- Lista de detalhe -->
+        <!-- Tabela de detalhe -->
         <div class="pvend-tabela-card">
           <div class="pvend-tabela-titulo">📄 Detalhes do Período</div>
-          <div id="pvend-lista"><div style="text-align:center;color:var(--text-muted);padding:20px;font-size:13px;">Selecione um período e clique em Buscar.</div></div>
+          <div id="pvend-lista"><div style="text-align:center;color:var(--text-muted);padding:24px;font-size:13px;">Selecione um período e clique em <strong>Buscar</strong>.</div></div>
         </div>
       </div>
 
@@ -5865,48 +5867,56 @@
       renderPvendChart(dados);
 
       // Tabela
+      // Totais para rodapé da tabela
+      const totalValTab = dados.reduce((s, v) => s + Number(v.valdup || 0), 0);
+      const totalKgTab  = dados.reduce((s, v) => s + Number(v.kg || 0), 0);
+
+      const tdS = 'padding:9px 12px;font-size:12px;border-bottom:1px solid var(--border);white-space:nowrap;';
       const linhas = dados.map((v, i) => {
         const isDev   = v.tipo && !_isPosType(v.tipo);
         const dataPed = String(v.data_pedido||'').slice(0,10).split('-').reverse().join('/');
-        const dataPag = v.datpag ? String(v.datpag).slice(0,10).split('-').reverse().join('/') : '—';
         const dataVen = v.datven ? String(v.datven).slice(0,10).split('-').reverse().join('/') : '—';
-        const pago    = Number(v.valpag || 0) >= Number(v.valdup || 0);
-        const bg      = i % 2 === 0 ? 'var(--bg)' : 'var(--card)';
-        const corTipo = isDev ? 'var(--danger)' : 'var(--success)';
-        const statusIcon = isDev ? '↩' : (pago ? '✅' : '⏳');
-        const statusCor  = isDev ? 'var(--danger)' : (pago ? 'var(--success)' : '#f59e0b');
-        const tipoLabel = (v.tipo || '');
-        const tipoShort = (v.tipo || '').length > 22 ? (v.tipo||'').slice(0,22) + '…' : (v.tipo || '—');
+        const bg      = i % 2 === 0 ? 'var(--bg)' : 'var(--surface)';
+        const corTipo = isDev ? '#dc2626' : '#16a34a';
+        const bgTipo  = isDev ? 'rgba(239,68,68,0.08)' : 'rgba(34,197,94,0.08)';
         return '<tr style="background:' + bg + ';">' +
-          '<td style="padding:9px 10px;font-size:12px;white-space:nowrap;border-bottom:1px solid var(--border);">' + dataPed + '</td>' +
-          '<td style="padding:9px 10px;border-bottom:1px solid var(--border);white-space:nowrap;text-align:center;">' +
-            '<span style="font-size:10px;font-weight:700;color:' + corTipo + ';background:' + (isDev?'rgba(239,68,68,0.08)':'rgba(34,197,94,0.08)') + ';border-radius:5px;padding:2px 6px;">' + tipoShort + '</span>' +
+          '<td style="' + tdS + '">' + dataPed + '</td>' +
+          '<td style="' + tdS + 'text-align:center;">' +
+            '<span style="font-size:10px;font-weight:700;color:' + corTipo + ';background:' + bgTipo + ';border-radius:5px;padding:3px 7px;display:inline-block;line-height:1.4;">' + (v.tipo||'—') + '</span>' +
           '</td>' +
-          '<td style="padding:9px 10px;font-size:12px;color:var(--text-muted);border-bottom:1px solid var(--border);white-space:nowrap;">' + (v.nropedido||'—') + '</td>' +
-          '<td style="padding:9px 10px;font-size:12px;font-weight:700;color:' + corTipo + ';border-bottom:1px solid var(--border);white-space:nowrap;">' + (v.nrodup||'—') + '</td>' +
-          '<td style="padding:9px 10px;font-size:12px;text-align:right;border-bottom:1px solid var(--border);white-space:nowrap;font-variant-numeric:tabular-nums;">' + fmtR(v.valdup) + '</td>' +
-          '<td style="padding:9px 10px;font-size:12px;text-align:right;border-bottom:1px solid var(--border);white-space:nowrap;font-variant-numeric:tabular-nums;">' + Number(v.kg||0).toLocaleString('pt-BR') + '</td>' +
-          '<td style="padding:9px 10px;font-size:12px;text-align:right;border-bottom:1px solid var(--border);white-space:nowrap;color:var(--text-muted);">' + dataVen + '</td>' +
+          '<td style="' + tdS + 'color:var(--text-muted);">' + (v.nropedido||'—') + '</td>' +
+          '<td style="' + tdS + 'font-weight:700;color:' + corTipo + ';">' + (v.nrodup||'—') + '</td>' +
+          '<td style="' + tdS + 'text-align:right;font-weight:600;font-variant-numeric:tabular-nums;">' + fmtR(v.valdup) + '</td>' +
+          '<td style="' + tdS + 'text-align:right;font-variant-numeric:tabular-nums;">' + Number(v.kg||0).toLocaleString('pt-BR') + ' kg</td>' +
+          '<td style="' + tdS + 'text-align:right;color:var(--text-muted);">' + dataVen + '</td>' +
         '</tr>';
       }).join('');
 
-      const thS = 'padding:9px 10px;font-size:11px;color:white;font-weight:700;white-space:nowrap;';
+      const thS = 'padding:10px 12px;font-size:11px;color:white;font-weight:700;white-space:nowrap;letter-spacing:.03em;';
+      const rodapeS = 'padding:9px 12px;font-size:12px;font-weight:800;border-top:2px solid var(--border);background:var(--bg);';
       lista.innerHTML =
-        '<div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">' + dados.length + ' registro(s) encontrado(s)</div>' +
-        '<div style="overflow-x:auto;border-radius:10px;overflow:hidden;border:1px solid var(--border);">' +
-        '<table style="width:100%;border-collapse:collapse;min-width:420px;">' +
+        '<div style="overflow-x:auto;">' +
+        '<table style="width:100%;border-collapse:collapse;min-width:480px;">' +
           '<thead>' +
             '<tr style="background:var(--primary);">' +
-              '<th style="' + thS + 'text-align:left;">Data</th>' +
+              '<th style="' + thS + 'text-align:left;border-radius:10px 0 0 0;">Data</th>' +
               '<th style="' + thS + 'text-align:center;">Tipo</th>' +
               '<th style="' + thS + 'text-align:left;">Pedido</th>' +
               '<th style="' + thS + 'text-align:left;">Nº Dup.</th>' +
               '<th style="' + thS + 'text-align:right;">Valor</th>' +
               '<th style="' + thS + 'text-align:right;">Kg</th>' +
-              '<th style="' + thS + 'text-align:right;">Vencto</th>' +
+              '<th style="' + thS + 'text-align:right;border-radius:0 10px 0 0;">Vencto</th>' +
             '</tr>' +
           '</thead>' +
           '<tbody>' + linhas + '</tbody>' +
+          '<tfoot>' +
+            '<tr>' +
+              '<td colspan="4" style="' + rodapeS + '">Total — ' + dados.length + ' registro(s)</td>' +
+              '<td style="' + rodapeS + 'text-align:right;color:var(--primary);font-variant-numeric:tabular-nums;">' + fmtR(totalValTab) + '</td>' +
+              '<td style="' + rodapeS + 'text-align:right;font-variant-numeric:tabular-nums;">' + Number(totalKgTab).toLocaleString('pt-BR') + ' kg</td>' +
+              '<td style="' + rodapeS + '"></td>' +
+            '</tr>' +
+          '</tfoot>' +
         '</table></div>';
     } catch(e) {
       lista.innerHTML = '<div style="color:var(--danger);padding:16px;font-size:13px;">❌ Erro ao buscar: ' + e.message + '</div>';
