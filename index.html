@@ -805,7 +805,7 @@
     <div class="tabs-wrapper">
       <button class="tabs-arrow" id="tabs-prev" onclick="scrollTabs(-1)" title="Anterior">‹</button>
       <div class="tabs" id="tabs-bar">
-        <button class="tab tab-destaque active" id="tab-paulistinha" onclick="setTab('paulistinha')" style="white-space:nowrap;">🚬 Indústria B</button>
+        <button class="tab tab-destaque active" id="tab-paulistinha" onclick="setTab('paulistinha')" style="white-space:nowrap;">🚬 Indústria P</button>
         <button class="tab" id="tab-pessoal" onclick="setTab('pessoal')" style="white-space:nowrap;">💼 Financeiro</button>
         <button class="tab" id="tab-acoes" onclick="setTab('acoes')" style="white-space:nowrap;">📈 Ações</button>
         <button class="tab" id="tab-opcoes" onclick="setTab('opcoes')" style="white-space:nowrap;">🎯 Opções</button>
@@ -982,7 +982,7 @@
 
       <!-- Header Paulistinha com botão de usuários -->
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-        <div style="font-size:15px;font-weight:700;color:var(--text);">Indústria B</div>
+        <div style="font-size:15px;font-weight:700;color:var(--text);">Indústria P</div>
         <button id="btn-paul-usuarios" onclick="togglePainelUsuarios()" style="display:none;font-size:12px;padding:6px 12px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text-muted);cursor:pointer;font-weight:600;">⚙️ Usuários</button>
       </div>
 
@@ -998,7 +998,7 @@
             <select id="paul-usr-perfil" style="padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--bg);color:var(--text);">
               <option value="editor">Editor — inclui e edita</option>
               <option value="leitura">Leitura — somente visualiza</option>
-              <option value="sem_paul">Sem Indústria B — sem acesso à aba</option>
+              <option value="sem_paul">Sem Indústria P — sem acesso à aba</option>
               <option value="admin">Admin — gerencia usuários</option>
             </select>
             <button onclick="paulAdicionarUsuario()" style="padding:9px 16px;background:var(--primary);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">✓ Adicionar</button>
@@ -2082,7 +2082,7 @@
       const btn = document.getElementById('tab-' + t);
       if (btn) btn.classList.toggle('active', t === tab);
     });
-    const titulos = { paulistinha: 'Indústria B', pessoal: 'Financeiro', acoes: 'Ações', opcoes: 'Opções' };
+    const titulos = { paulistinha: 'Indústria P', pessoal: 'Financeiro', acoes: 'Ações', opcoes: 'Opções' };
     const el = document.getElementById('topbar-title');
     if (el) el.textContent = titulos[tab] || 'Dashboard';
     if (tab === 'paulistinha') initPaulistinha();
@@ -6181,7 +6181,7 @@
     });
     const elPendente = document.getElementById('paul-msg-pendente');
     if (elPendente) elPendente.style.display = pendente ? '' : 'none';
-    // Perfil sem_paul: oculta o tab e painel da Indústria B
+    // Perfil sem_paul: oculta o tab e painel da Indústria P
     const tabPaul = document.getElementById('tab-paulistinha');
     if (tabPaul) tabPaul.style.display = semPaul ? 'none' : '';
     if (semPaul) {
@@ -6222,7 +6222,7 @@
           '<select id="paul-approve-' + u.id + '" style="font-size:12px;padding:5px 6px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);">' +
             '<option value="editor">Editor</option>' +
             '<option value="leitura">Leitura</option>' +
-            '<option value="sem_paul">Sem Indústria B</option>' +
+            '<option value="sem_paul">Sem Indústria P</option>' +
             '<option value="admin">Admin</option>' +
           '</select>' +
           '<button onclick="paulAprovarUsuario(' + u.id + ',\'' + u.nome.replace(/'/g,"\\'") + '\',\'' + u.email + '\')" style="padding:5px 10px;background:#22c55e;color:white;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">✓ Aprovar</button>' +
@@ -6256,7 +6256,7 @@
                 '<select id="paul-edit-perfil-' + u.id + '" style="flex:1;font-size:12px;padding:5px 6px;border:1.5px solid #f59e0b;border-radius:8px;background:var(--bg);color:var(--text);">' +
                   '<option value="leitura"' + (u.perfil==='leitura'?' selected':'') + '>Leitura — somente visualiza</option>' +
                   '<option value="editor"' + (u.perfil==='editor'?' selected':'') + '>Editor — inclui e edita</option>' +
-                  '<option value="sem_paul"' + (u.perfil==='sem_paul'?' selected':'') + '>Sem Indústria B — sem acesso à aba</option>' +
+                  '<option value="sem_paul"' + (u.perfil==='sem_paul'?' selected':'') + '>Sem Indústria P — sem acesso à aba</option>' +
                   '<option value="admin"' + (u.perfil==='admin'?' selected':'') + '>Admin — acesso total</option>' +
                 '</select>' +
                 '<button onclick="paulSalvarPerfil(' + u.id + ',\'' + u.nome.replace(/'/g,"\\'") + '\',\'' + u.email + '\')" style="padding:5px 10px;background:#f59e0b;color:white;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">✓ Salvar</button>' +
