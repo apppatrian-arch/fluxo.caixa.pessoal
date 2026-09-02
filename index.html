@@ -276,45 +276,31 @@
       .pvend-filtro-acoes .pvend-btn-buscar { flex: none; }
     }
 
-    /* Cards de tipo: 1 col → 2 col */
+    /* Cards de tipo: 1 col → 2 col → 3 col */
     #pvend-por-tipo {
       display: grid;
       grid-template-columns: 1fr;
-      gap: 10px;
-      margin-bottom: 12px;
+      gap: 12px;
+      margin-bottom: 14px;
     }
-    @media (min-width: 500px) and (max-width: 1023px) {
+    @media (min-width: 600px) {
       #pvend-por-tipo { grid-template-columns: 1fr 1fr; }
     }
+    @media (min-width: 900px) {
+      #pvend-por-tipo { grid-template-columns: repeat(3, 1fr); }
+    }
 
-    /* Wrapper cards + gráfico: mobile = empilhado, desktop = lado a lado */
+    /* Wrapper: sempre empilhado (cards → gráfico → tabela) */
     .pvend-resumo-wrap {
       display: flex;
       flex-direction: column;
-      gap: 12px;
-      margin-bottom: 0;
-    }
-    @media (min-width: 1024px) {
-      .pvend-resumo-wrap {
-        flex-direction: row;
-        align-items: flex-start;
-        gap: 16px;
-      }
-      .pvend-resumo-wrap #pvend-por-tipo {
-        flex: 0 0 300px;
-        grid-template-columns: 1fr;
-        margin-bottom: 0;
-      }
-      .pvend-resumo-wrap .pvend-chart-card {
-        flex: 1;
-        margin-top: 0;
-      }
-      .pvend-resumo-wrap #pvend-chart-evo-wrap { height: 320px; }
+      gap: 0;
     }
 
     /* Gráfico: altura adaptável */
-    #pvend-chart-evo-wrap { height: 180px; }
-    @media (min-width: 768px) { #pvend-chart-evo-wrap { height: 240px; } }
+    #pvend-chart-evo-wrap { height: 200px; }
+    @media (min-width: 768px) { #pvend-chart-evo-wrap { height: 280px; } }
+    @media (min-width: 1024px) { #pvend-chart-evo-wrap { height: 320px; } }
 
     /* Card gráfico evolução */
     .pvend-chart-card {
@@ -322,6 +308,7 @@
       border-radius: 14px;
       padding: 16px;
       margin-top: 0;
+      margin-bottom: 14px;
     }
 
     /* Tabela de detalhe */
