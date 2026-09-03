@@ -1441,6 +1441,9 @@
         </div>
       </div>
 
+      <!-- VISÃO GERAL — DIRETORIA -->
+      <div id="acoes-visao-geral"></div>
+
     </div><!-- /painel-acoes -->
 
     <!-- ── PAINEL OPÇÕES ── -->
@@ -4350,6 +4353,192 @@
         }
       }
     });
+    renderVisaoGeral();
+  }
+
+  // ── VISÃO GERAL — DIRETORIA ──
+  function renderVisaoGeral() {
+    const el = document.getElementById('acoes-visao-geral');
+    if (!el) return;
+
+    const fmt  = v => 'R$ ' + Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+    const fmtS = v => (v>=0?'+':'-') + ' R$ ' + Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+    const fmtP = v => (v>=0?'+':'') + Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) + '%';
+
+    // ── Renda Variável ──
+    const allAcoes = carteiras.flatMap(c => c.acoes || []);
+    if (!allAcoes.length && !rendaFixa.length) { el.innerHTML = ''; return; }
+
+    let rvInvest = 0, rvAtual = 0, rvVarDia = 0;
+    const acoesInfo = allAcoes.map(a => {
+      const f    = a.moeda === 'USD' ? _dolarAtual : 1;
+      const inv  = a.qtd * a.custo * f;
+      const atu  = a.qtd * (a.precoAtual || a.custo) * f;
+      const lucro= atu - inv;
+      const lp   = inv > 0 ? lucro/inv*100 : 0;
+      const vd   = a.varDiaVal != null ? a.qtd * a.varDiaVal * f : null;
+      rvInvest += inv; rvAtual += atu;
+      if (vd != null) rvVarDia += vd;
+      return { ...a, inv, atu, lucro, lp, vd };
+    });
+    const rvLucro = rvAtual - rvInvest;
+    const rvLP    = rvInvest > 0 ? rvLucro/rvInvest*100 : 0;
+    const comPreco= acoesInfo.filter(a => a.precoAtual).sort((a,b) => b.lp - a.lp);
+    const melhor  = comPreco[0] || null;
+    const pior    = comPreco[comPreco.length-1] || null;
+    const top1    = comPreco.slice().sort((a,b)=>b.atu-a.atu)[0] || null;
+    const concPct = top1 && rvAtual > 0 ? top1.atu/rvAtual*100 : 0;
+
+    // ── Renda Fixa ──
+    let rfAplic = 0, rfBruto = 0, rfLiq = 0, rfIR = 0;
+    const rfItens = rendaFixa.map(item => {
+      const prov = _rfCalcProvisionado(item);
+      const ir   = _rfCalcLiquidoIR(item, prov);
+      rfAplic += item.valorAplicado || 0;
+      rfBruto += prov; rfLiq += ir.liquido; rfIR += ir.ir;
+      return { ...item, prov, ...ir };
+    });
+    const rfRend = rfBruto - rfAplic;
+
+    // ── Consolidado ──
+    const totalPatr = rvAtual + rfLiq;
+    const rvPct = totalPatr > 0 ? rvAtual/totalPatr*100 : 0;
+    const rfPct = totalPatr > 0 ? rfLiq/totalPatr*100 : 0;
+    const resGeral = rvLucro + rfRend - rfIR;
+    const resGeralP= (rvInvest+rfAplic) > 0 ? resGeral/(rvInvest+rfAplic)*100 : 0;
+
+    // ── Pontos de atenção ──
+    const atencoes = [];
+    if (top1 && concPct > 30)
+      atencoes.push({ n:'medio', t:`<strong>${top1.ticker}</strong> representa <strong>${concPct.toFixed(1)}%</strong> da RV — concentração elevada. Considere realizar parte da posição.` });
+    comPreco.filter(a => a.lp < -10).forEach(a =>
+      atencoes.push({ n: a.lp < -20 ? 'alto':'medio', t:`<strong>${a.ticker}</strong> com <strong>${a.lp.toFixed(1)}%</strong> de desvalorização — revisar fundamentos e definir stop loss.` }));
+    if (rvPct > 75 && rfAplic > 0)
+      atencoes.push({ n:'medio', t:`<strong>${rvPct.toFixed(0)}%</strong> do patrimônio em renda variável. Considere reforçar a RF como proteção de capital.` });
+    rfItens.filter(x => x.aliquota >= 20 && x.ir > 50).forEach(x =>
+      atencoes.push({ n:'baixo', t:`<strong>${x.instituicao}</strong>: alíquota IR ${x.aliquota}% — ${x.aliquota===22.5?'mantendo até 181 dias':'aguardando 361 dias'} para reduzir tributação.` }));
+    const alertas = _getAlertas();
+    acoesInfo.forEach(a => {
+      const al = alertas[a.ticker]; if (!al || !a.precoAtual) return;
+      const aC = al.compra || (al.tipo==='compra'?al.preco:null);
+      const aV = al.venda  || (al.tipo==='venda' ?al.preco:null);
+      if (aC && Math.abs(a.precoAtual-aC)/aC < 0.05)
+        atencoes.push({ n:'info', t:`<strong>${a.ticker}</strong> está a menos de 5% do preço de alerta de <strong>compra</strong> (R$ ${Number(aC).toFixed(2)}).` });
+      if (aV && Math.abs(a.precoAtual-aV)/aV < 0.05)
+        atencoes.push({ n:'info', t:`<strong>${a.ticker}</strong> está a menos de 5% do preço de alerta de <strong>venda</strong> (R$ ${Number(aV).toFixed(2)}).` });
+    });
+
+    // ── Estratégias ──
+    const est = [];
+    if (rvPct > 70 && rfAplic > 0)
+      est.push('Rebalanceamento defensivo: com ' + rvPct.toFixed(0) + '% em RV, considere migrar parte para RF até atingir uma relação de 60/40 ou 70/30, reduzindo a volatilidade da carteira.');
+    else if (rfPct > 70 && allAcoes.length > 0)
+      est.push('Carteira conservadora (' + rfPct.toFixed(0) + '% RF). Há espaço para aumentar a exposição em RV com foco em ativos de dividendos consistentes.');
+    if (top1 && concPct > 30)
+      est.push('Diversificação setorial: ' + top1.ticker + ' concentra ' + concPct.toFixed(0) + '% da RV. Distribua ganhos em outros setores (utilidades, bancário, commodities) para reduzir risco específico.');
+    if (pior && pior.lp < -15)
+      est.push('Revisão de posição em ' + pior.ticker + ' (' + pior.lp.toFixed(1) + '%): avalie se os fundamentos continuam sólidos. Caso contrário, defina um stop loss e limite a perda adicional.');
+    if (melhor && melhor.lp > 40)
+      est.push('Realização parcial em ' + melhor.ticker + ' (+' + melhor.lp.toFixed(1) + '%): considere resgatar entre 20-30% da posição para travar o ganho e realocar em ativos com maior potencial de valorização.');
+    const rfBaixo = rfItens.filter(x => x.percentualCDI < 95);
+    if (rfBaixo.length)
+      est.push(rfBaixo.length + ' aplicação(ões) de RF abaixo de 95% do CDI (' + rfBaixo.map(x=>x.instituicao).join(', ') + '). Avalie portabilidade para CDBs acima de 100% do CDI ou LCIs/LCAs isentas de IR.');
+    if (!est.length) est.push('Carteira equilibrada. Mantenha o acompanhamento regular, revise os alertas de cotação e aproveite aportes mensais para aumentar posições em ativos subvalorizados.');
+
+    // ── Helpers visuais ──
+    const corN = { alto:'#dc2626', medio:'#f59e0b', baixo:'#3b82f6', info:'#8b5cf6' };
+    const bgN  = { alto:'rgba(220,38,38,0.07)', medio:'rgba(245,158,11,0.07)', baixo:'rgba(59,130,246,0.07)', info:'rgba(139,92,246,0.07)' };
+    const icN  = { alto:'🔴', medio:'🟡', baixo:'🔵', info:'🟣' };
+    const kpi  = (label, valor, cor, sub) =>
+      '<div style="background:var(--bg);border-radius:12px;padding:14px 16px;">' +
+        '<div style="font-size:10px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;">' + label + '</div>' +
+        '<div style="font-size:17px;font-weight:800;color:' + (cor||'var(--text)') + ';white-space:nowrap;">' + valor + '</div>' +
+        (sub ? '<div style="font-size:11px;color:var(--text-muted);margin-top:3px;">' + sub + '</div>' : '') +
+      '</div>';
+    const sep  = label =>
+      '<div style="font-size:11px;font-weight:700;color:var(--text-muted);margin:20px 0 10px;display:flex;align-items:center;gap:8px;">' +
+        '<div style="flex:1;height:1px;background:var(--border);"></div>' + label +
+        '<div style="flex:1;height:1px;background:var(--border);"></div>' +
+      '</div>';
+    const grid = (cols, content) =>
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(' + cols + 'px,1fr));gap:10px;">' + content + '</div>';
+
+    el.innerHTML =
+      '<div style="background:var(--card);border-radius:16px;padding:20px;margin-top:16px;">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">' +
+          '<div>' +
+            '<div style="font-size:15px;font-weight:800;">📊 Visão Geral — Diretoria</div>' +
+            '<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Consolidado de renda variável e renda fixa</div>' +
+          '</div>' +
+          '<button onclick="renderVisaoGeral()" style="font-size:11px;padding:5px 12px;border:1.5px solid var(--border);border-radius:8px;background:transparent;color:var(--text-muted);cursor:pointer;font-weight:600;">↺ Atualizar</button>' +
+        '</div>' +
+
+        sep('PATRIMÔNIO CONSOLIDADO') +
+        grid(170,
+          kpi('Total do Patrimônio', fmt(totalPatr), 'var(--primary)') +
+          kpi('Renda Variável', fmt(rvAtual), rvPct>70?'#f59e0b':'var(--text)', rvPct.toFixed(1) + '% do patrimônio') +
+          kpi('Renda Fixa Líq. IR', fmt(rfLiq), 'var(--text)', rfPct.toFixed(1) + '% do patrimônio') +
+          kpi('Resultado Geral', fmtS(resGeral), resGeral>=0?'var(--success)':'var(--danger)', fmtP(resGeralP))
+        ) +
+
+        (allAcoes.length ? sep('RENDA VARIÁVEL') +
+          grid(155,
+            kpi('Total Investido', fmt(rvInvest)) +
+            kpi('Valor Atual', fmt(rvAtual)) +
+            kpi('Lucro / Prejuízo', fmtS(rvLucro), rvLucro>=0?'var(--success)':'var(--danger)', fmtP(rvLP)) +
+            kpi('Variação do Dia', fmtS(rvVarDia), rvVarDia>=0?'var(--success)':'var(--danger)')
+          ) +
+          (comPreco.length ?
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;">' +
+              (melhor ? '<div style="background:rgba(34,197,94,0.07);border:1.5px solid rgba(34,197,94,0.3);border-radius:10px;padding:12px;">' +
+                '<div style="font-size:10px;font-weight:700;color:var(--success);margin-bottom:6px;">🏆 MELHOR DESEMPENHO</div>' +
+                '<div style="font-size:18px;font-weight:800;">' + melhor.ticker + '</div>' +
+                '<div style="font-size:13px;font-weight:700;color:var(--success);">+' + melhor.lp.toFixed(2) + '% · ' + fmt(melhor.lucro) + '</div>' +
+                '<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Saldo atual: ' + fmt(melhor.atu) + '</div>' +
+              '</div>' : '') +
+              (pior && pior.lp < 0 ? '<div style="background:rgba(239,68,68,0.07);border:1.5px solid rgba(239,68,68,0.3);border-radius:10px;padding:12px;">' +
+                '<div style="font-size:10px;font-weight:700;color:var(--danger);margin-bottom:6px;">⚠️ PIOR DESEMPENHO</div>' +
+                '<div style="font-size:18px;font-weight:800;">' + pior.ticker + '</div>' +
+                '<div style="font-size:13px;font-weight:700;color:var(--danger);">' + pior.lp.toFixed(2) + '% · ' + fmt(pior.lucro) + '</div>' +
+                '<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Saldo atual: ' + fmt(pior.atu) + '</div>' +
+              '</div>' : '') +
+            '</div>' : '')
+        : '') +
+
+        (rfAplic > 0 ? sep('RENDA FIXA') +
+          grid(150,
+            kpi('Total Aplicado', fmt(rfAplic)) +
+            kpi('Provisionado Bruto', fmt(rfBruto), 'var(--text)', 'Rendimento: ' + fmt(rfRend)) +
+            kpi('Provisionado Líq. IR', fmt(rfLiq), 'var(--success)') +
+            kpi('IR Estimado Total', fmt(rfIR), '#f59e0b')
+          )
+        : '') +
+
+        (atencoes.length ?
+          sep('PONTOS DE ATENÇÃO') +
+          '<div style="display:flex;flex-direction:column;gap:8px;">' +
+            atencoes.map(a =>
+              '<div style="background:' + bgN[a.n] + ';border-left:3px solid ' + corN[a.n] + ';border-radius:0 8px 8px 0;padding:10px 14px;font-size:12px;line-height:1.6;">' +
+                icN[a.n] + ' ' + a.t +
+              '</div>'
+            ).join('') +
+          '</div>'
+        : '') +
+
+        sep('ESTRATÉGIAS SUGERIDAS') +
+        '<div style="display:flex;flex-direction:column;gap:8px;">' +
+          est.map((e, i) =>
+            '<div style="display:flex;gap:10px;align-items:flex-start;background:var(--bg);border-radius:8px;padding:10px 12px;">' +
+              '<div style="min-width:22px;height:22px;border-radius:50%;background:var(--primary);color:white;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">' + (i+1) + '</div>' +
+              '<div style="font-size:12px;color:var(--text);line-height:1.7;">' + e + '</div>' +
+            '</div>'
+          ).join('') +
+        '</div>' +
+
+        '<div style="margin-top:14px;font-size:10px;color:var(--text-muted);text-align:center;line-height:1.5;">' +
+          'Estratégias geradas automaticamente com base nos dados atuais · σ=30% assumido nas probabilidades · Não constitui recomendação de investimento' +
+        '</div>' +
+      '</div>';
   }
 
   function _rfBarLinha(cor, nome, valor, total, fmt, fmtPct, sub) {
