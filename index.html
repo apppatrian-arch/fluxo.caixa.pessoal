@@ -5080,7 +5080,7 @@
       const corVar   = variacao >= 0 ? 'var(--success)' : 'var(--danger)';
       const sinalVar = variacao >= 0 ? '+' : '';
       const hora     = q.regularMarketTime ? new Date(q.regularMarketTime * 1000).toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'}) : '';
-      const periodos = ['5D','1M','3M','6M','1A'];
+      const periodos = ['5D','1M','3M'];
       const btnBase  = 'font-size:11px;padding:3px 9px;border-radius:20px;font-weight:700;cursor:pointer;border:1.5px solid var(--border);background:transparent;color:var(--text-muted);';
 
       document.getElementById(resultId).innerHTML =
@@ -5124,7 +5124,7 @@
     const rangeMap = { '5D':'5d', '1M':'1mo', '3M':'3mo', '6M':'6mo', '1A':'1y' };
     const range = rangeMap[periodo] || '3mo';
     // Atualiza botões
-    ['5D','1M','3M','6M','1A'].forEach(p => {
+    ['5D','1M','3M'].forEach(p => {
       const b = document.getElementById('cot-btn-' + resultId + '-' + p);
       if (!b) return;
       const on = p === periodo;
