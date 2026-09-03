@@ -5677,45 +5677,59 @@
     _downloadCsv([header, ...linhas].join('\r\n'), 'opcoes_' + hoje + '.csv');
   }
 
-  // Controla seleção Compra / Venda no formulário de cada carteira
+  // Controla seleção Compra / Venda / Monitorar no formulário de cada carteira
   function setTipoMovCart(carteiraId, tipo) {
-    const btnC = document.getElementById('ci-tipo-compra-' + carteiraId);
-    const btnV = document.getElementById('ci-tipo-venda-'  + carteiraId);
-    const wrap = document.getElementById('ci-custo-wrap-'  + carteiraId);
+    const btnC = document.getElementById('ci-tipo-compra-'  + carteiraId);
+    const btnV = document.getElementById('ci-tipo-venda-'   + carteiraId);
+    const btnM = document.getElementById('ci-tipo-monitor-' + carteiraId);
+    const wrap = document.getElementById('ci-custo-wrap-'   + carteiraId);
+    const wrapQ= document.getElementById('ci-qtd-wrap-'     + carteiraId);
     if (!btnC || !btnV) return;
+    // reset todos
+    btnC.style.background = 'var(--surface)'; btnC.style.borderColor = 'var(--border)'; btnC.style.color = 'var(--text)';
+    btnV.style.background = 'var(--surface)'; btnV.style.borderColor = 'var(--border)'; btnV.style.color = 'var(--text)';
+    if (btnM) { btnM.style.background = 'var(--surface)'; btnM.style.borderColor = 'var(--border)'; btnM.style.color = 'var(--text)'; }
     if (tipo === 'compra') {
       btnC.style.background = 'var(--success)'; btnC.style.borderColor = 'var(--success)'; btnC.style.color = 'white';
-      btnV.style.background = 'var(--surface)'; btnV.style.borderColor = 'var(--border)';  btnV.style.color = 'var(--text)';
-      if (wrap) wrap.style.display = '';
+      if (wrap)  wrap.style.display  = '';
+      if (wrapQ) wrapQ.style.display = '';
+    } else if (tipo === 'venda') {
+      btnV.style.background = 'var(--danger)'; btnV.style.borderColor = 'var(--danger)'; btnV.style.color = 'white';
+      if (wrap)  wrap.style.display  = 'none';
+      if (wrapQ) wrapQ.style.display = '';
     } else {
-      btnV.style.background = 'var(--danger)';  btnV.style.borderColor = 'var(--danger)';  btnV.style.color = 'white';
-      btnC.style.background = 'var(--surface)'; btnC.style.borderColor = 'var(--border)';  btnC.style.color = 'var(--text)';
-      if (wrap) wrap.style.display = 'none';
+      if (btnM) { btnM.style.background = '#8b5cf6'; btnM.style.borderColor = '#8b5cf6'; btnM.style.color = 'white'; }
+      if (wrap)  wrap.style.display  = 'none';
+      if (wrapQ) wrapQ.style.display = 'none';
     }
-    if (btnC) btnC.setAttribute('data-tipo', tipo === 'compra' ? 'compra' : '');
-    if (btnV) btnV.setAttribute('data-tipo', tipo === 'venda'  ? 'venda'  : '');
+    if (btnC) btnC.setAttribute('data-tipo', tipo === 'compra'    ? 'compra'    : '');
+    if (btnV) btnV.setAttribute('data-tipo', tipo === 'venda'     ? 'venda'     : '');
+    if (btnM) btnM.setAttribute('data-tipo', tipo === 'monitorar' ? 'monitorar' : '');
   }
 
   function getTipoMovCart(carteiraId) {
-    const btnV = document.getElementById('ci-tipo-venda-' + carteiraId);
+    const btnM = document.getElementById('ci-tipo-monitor-' + carteiraId);
+    if (btnM && btnM.getAttribute('data-tipo') === 'monitorar') return 'monitorar';
+    const btnV = document.getElementById('ci-tipo-venda-'   + carteiraId);
     return (btnV && btnV.getAttribute('data-tipo') === 'venda') ? 'venda' : 'compra';
   }
 
   function adicionarAcaoCarteira(carteiraId) {
     const ticker = document.getElementById('ci-ticker-' + carteiraId).value.trim().toUpperCase();
-    const qtd    = parseFloat(document.getElementById('ci-qtd-' + carteiraId).value);
-    if (!ticker)          { alert('Informe o ticker.'); return; }
-    if (!qtd || qtd <= 0) { alert('Informe a quantidade.'); return; }
+    if (!ticker) { alert('Informe o ticker.'); return; }
 
     const c = carteiras.find(x => x.id === carteiraId);
     if (!c) return;
 
     const btn    = document.getElementById('ci-btn-' + carteiraId);
     const editId = btn ? btn.getAttribute('data-edit-id') : null;
+    const tipo   = getTipoMovCart(carteiraId);
 
     if (editId) {
-      // Modo edição manual — mantém comportamento original
+      // Modo edição manual
+      const qtd   = parseFloat(document.getElementById('ci-qtd-'   + carteiraId).value);
       const custo = parseFloat(document.getElementById('ci-custo-' + carteiraId).value);
+      if (!qtd   || qtd   <= 0) { alert('Informe a quantidade.');    return; }
       if (!custo || custo <= 0) { alert('Informe o custo unitário.'); return; }
       const idx = c.acoes.findIndex(a => a.id === editId);
       if (idx !== -1) {
@@ -5723,15 +5737,28 @@
         c.acoes[idx] = { id: editId, ticker, qtd, custo, precoAtual };
       }
       if (btn) { btn.textContent = '+'; btn.style.background = 'var(--primary)'; btn.removeAttribute('data-edit-id'); }
+    } else if (tipo === 'monitorar') {
+      // Watchlist: apenas acompanhar cotação, sem posição
+      const existente = c.acoes.find(a => a.ticker === ticker);
+      if (existente) {
+        if (existente.monitorar) { alert(ticker + ' já está na lista de monitoramento.'); return; }
+        alert(ticker + ' já está na carteira como posição.');
+        return;
+      }
+      c.acoes.push({ id: Date.now().toString(), ticker, qtd: 0, custo: 0, monitorar: true });
     } else {
-      const tipo = getTipoMovCart(carteiraId);
+      const qtd = parseFloat(document.getElementById('ci-qtd-' + carteiraId).value);
+      if (!qtd || qtd <= 0) { alert('Informe a quantidade.'); return; }
       const existente = c.acoes.find(a => a.ticker === ticker);
 
       if (tipo === 'compra') {
         const custo = parseFloat(document.getElementById('ci-custo-' + carteiraId).value);
         if (!custo || custo <= 0) { alert('Informe o custo unitário para compra.'); return; }
-        if (existente) {
-          // Custo médio ponderado: (qtdAnt * custoAnt + qtdNova * custoNovo) / (qtdAnt + qtdNova)
+        if (existente && existente.monitorar) {
+          // Converte monitoramento em posição real
+          existente.qtd = qtd; existente.custo = custo; delete existente.monitorar;
+        } else if (existente) {
+          // Custo médio ponderado
           const novaQtd   = existente.qtd + qtd;
           const novoCusto = ((existente.qtd * existente.custo) + (qtd * custo)) / novaQtd;
           existente.qtd   = novaQtd;
@@ -5741,7 +5768,7 @@
         }
       } else {
         // Venda: só diminui quantidade
-        if (!existente) { alert('Ticker "' + ticker + '" não encontrado nesta carteira.'); return; }
+        if (!existente || existente.monitorar) { alert('Ticker "' + ticker + '" não encontrado nesta carteira.'); return; }
         if (qtd > existente.qtd) { alert('Quantidade vendida (' + qtd + ') maior que o saldo (' + existente.qtd + ').'); return; }
         existente.qtd = Math.round((existente.qtd - qtd) * 1000) / 1000;
         if (existente.qtd === 0) {
@@ -5754,8 +5781,10 @@
 
     salvarCarteiras();
     document.getElementById('ci-ticker-' + carteiraId).value = '';
-    document.getElementById('ci-qtd-'    + carteiraId).value = '';
-    document.getElementById('ci-custo-'  + carteiraId).value = '';
+    const qtdEl   = document.getElementById('ci-qtd-'   + carteiraId);
+    const custoEl = document.getElementById('ci-custo-' + carteiraId);
+    if (qtdEl)   qtdEl.value   = '';
+    if (custoEl) custoEl.value = '';
     atualizarCotacoesCarteira(carteiraId);
   }
 
@@ -5900,8 +5929,9 @@
 
     el.innerHTML = carteiras.map(c => {
       const _fatorUSD = (a) => a.moeda === 'USD' ? _dolarAtual : 1;
-      const totalCusto   = c.acoes.reduce((s, a) => s + a.qtd * a.custo * _fatorUSD(a), 0);
-      const totalAtual   = c.acoes.reduce((s, a) => s + a.qtd * (a.precoAtual || a.custo) * _fatorUSD(a), 0);
+      const acoesPos     = c.acoes.filter(a => !a.monitorar);
+      const totalCusto   = acoesPos.reduce((s, a) => s + a.qtd * a.custo * _fatorUSD(a), 0);
+      const totalAtual   = acoesPos.reduce((s, a) => s + a.qtd * (a.precoAtual || a.custo) * _fatorUSD(a), 0);
       const varTotal     = totalCusto > 0 ? ((totalAtual - totalCusto) / totalCusto * 100) : 0;
       const corVar       = varTotal >= 0 ? 'var(--success)' : 'var(--danger)';
       const sinalVar     = varTotal >= 0 ? '+' : '';
@@ -5943,12 +5973,13 @@
       const linhasAcoes = acoesOrd.length ? acoesOrd.map((a, idx) => {
         const fUSD    = a.moeda === 'USD' ? _dolarAtual : 1;
         const isUSD   = a.moeda === 'USD';
-        const tCusto  = a.qtd * a.custo * fUSD;
-        const tAtual  = a.qtd * (a.precoAtual || a.custo) * fUSD;
+        const isMon   = !!a.monitorar;
+        const tCusto  = isMon ? 0 : a.qtd * a.custo * fUSD;
+        const tAtual  = isMon ? 0 : a.qtd * (a.precoAtual || a.custo) * fUSD;
         const varAcao = tCusto > 0 ? ((tAtual - tCusto) / tCusto * 100) : 0;
         const corAcao = varAcao >= 0 ? 'var(--success)' : 'var(--danger)';
         const acoes   = '<div style="display:flex;gap:4px;justify-content:center;">' +
-          '<button onclick="editarAcaoCarteira(\'' + c.id + '\',\'' + a.id + '\')" title="Alterar" style="background:#fef3c7;border:none;border-radius:6px;color:#92400e;font-size:13px;cursor:pointer;padding:4px 7px;">✏️</button>' +
+          (isMon ? '' : '<button onclick="editarAcaoCarteira(\'' + c.id + '\',\'' + a.id + '\')" title="Alterar" style="background:#fef3c7;border:none;border-radius:6px;color:#92400e;font-size:13px;cursor:pointer;padding:4px 7px;">✏️</button>') +
           '<button onclick="removerAcaoCarteira(\'' + c.id + '\',\'' + a.id + '\')" title="Excluir" style="background:#fee2e2;border:none;border-radius:6px;color:#dc2626;font-size:13px;cursor:pointer;padding:4px 7px;">🗑</button>' +
           '</div>';
         const saldoAcao   = tAtual;
@@ -6008,10 +6039,15 @@
               (aVend ? '<span style="font-size:11px;font-weight:700;color:' + pCor(probV) + ';" title="Prob. venda em 30d">' + (probV!=null?probV.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%':'—') + '</span>' : '') +
             '</div>'
           : '<span style="color:var(--text-muted);">—</span>';
-        return '<tr style="border-bottom:1px solid var(--border);background:' + bgLinha + ';">' +
-          '<td style="padding:8px;font-size:12px;font-weight:700;white-space:nowrap;">' + a.ticker + '</td>' +
-          '<td style="padding:8px;font-size:12px;text-align:right;">' + Number(a.qtd).toLocaleString('pt-BR') + '</td>' +
-          '<td style="padding:8px;font-size:12px;text-align:right;">' + fmtUSD(a.custo) + (isUSD ? ' <span style="font-size:9px;background:#dbeafe;color:#1d4ed8;border-radius:4px;padding:1px 4px;font-weight:700;">USD</span>' : '') + '</td>' +
+        const bgMon = isMon ? (idx%2===0?'rgba(139,92,246,0.06)':'rgba(139,92,246,0.10)') : bgLinha;
+        const tdM   = '<td style="padding:8px;text-align:right;color:var(--text-muted);font-size:12px;">—</td>';
+        return '<tr style="border-bottom:1px solid var(--border);background:' + bgMon + ';">' +
+          '<td style="padding:8px;font-size:12px;font-weight:700;white-space:nowrap;">' +
+            a.ticker +
+            (isMon ? ' <span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;background:rgba(139,92,246,0.15);color:#8b5cf6;vertical-align:middle;">👁 Monitor</span>' : '') +
+          '</td>' +
+          (isMon ? tdM : '<td style="padding:8px;font-size:12px;text-align:right;">' + Number(a.qtd).toLocaleString('pt-BR') + '</td>') +
+          (isMon ? tdM : '<td style="padding:8px;font-size:12px;text-align:right;">' + fmtUSD(a.custo) + (isUSD ? ' <span style="font-size:9px;background:#dbeafe;color:#1d4ed8;border-radius:4px;padding:1px 4px;font-weight:700;">USD</span>' : '') + '</td>') +
           '<td style="padding:8px;font-size:12px;text-align:right;color:' + (a.precoAtual ? 'var(--text)' : 'var(--text-muted)') + ';">' + (a.precoAtual ? fmtUSD(a.precoAtual) : '—') + '</td>' +
           '<td style="padding:8px;font-size:11px;text-align:right;color:' + (a.min52 ? 'var(--danger)' : 'var(--text-muted)') + ';">' + (a.min52 ? fmtUSD(a.min52) : '—') + '</td>' +
           '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + corVsMin + ';">' + (vsMin52 != null ? fmtPct2(vsMin52) : '—') + '</td>' +
@@ -6020,11 +6056,11 @@
           '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + cor7d + ';">' + (tem7d ? pref7d + fmtPct(a.var7dPct) : '—') + '</td>' +
           '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + corDia + ';">' + (temDia ? prefDia + fmtPct(a.varDiaPct) : '—') + '</td>' +
           '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + corDia + ';">' + (temDia ? prefDia + fmtUSD(a.varDiaVal) : '—') + '</td>' +
-          '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + corSaldoDia + ';">' + (saldoDia != null ? prefSaldoDia + fmt(saldoDia * fUSD) : '—') + '</td>' +
-          '<td style="padding:8px;font-size:12px;font-weight:700;text-align:right;color:' + (a.precoAtual ? 'var(--text)' : 'var(--text-muted)') + ';">' + fmt(saldoAcao) + '</td>' +
-          '<td style="padding:8px;font-size:12px;font-weight:700;text-align:right;color:var(--text-muted);">' + Number(partPct).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}) + '%</td>' +
-          '<td style="padding:8px;font-size:12px;font-weight:700;text-align:right;color:' + (a.precoAtual ? corLucro : 'var(--text-muted)') + ';">' + (a.precoAtual ? prefLucro + fmt(lucroAcao) : '—') + '</td>' +
-          '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + corAcao + ';">' + fmtPct(varAcao) + '</td>' +
+          (isMon ? tdM : '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + corSaldoDia + ';">' + (saldoDia != null ? prefSaldoDia + fmt(saldoDia * fUSD) : '—') + '</td>') +
+          (isMon ? tdM : '<td style="padding:8px;font-size:12px;font-weight:700;text-align:right;color:' + (a.precoAtual ? 'var(--text)' : 'var(--text-muted)') + ';">' + fmt(saldoAcao) + '</td>') +
+          (isMon ? tdM : '<td style="padding:8px;font-size:12px;font-weight:700;text-align:right;color:var(--text-muted);">' + Number(partPct).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}) + '%</td>') +
+          (isMon ? tdM : '<td style="padding:8px;font-size:12px;font-weight:700;text-align:right;color:' + (a.precoAtual ? corLucro : 'var(--text-muted)') + ';">' + (a.precoAtual ? prefLucro + fmt(lucroAcao) : '—') + '</td>') +
+          (isMon ? tdM : '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + corAcao + ';">' + fmtPct(varAcao) + '</td>') +
           '<td style="padding:6px 8px;text-align:center;">' + cellAlerta + '</td>' +
           '<td style="padding:6px 8px;text-align:right;">' + cellProb + '</td>' +
           '<td style="padding:8px;">' + acoes + '</td>' +
@@ -6034,8 +6070,8 @@
       const lucroTotal   = totalAtual - totalCusto;
       const corLucroTot  = lucroTotal >= 0 ? 'var(--success)' : 'var(--danger)';
       const prefLucroTot = lucroTotal >= 0 ? '+' : '';
-      const saldoDiaTotal= c.acoes.reduce((s, a) => a.varDiaVal != null ? s + a.qtd * a.varDiaVal * (a.moeda === 'USD' ? _dolarAtual : 1) : s, 0);
-      const temDiaTot    = c.acoes.some(a => a.varDiaVal != null);
+      const saldoDiaTotal= acoesPos.reduce((s, a) => a.varDiaVal != null ? s + a.qtd * a.varDiaVal * (a.moeda === 'USD' ? _dolarAtual : 1) : s, 0);
+      const temDiaTot    = acoesPos.some(a => a.varDiaVal != null);
       const corDiaTot    = saldoDiaTotal >= 0 ? 'var(--success)' : 'var(--danger)';
       const prefDiaTot   = saldoDiaTotal >= 0 ? '+' : '';
       const rodape = c.acoes.length ? '<tr style="background:var(--bg);">' +
@@ -6134,14 +6170,15 @@
         // Form adicionar / editar ação
         '<div id="ci-form-' + c.id + '" style="padding:12px 14px;background:var(--bg);border-top:1px solid var(--border);">' +
           '<div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:8px;">+ Adicionar / Editar ação</div>' +
-          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px;">' +
+          '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:6px;">' +
             '<button id="ci-tipo-compra-' + c.id + '" onclick="setTipoMovCart(\'' + c.id + '\',\'compra\')" style="padding:7px;border:2px solid var(--success);border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;background:var(--success);color:white;">📈 Compra</button>' +
-            '<button id="ci-tipo-venda-' + c.id + '" onclick="setTipoMovCart(\'' + c.id + '\',\'venda\')" style="padding:7px;border:2px solid var(--border);border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;background:var(--surface);color:var(--text);">📉 Venda</button>' +
+            '<button id="ci-tipo-venda-'   + c.id + '" onclick="setTipoMovCart(\'' + c.id + '\',\'venda\')"     style="padding:7px;border:2px solid var(--border);border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;background:var(--surface);color:var(--text);">📉 Venda</button>' +
+            '<button id="ci-tipo-monitor-' + c.id + '" onclick="setTipoMovCart(\'' + c.id + '\',\'monitorar\')" style="padding:7px;border:2px solid var(--border);border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;background:var(--surface);color:var(--text);">👁 Monitorar</button>' +
           '</div>' +
           '<div style="display:grid;grid-template-columns:2fr 1.5fr 1.5fr auto;gap:6px;align-items:end;">' +
             '<div><label style="font-size:10px;color:var(--text-muted);">Ticker</label>' +
               '<input type="text" id="ci-ticker-' + c.id + '" placeholder="BBAS3" maxlength="10" oninput="this.value=this.value.toUpperCase()" style="width:100%;margin-top:3px;padding:8px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;font-weight:700;background:var(--surface);color:var(--text);"/></div>' +
-            '<div><label style="font-size:10px;color:var(--text-muted);">Quantidade</label>' +
+            '<div id="ci-qtd-wrap-' + c.id + '"><label style="font-size:10px;color:var(--text-muted);">Quantidade</label>' +
               '<input type="number" id="ci-qtd-' + c.id + '" placeholder="0" min="0.001" step="any" style="width:100%;margin-top:3px;padding:8px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text);"/></div>' +
             '<div id="ci-custo-wrap-' + c.id + '"><label style="font-size:10px;color:var(--text-muted);">Custo Unit. R$</label>' +
               '<input type="number" id="ci-custo-' + c.id + '" placeholder="0,00" min="0.01" step="0.01" style="width:100%;margin-top:3px;padding:8px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text);"/></div>' +
