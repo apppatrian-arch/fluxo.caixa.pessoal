@@ -6530,7 +6530,7 @@
     const perfil = document.getElementById('paul-usr-perfil').value;
     if (!nome)  { alert('Informe o nome.'); return; }
     if (!email || !email.includes('@')) { alert('Informe um e-mail válido.'); return; }
-    const lista = paulUsuariosCache();
+    const lista = await paulUsuariosCarregar(); // sempre busca da API para evitar duplicatas
     if (lista.some(u => u.email.toLowerCase() === email)) { alert('Este e-mail já está cadastrado.'); return; }
     await paulFetch('POST', '/paulistinha/usuarios', { nome: nome + '|' + perfil, email, senha_hash: 'x' });
     document.getElementById('paul-usr-nome').value  = '';
