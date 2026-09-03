@@ -1787,6 +1787,35 @@
   </div>
 </div>
 
+<!-- MODAL ALERTA DE COTAÇÃO -->
+<div class="modal-overlay" id="modal-alerta-cotacao" style="display:none;" onclick="if(event.target===this)fecharAlertaModal()">
+  <div class="modal" style="max-width:340px;">
+    <h2>🔔 Alerta de Cotação</h2>
+    <div id="alerta-modal-ticker-label" style="font-size:12px;color:var(--text-muted);margin-bottom:16px;margin-top:-8px;"></div>
+    <div class="form-group">
+      <label style="font-size:11px;font-weight:700;color:var(--text-muted);">Preço Alvo (R$)</label>
+      <input id="alerta-modal-preco" type="number" step="0.01" min="0.01" placeholder="0,00"
+        style="width:100%;margin-top:4px;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:16px;font-weight:700;background:var(--bg);color:var(--text);box-sizing:border-box;" />
+    </div>
+    <div class="form-group">
+      <label style="font-size:11px;font-weight:700;color:var(--text-muted);display:block;margin-bottom:6px;">Tipo de Alerta</label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <button id="alerta-btn-compra" onclick="setAlertaTipo('compra')" style="padding:9px;border:2px solid var(--success);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;background:var(--success);color:white;">📈 Compra</button>
+        <button id="alerta-btn-venda" onclick="setAlertaTipo('venda')" style="padding:9px;border:2px solid var(--border);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;background:var(--surface);color:var(--text);">📉 Venda</button>
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:8px;line-height:1.5;">
+        <strong>Compra:</strong> alerta quando preço cai até o valor.<br>
+        <strong>Venda:</strong> alerta quando preço sobe até o valor.
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:4px;">
+      <button class="btn btn-ghost" onclick="fecharAlertaModal()" style="flex:1;">Cancelar</button>
+      <button class="btn btn-ghost" onclick="limparAlerta()" style="color:var(--danger);">🗑</button>
+      <button class="btn btn-primary" onclick="salvarAlertaModal()" style="flex:2;">✅ Salvar</button>
+    </div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div id="toast"></div>
 
@@ -4379,6 +4408,65 @@
     }
   }
 
+  // ── ALERTAS DE COTAÇÃO (Ações) ──
+  function _getAlertas() {
+    return JSON.parse(localStorage.getItem(chaveLocal('acoes_alertas')) || '{}');
+  }
+  function _setAlerta(ticker, preco, tipo) {
+    const a = _getAlertas(); a[ticker] = { preco: Number(preco), tipo };
+    localStorage.setItem(chaveLocal('acoes_alertas'), JSON.stringify(a));
+    renderCarteiras();
+  }
+  function _delAlerta(ticker) {
+    const a = _getAlertas(); delete a[ticker];
+    localStorage.setItem(chaveLocal('acoes_alertas'), JSON.stringify(a));
+    renderCarteiras();
+  }
+  // Prob. de atingir preço alvo em ~21 dias úteis (σ=30% assumido, Black-Scholes simplificado)
+  function _probAlertaAcao(precoAtual, precoAlerta, tipo) {
+    if (!precoAtual || !precoAlerta || precoAtual <= 0 || precoAlerta <= 0) return null;
+    const sigma = 0.30, T = 21 / 252;
+    const d = Math.log(precoAtual / precoAlerta) / (sigma * Math.sqrt(T));
+    return (tipo === 'compra' ? _normCDF(-d) : _normCDF(d)) * 100;
+  }
+  let _alertaModalTicker = null, _alertaModalTipo = 'compra';
+  function abrirAlertaModal(ticker, precoAtual) {
+    _alertaModalTicker = ticker;
+    const al = _getAlertas()[ticker] || {};
+    _alertaModalTipo = al.tipo || 'compra';
+    document.getElementById('alerta-modal-ticker-label').textContent =
+      ticker + (precoAtual ? ' — Atual: R$ ' + Number(precoAtual).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) : '');
+    document.getElementById('alerta-modal-preco').value = al.preco ? Number(al.preco).toFixed(2) : '';
+    _alertaAtualizarBotoes();
+    document.getElementById('modal-alerta-cotacao').style.display = 'flex';
+  }
+  function _alertaAtualizarBotoes() {
+    const isC = _alertaModalTipo === 'compra';
+    const bC = document.getElementById('alerta-btn-compra');
+    const bV = document.getElementById('alerta-btn-venda');
+    bC.style.background = isC ? 'var(--success)' : 'var(--surface)';
+    bC.style.color = isC ? 'white' : 'var(--text)';
+    bC.style.borderColor = isC ? 'var(--success)' : 'var(--border)';
+    bV.style.background = !isC ? 'var(--danger)' : 'var(--surface)';
+    bV.style.color = !isC ? 'white' : 'var(--text)';
+    bV.style.borderColor = !isC ? 'var(--danger)' : 'var(--border)';
+  }
+  function setAlertaTipo(tipo) { _alertaModalTipo = tipo; _alertaAtualizarBotoes(); }
+  function fecharAlertaModal() {
+    document.getElementById('modal-alerta-cotacao').style.display = 'none';
+    _alertaModalTicker = null;
+  }
+  function salvarAlertaModal() {
+    const preco = parseFloat(document.getElementById('alerta-modal-preco').value);
+    if (!_alertaModalTicker || !preco || preco <= 0) { alert('Informe um preço válido.'); return; }
+    _setAlerta(_alertaModalTicker, preco, _alertaModalTipo);
+    fecharAlertaModal();
+  }
+  function limparAlerta() {
+    if (!_alertaModalTicker) return;
+    _delAlerta(_alertaModalTicker); fecharAlertaModal();
+  }
+
   function _opValorIntrinico(tipo, precoAcao, strike) {
     if (!precoAcao || !strike) return 0;
     if (_opBase(tipo) === 'call') return Math.max(0, precoAcao - strike);
@@ -5583,6 +5671,23 @@
         const corVsMin   = vsMin52 == null ? 'var(--text-muted)' : vsMin52 >= 0 ? 'var(--success)' : 'var(--danger)';
         const corVsMax   = vsMáx52 == null ? 'var(--text-muted)' : vsMáx52 >= 0 ? 'var(--success)' : 'var(--danger)';
         const fmtPct2 = v => (v >= 0 ? '+' : '') + Number(v).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}) + '%';
+        // Alerta de cotação
+        const alrt      = _getAlertas()[a.ticker] || null;
+        const aPreco    = alrt ? alrt.preco : null;
+        const aTipo     = alrt ? alrt.tipo : null;
+        const aTrig     = aPreco && a.precoAtual ? (aTipo === 'compra' ? a.precoAtual <= aPreco : a.precoAtual >= aPreco) : false;
+        const aNear     = aPreco && a.precoAtual && !aTrig ? Math.abs(a.precoAtual - aPreco) / aPreco < 0.03 : false;
+        const aBell     = aTrig ? '🔔' : aNear ? '🔕' : '';
+        const aBellCor  = aTipo === 'compra' ? 'var(--success)' : 'var(--danger)';
+        const probAlert = _probAlertaAcao(a.precoAtual, aPreco, aTipo);
+        const probACor  = probAlert == null ? 'var(--text-muted)' : probAlert >= 60 ? 'var(--success)' : probAlert >= 35 ? '#f59e0b' : 'var(--danger)';
+        const cellAlerta = aPreco
+          ? '<div style="display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;" onclick="abrirAlertaModal(\'' + a.ticker + '\',' + (a.precoAtual||'null') + ')">' +
+              '<span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;background:' + (aTipo==='compra'?'rgba(34,197,94,0.12)':'rgba(239,68,68,0.12)') + ';color:' + (aTipo==='compra'?'var(--success)':'var(--danger)') + ';">' + (aTipo==='compra'?'C':'V') + '</span>' +
+              '<span style="font-size:11px;font-weight:700;color:' + (aTrig?aBellCor:'var(--text)') + ';">' + Number(aPreco).toLocaleString('pt-BR',{minimumFractionDigits:2}) + '</span>' +
+              (aBell ? '<span style="font-size:12px;">' + aBell + '</span>' : '') +
+            '</div>'
+          : '<button onclick="abrirAlertaModal(\'' + a.ticker + '\',' + (a.precoAtual||'null') + ')" style="font-size:10px;padding:3px 7px;border:1.5px solid var(--border);border-radius:6px;background:transparent;color:var(--text-muted);cursor:pointer;white-space:nowrap;">+ alerta</button>';
         return '<tr style="border-bottom:1px solid var(--border);background:' + bgLinha + ';">' +
           '<td style="padding:8px;font-size:12px;font-weight:700;white-space:nowrap;">' + a.ticker + '</td>' +
           '<td style="padding:8px;font-size:12px;text-align:right;">' + Number(a.qtd).toLocaleString('pt-BR') + '</td>' +
@@ -5600,9 +5705,11 @@
           '<td style="padding:8px;font-size:12px;font-weight:700;text-align:right;color:var(--text-muted);">' + Number(partPct).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}) + '%</td>' +
           '<td style="padding:8px;font-size:12px;font-weight:700;text-align:right;color:' + (a.precoAtual ? corLucro : 'var(--text-muted)') + ';">' + (a.precoAtual ? prefLucro + fmt(lucroAcao) : '—') + '</td>' +
           '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + corAcao + ';">' + fmtPct(varAcao) + '</td>' +
+          '<td style="padding:6px 8px;text-align:center;">' + cellAlerta + '</td>' +
+          '<td style="padding:6px 8px;font-size:11px;font-weight:700;text-align:right;color:' + probACor + ';" title="Prob. B-S simplificada de atingir preço alerta em ~30 dias corridos (σ=30% assumido)">' + (probAlert != null ? Number(probAlert).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}) + '%' : '—') + '</td>' +
           '<td style="padding:8px;">' + acoes + '</td>' +
         '</tr>';
-      }).join('') : '<tr><td colspan="17" style="padding:12px;text-align:center;color:var(--text-muted);font-size:12px;">Nenhuma ação. Adicione abaixo.</td></tr>';
+      }).join('') : '<tr><td colspan="19" style="padding:12px;text-align:center;color:var(--text-muted);font-size:12px;">Nenhuma ação. Adicione abaixo.</td></tr>';
 
       const lucroTotal   = totalAtual - totalCusto;
       const corLucroTot  = lucroTotal >= 0 ? 'var(--success)' : 'var(--danger)';
@@ -5622,7 +5729,7 @@
         '<td style="padding:8px;font-size:12px;font-weight:800;text-align:right;color:var(--text-muted);">100%</td>' +
         '<td style="padding:8px;font-size:12px;font-weight:800;text-align:right;color:' + corLucroTot + ';">' + prefLucroTot + fmt(lucroTotal) + '</td>' +
         '<td style="padding:8px;font-size:12px;font-weight:800;text-align:right;color:' + corVar + ';">' + fmtPct(varTotal) + '</td>' +
-        '<td></td></tr>' : '';
+        '<td></td><td></td><td></td></tr>' : '';
 
       const viewMode = carteiraViewMode[c.id] || 'table';
 
@@ -5698,6 +5805,8 @@
             th('part',      'Part.%',     'right') +
             th('lucro',     'Lucro/Prej.','right') +
             th('var',       'Var%',       'right') +
+            '<th style="padding:7px 8px;font-size:10px;color:var(--text-muted);text-align:center;font-weight:700;cursor:default;" title="Clique em + alerta para definir preço e tipo">Alerta 🔔</th>' +
+            '<th style="padding:7px 8px;font-size:10px;color:var(--text-muted);text-align:right;font-weight:700;cursor:default;" title="Probabilidade B-S simplificada (σ=30%) de atingir o preço alerta em ~30 dias corridos">Prob.30d ⓘ</th>' +
             '<th style="padding:7px 8px;font-size:10px;color:var(--text-muted);text-align:center;font-weight:700;">Ações</th>' +
           '</tr></thead>' +
           '<tbody>' + linhasAcoes + rodape + '</tbody>' +
