@@ -1789,28 +1789,27 @@
 
 <!-- MODAL ALERTA DE COTAÇÃO -->
 <div class="modal-overlay" id="modal-alerta-cotacao" style="display:none;" onclick="if(event.target===this)fecharAlertaModal()">
-  <div class="modal" style="max-width:340px;">
+  <div class="modal" style="max-width:380px;">
     <h2>🔔 Alerta de Cotação</h2>
     <div id="alerta-modal-ticker-label" style="font-size:12px;color:var(--text-muted);margin-bottom:16px;margin-top:-8px;"></div>
-    <div class="form-group">
-      <label style="font-size:11px;font-weight:700;color:var(--text-muted);">Preço Alvo (R$)</label>
-      <input id="alerta-modal-preco" type="number" step="0.01" min="0.01" placeholder="0,00"
-        style="width:100%;margin-top:4px;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:16px;font-weight:700;background:var(--bg);color:var(--text);box-sizing:border-box;" />
-    </div>
-    <div class="form-group">
-      <label style="font-size:11px;font-weight:700;color:var(--text-muted);display:block;margin-bottom:6px;">Tipo de Alerta</label>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-        <button id="alerta-btn-compra" onclick="setAlertaTipo('compra')" style="padding:9px;border:2px solid var(--success);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;background:var(--success);color:white;">📈 Compra</button>
-        <button id="alerta-btn-venda" onclick="setAlertaTipo('venda')" style="padding:9px;border:2px solid var(--border);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;background:var(--surface);color:var(--text);">📉 Venda</button>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+      <div style="background:rgba(34,197,94,0.06);border:1.5px solid rgba(34,197,94,0.3);border-radius:10px;padding:12px;">
+        <div style="font-size:11px;font-weight:700;color:var(--success);margin-bottom:6px;">📈 Compra</div>
+        <input id="alerta-modal-compra" type="number" step="0.01" min="0.01" placeholder="Deixe vazio p/ remover"
+          style="width:100%;padding:8px;border:1.5px solid rgba(34,197,94,0.4);border-radius:7px;font-size:15px;font-weight:700;background:var(--bg);color:var(--text);box-sizing:border-box;" />
+        <div style="font-size:10px;color:var(--text-muted);margin-top:5px;line-height:1.4;">Alerta quando preço <strong>cair</strong> até este valor</div>
       </div>
-      <div style="font-size:11px;color:var(--text-muted);margin-top:8px;line-height:1.5;">
-        <strong>Compra:</strong> alerta quando preço cai até o valor.<br>
-        <strong>Venda:</strong> alerta quando preço sobe até o valor.
+      <div style="background:rgba(239,68,68,0.06);border:1.5px solid rgba(239,68,68,0.3);border-radius:10px;padding:12px;">
+        <div style="font-size:11px;font-weight:700;color:var(--danger);margin-bottom:6px;">📉 Venda</div>
+        <input id="alerta-modal-venda" type="number" step="0.01" min="0.01" placeholder="Deixe vazio p/ remover"
+          style="width:100%;padding:8px;border:1.5px solid rgba(239,68,68,0.4);border-radius:7px;font-size:15px;font-weight:700;background:var(--bg);color:var(--text);box-sizing:border-box;" />
+        <div style="font-size:10px;color:var(--text-muted);margin-top:5px;line-height:1.4;">Alerta quando preço <strong>subir</strong> até este valor</div>
       </div>
     </div>
-    <div style="display:flex;gap:8px;margin-top:4px;">
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px;">Deixe um campo vazio para remover apenas aquele alerta.</div>
+    <div style="display:flex;gap:8px;">
       <button class="btn btn-ghost" onclick="fecharAlertaModal()" style="flex:1;">Cancelar</button>
-      <button class="btn btn-ghost" onclick="limparAlerta()" style="color:var(--danger);">🗑</button>
+      <button class="btn btn-ghost" onclick="limparAlerta()" style="color:var(--danger);" title="Remover todos os alertas deste ticker">🗑 Remover tudo</button>
       <button class="btn btn-primary" onclick="salvarAlertaModal()" style="flex:2;">✅ Salvar</button>
     </div>
   </div>
@@ -4412,8 +4411,13 @@
   function _getAlertas() {
     return JSON.parse(localStorage.getItem(chaveLocal('acoes_alertas')) || '{}');
   }
-  function _setAlerta(ticker, preco, tipo) {
-    const a = _getAlertas(); a[ticker] = { preco: Number(preco), tipo };
+  function _setAlerta(ticker, compra, venda) {
+    const a = _getAlertas();
+    const obj = {};
+    if (compra && compra > 0) obj.compra = Number(compra);
+    if (venda  && venda  > 0) obj.venda  = Number(venda);
+    if (Object.keys(obj).length) a[ticker] = obj;
+    else delete a[ticker];
     localStorage.setItem(chaveLocal('acoes_alertas'), JSON.stringify(a));
     renderCarteiras();
   }
@@ -4429,37 +4433,29 @@
     const d = Math.log(precoAtual / precoAlerta) / (sigma * Math.sqrt(T));
     return (tipo === 'compra' ? _normCDF(-d) : _normCDF(d)) * 100;
   }
-  let _alertaModalTicker = null, _alertaModalTipo = 'compra';
+  let _alertaModalTicker = null;
   function abrirAlertaModal(ticker, precoAtual) {
     _alertaModalTicker = ticker;
     const al = _getAlertas()[ticker] || {};
-    _alertaModalTipo = al.tipo || 'compra';
+    // migração legado: { preco, tipo } → novo formato
+    const compraV = al.compra || (al.tipo === 'compra' ? al.preco : null) || '';
+    const vendaV  = al.venda  || (al.tipo === 'venda'  ? al.preco : null) || '';
     document.getElementById('alerta-modal-ticker-label').textContent =
       ticker + (precoAtual ? ' — Atual: R$ ' + Number(precoAtual).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) : '');
-    document.getElementById('alerta-modal-preco').value = al.preco ? Number(al.preco).toFixed(2) : '';
-    _alertaAtualizarBotoes();
+    document.getElementById('alerta-modal-compra').value = compraV ? Number(compraV).toFixed(2) : '';
+    document.getElementById('alerta-modal-venda').value  = vendaV  ? Number(vendaV).toFixed(2)  : '';
     document.getElementById('modal-alerta-cotacao').style.display = 'flex';
   }
-  function _alertaAtualizarBotoes() {
-    const isC = _alertaModalTipo === 'compra';
-    const bC = document.getElementById('alerta-btn-compra');
-    const bV = document.getElementById('alerta-btn-venda');
-    bC.style.background = isC ? 'var(--success)' : 'var(--surface)';
-    bC.style.color = isC ? 'white' : 'var(--text)';
-    bC.style.borderColor = isC ? 'var(--success)' : 'var(--border)';
-    bV.style.background = !isC ? 'var(--danger)' : 'var(--surface)';
-    bV.style.color = !isC ? 'white' : 'var(--text)';
-    bV.style.borderColor = !isC ? 'var(--danger)' : 'var(--border)';
-  }
-  function setAlertaTipo(tipo) { _alertaModalTipo = tipo; _alertaAtualizarBotoes(); }
   function fecharAlertaModal() {
     document.getElementById('modal-alerta-cotacao').style.display = 'none';
     _alertaModalTicker = null;
   }
   function salvarAlertaModal() {
-    const preco = parseFloat(document.getElementById('alerta-modal-preco').value);
-    if (!_alertaModalTicker || !preco || preco <= 0) { alert('Informe um preço válido.'); return; }
-    _setAlerta(_alertaModalTicker, preco, _alertaModalTipo);
+    if (!_alertaModalTicker) return;
+    const compra = parseFloat(document.getElementById('alerta-modal-compra').value) || 0;
+    const venda  = parseFloat(document.getElementById('alerta-modal-venda').value)  || 0;
+    if (!compra && !venda) { alert('Informe pelo menos um preço alvo.'); return; }
+    _setAlerta(_alertaModalTicker, compra || null, venda || null);
     fecharAlertaModal();
   }
   function limparAlerta() {
@@ -5789,23 +5785,40 @@
         const corVsMin   = vsMin52 == null ? 'var(--text-muted)' : vsMin52 >= 0 ? 'var(--success)' : 'var(--danger)';
         const corVsMax   = vsMáx52 == null ? 'var(--text-muted)' : vsMáx52 >= 0 ? 'var(--success)' : 'var(--danger)';
         const fmtPct2 = v => (v >= 0 ? '+' : '') + Number(v).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}) + '%';
-        // Alerta de cotação
-        const alrt      = _getAlertas()[a.ticker] || null;
-        const aPreco    = alrt ? alrt.preco : null;
-        const aTipo     = alrt ? alrt.tipo : null;
-        const aTrig     = aPreco && a.precoAtual ? (aTipo === 'compra' ? a.precoAtual <= aPreco : a.precoAtual >= aPreco) : false;
-        const aNear     = aPreco && a.precoAtual && !aTrig ? Math.abs(a.precoAtual - aPreco) / aPreco < 0.03 : false;
-        const aBell     = aTrig ? '🔔' : aNear ? '🔕' : '';
-        const aBellCor  = aTipo === 'compra' ? 'var(--success)' : 'var(--danger)';
-        const probAlert = _probAlertaAcao(a.precoAtual, aPreco, aTipo);
-        const probACor  = probAlert == null ? 'var(--text-muted)' : probAlert >= 60 ? 'var(--success)' : probAlert >= 35 ? '#f59e0b' : 'var(--danger)';
-        const cellAlerta = aPreco
-          ? '<div style="display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;" onclick="abrirAlertaModal(\'' + a.ticker + '\',' + (a.precoAtual||'null') + ')">' +
-              '<span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;background:' + (aTipo==='compra'?'rgba(34,197,94,0.12)':'rgba(239,68,68,0.12)') + ';color:' + (aTipo==='compra'?'var(--success)':'var(--danger)') + ';">' + (aTipo==='compra'?'C':'V') + '</span>' +
-              '<span style="font-size:11px;font-weight:700;color:' + (aTrig?aBellCor:'var(--text)') + ';">' + Number(aPreco).toLocaleString('pt-BR',{minimumFractionDigits:2}) + '</span>' +
-              (aBell ? '<span style="font-size:12px;">' + aBell + '</span>' : '') +
+        // Alerta de cotação (novo formato: { compra, venda }; migração do formato antigo { preco, tipo })
+        const alrt   = _getAlertas()[a.ticker] || null;
+        const aComp  = alrt ? (alrt.compra || (alrt.tipo==='compra' ? alrt.preco : null)) : null;
+        const aVend  = alrt ? (alrt.venda  || (alrt.tipo==='venda'  ? alrt.preco : null)) : null;
+        const p      = a.precoAtual;
+        const trigC  = aComp && p ? p <= aComp : false;
+        const trigV  = aVend && p ? p >= aVend  : false;
+        const nearC  = aComp && p && !trigC ? Math.abs(p - aComp) / aComp < 0.03 : false;
+        const nearV  = aVend && p && !trigV ? Math.abs(p - aVend) / aVend  < 0.03 : false;
+        const fmtAlP = v => Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+        const probC  = _probAlertaAcao(p, aComp, 'compra');
+        const probV  = _probAlertaAcao(p, aVend, 'venda');
+        const pCor   = v => v == null ? 'var(--text-muted)' : v >= 60 ? 'var(--success)' : v >= 35 ? '#f59e0b' : 'var(--danger)';
+        const rowC   = aComp
+          ? '<div style="display:flex;align-items:center;gap:4px;cursor:pointer;white-space:nowrap;" onclick="abrirAlertaModal(\'' + a.ticker + '\',' + (p||'null') + ')">' +
+              '<span style="font-size:9px;font-weight:700;padding:1px 4px;border-radius:4px;background:rgba(34,197,94,0.12);color:var(--success);">C</span>' +
+              '<span style="font-size:11px;font-weight:700;color:' + (trigC?'var(--success)':'var(--text)') + ';">' + fmtAlP(aComp) + '</span>' +
+              (trigC?'<span style="font-size:11px;">🔔</span>':nearC?'<span style="font-size:11px;">🔕</span>':'') +
+            '</div>' : '';
+        const rowV   = aVend
+          ? '<div style="display:flex;align-items:center;gap:4px;cursor:pointer;white-space:nowrap;" onclick="abrirAlertaModal(\'' + a.ticker + '\',' + (p||'null') + ')">' +
+              '<span style="font-size:9px;font-weight:700;padding:1px 4px;border-radius:4px;background:rgba(239,68,68,0.12);color:var(--danger);">V</span>' +
+              '<span style="font-size:11px;font-weight:700;color:' + (trigV?'var(--danger)':'var(--text)') + ';">' + fmtAlP(aVend) + '</span>' +
+              (trigV?'<span style="font-size:11px;">🔔</span>':nearV?'<span style="font-size:11px;">🔕</span>':'') +
+            '</div>' : '';
+        const cellAlerta = (aComp || aVend)
+          ? '<div style="display:flex;flex-direction:column;gap:3px;align-items:flex-start;">' + rowC + rowV + '</div>'
+          : '<button onclick="abrirAlertaModal(\'' + a.ticker + '\',' + (p||'null') + ')" style="font-size:10px;padding:3px 7px;border:1.5px solid var(--border);border-radius:6px;background:transparent;color:var(--text-muted);cursor:pointer;white-space:nowrap;">+ alerta</button>';
+        const cellProb = (aComp || aVend)
+          ? '<div style="display:flex;flex-direction:column;gap:3px;align-items:flex-end;">' +
+              (aComp ? '<span style="font-size:11px;font-weight:700;color:' + pCor(probC) + ';" title="Prob. compra em 30d">' + (probC!=null?probC.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%':'—') + '</span>' : '') +
+              (aVend ? '<span style="font-size:11px;font-weight:700;color:' + pCor(probV) + ';" title="Prob. venda em 30d">' + (probV!=null?probV.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%':'—') + '</span>' : '') +
             '</div>'
-          : '<button onclick="abrirAlertaModal(\'' + a.ticker + '\',' + (a.precoAtual||'null') + ')" style="font-size:10px;padding:3px 7px;border:1.5px solid var(--border);border-radius:6px;background:transparent;color:var(--text-muted);cursor:pointer;white-space:nowrap;">+ alerta</button>';
+          : '<span style="color:var(--text-muted);">—</span>';
         return '<tr style="border-bottom:1px solid var(--border);background:' + bgLinha + ';">' +
           '<td style="padding:8px;font-size:12px;font-weight:700;white-space:nowrap;">' + a.ticker + '</td>' +
           '<td style="padding:8px;font-size:12px;text-align:right;">' + Number(a.qtd).toLocaleString('pt-BR') + '</td>' +
@@ -5824,7 +5837,7 @@
           '<td style="padding:8px;font-size:12px;font-weight:700;text-align:right;color:' + (a.precoAtual ? corLucro : 'var(--text-muted)') + ';">' + (a.precoAtual ? prefLucro + fmt(lucroAcao) : '—') + '</td>' +
           '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + corAcao + ';">' + fmtPct(varAcao) + '</td>' +
           '<td style="padding:6px 8px;text-align:center;">' + cellAlerta + '</td>' +
-          '<td style="padding:6px 8px;font-size:11px;font-weight:700;text-align:right;color:' + probACor + ';" title="Prob. B-S simplificada de atingir preço alerta em ~30 dias corridos (σ=30% assumido)">' + (probAlert != null ? Number(probAlert).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}) + '%' : '—') + '</td>' +
+          '<td style="padding:6px 8px;text-align:right;">' + cellProb + '</td>' +
           '<td style="padding:8px;">' + acoes + '</td>' +
         '</tr>';
       }).join('') : '<tr><td colspan="19" style="padding:12px;text-align:center;color:var(--text-muted);font-size:12px;">Nenhuma ação. Adicione abaixo.</td></tr>';
