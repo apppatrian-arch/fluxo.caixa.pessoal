@@ -4620,8 +4620,9 @@
     if (!precoAtual || !precoAlerta || precoAtual <= 0 || precoAlerta <= 0) return null;
     const sigma = 0.30, T = 21 / 252;
     const d = Math.log(precoAtual / precoAlerta) / (sigma * Math.sqrt(T));
-    // Ambos medem prob de preço SUBIR até o alvo (N(d) onde d = ln(S/K))
-    return _normCDF(d) * 100;
+    // direcao='subir': prob de subir até alvo (alvo > preço) → N(d), d<0 → resultado < 50%
+    // direcao='cair':  prob de cair até alvo  (alvo < preço) → N(-d), d>0 → resultado < 50%
+    return (tipo === 'subir' ? _normCDF(d) : _normCDF(-d)) * 100;
   }
   let _alertaModalTicker = null;
   function abrirAlertaModal(ticker, precoAtual) {
@@ -5965,14 +5966,16 @@
             const _aV = _al ? (_al.venda  || (_al.tipo==='venda'  ? _al.preco : null)) : null;
             const _p  = x.precoAtual;
             if (!_aC && !_aV) return -Infinity;
-            const _pC = _probAlertaAcao(_p, _aC, 'compra');
-            const _pV = _probAlertaAcao(_p, _aV, 'venda');
+            const _dirC = _aC && _p ? (_aC >= _p ? 'subir' : 'cair') : null;
+            const _dirV = _aV && _p ? (_aV >= _p ? 'subir' : 'cair') : null;
+            const _pC = _probAlertaAcao(_p, _aC, _dirC);
+            const _pV = _probAlertaAcao(_p, _aV, _dirV);
             if (ss.col === 'prob30d') return Math.max(_pC != null ? _pC : -Infinity, _pV != null ? _pV : -Infinity);
             // alerta: triggered(2) > near(<3%, 1) > active(0.5) > none(-Inf)
-            const trigC = _aC && _p ? _p >= _aC : false;
-            const trigV = _aV && _p ? _p >= _aV  : false;
-            const nearC = _aC && _p && !trigC ? _p < _aC && (_aC - _p) / _aC < 0.03 : false;
-            const nearV = _aV && _p && !trigV ? _p < _aV && (_aV  - _p) / _aV  < 0.03 : false;
+            const trigC = _aC && _p ? (_dirC === 'subir' ? _p >= _aC : _p <= _aC) : false;
+            const trigV = _aV && _p ? (_dirV === 'subir' ? _p >= _aV : _p <= _aV) : false;
+            const nearC = _aC && _p && !trigC ? (_dirC === 'subir' ? (_aC - _p) / _aC < 0.03 : (_p - _aC) / _aC < 0.03) : false;
+            const nearV = _aV && _p && !trigV ? (_dirV === 'subir' ? (_aV  - _p) / _aV  < 0.03 : (_p - _aV)  / _aV  < 0.03) : false;
             if (trigC || trigV) return 2;
             if (nearC || nearV) return 1;
             return 0.5;
@@ -6029,15 +6032,16 @@
         const aComp  = alrt ? (alrt.compra || (alrt.tipo==='compra' ? alrt.preco : null)) : null;
         const aVend  = alrt ? (alrt.venda  || (alrt.tipo==='venda'  ? alrt.preco : null)) : null;
         const p      = a.precoAtual;
-        // Compra: alerta quando preço SOBE até o alvo (p >= aComp)
-        // Venda:  alerta quando preço SOBE até o alvo (p >= aVend)
-        const trigC  = aComp && p ? p >= aComp : false;
-        const trigV  = aVend && p ? p >= aVend  : false;
-        const nearC  = aComp && p && !trigC ? p < aComp && (aComp - p) / aComp < 0.03 : false;
-        const nearV  = aVend && p && !trigV ? p < aVend && (aVend  - p) / aVend  < 0.03 : false;
+        // Direção inferida: alvo acima do preço → espera subir; abaixo → espera cair
+        const dirC   = aComp && p ? (aComp >= p ? 'subir' : 'cair') : null;
+        const dirV   = aVend && p ? (aVend >= p ? 'subir' : 'cair') : null;
+        const trigC  = aComp && p ? (dirC === 'subir' ? p >= aComp : p <= aComp) : false;
+        const trigV  = aVend && p ? (dirV === 'subir' ? p >= aVend : p <= aVend) : false;
+        const nearC  = aComp && p && !trigC ? (dirC === 'subir' ? (aComp - p) / aComp < 0.03 : (p - aComp) / aComp < 0.03) : false;
+        const nearV  = aVend && p && !trigV ? (dirV === 'subir' ? (aVend  - p) / aVend  < 0.03 : (p - aVend)  / aVend  < 0.03) : false;
         const fmtAlP = v => Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
-        const probC  = _probAlertaAcao(p, aComp, 'compra');
-        const probV  = _probAlertaAcao(p, aVend, 'venda');
+        const probC  = _probAlertaAcao(p, aComp, dirC);
+        const probV  = _probAlertaAcao(p, aVend, dirV);
         const pCor   = v => v == null ? 'var(--text-muted)' : v >= 60 ? 'var(--success)' : v >= 35 ? '#f59e0b' : 'var(--danger)';
         const rowC   = aComp
           ? '<div style="display:flex;align-items:center;gap:4px;cursor:pointer;white-space:nowrap;" onclick="abrirAlertaModal(\'' + a.ticker + '\',' + (p||'null') + ')">' +
