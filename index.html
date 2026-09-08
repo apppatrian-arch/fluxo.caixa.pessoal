@@ -6064,16 +6064,25 @@
               (aVend ? '<span style="font-size:11px;font-weight:700;color:' + pCor(probV) + ';" title="Prob. venda em 30d">' + (probV!=null?probV.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%':'—') + '</span>' : '') +
             '</div>'
           : '<span style="color:var(--text-muted);">—</span>';
-        const alertaAtivo = trigC || trigV;
+        const alertaAtivo  = trigC || trigV;
+        const alertaProximo= !alertaAtivo && (nearC || nearV);
         const bgAlert = alertaAtivo
-          ? (trigC && trigV ? 'rgba(234,179,8,0.13)'   // compra+venda: âmbar
-            : trigC         ? 'rgba(34,197,94,0.11)'   // só compra: verde suave
-                            : 'rgba(239,68,68,0.11)')  // só venda: vermelho suave
+          ? (trigC && trigV ? 'rgba(234,179,8,0.16)'   // compra+venda: âmbar
+            : trigC         ? 'rgba(34,197,94,0.14)'   // só compra: verde
+                            : 'rgba(239,68,68,0.14)')  // só venda: vermelho
+          : alertaProximo
+            ? (nearC && nearV ? 'rgba(234,179,8,0.07)'
+              : nearC         ? 'rgba(34,197,94,0.07)'
+                              : 'rgba(239,68,68,0.07)')
           : null;
         const borderAlert = alertaAtivo
-          ? (trigC && trigV ? '2px solid rgba(234,179,8,0.5)'
-            : trigC         ? '2px solid rgba(34,197,94,0.4)'
-                            : '2px solid rgba(239,68,68,0.4)')
+          ? (trigC && trigV ? '2px solid rgba(234,179,8,0.55)'
+            : trigC         ? '2px solid rgba(34,197,94,0.45)'
+                            : '2px solid rgba(239,68,68,0.45)')
+          : alertaProximo
+            ? (nearC && nearV ? '1.5px solid rgba(234,179,8,0.30)'
+              : nearC         ? '1.5px solid rgba(34,197,94,0.30)'
+                              : '1.5px solid rgba(239,68,68,0.30)')
           : '1px solid var(--border)';
         const bgMon = isMon ? (idx%2===0?'rgba(139,92,246,0.06)':'rgba(139,92,246,0.10)') : bgLinha;
         const bgFinal = bgAlert || bgMon;
