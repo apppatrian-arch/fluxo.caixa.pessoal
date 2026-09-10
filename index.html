@@ -5839,6 +5839,9 @@
     const c = carteiras.find(x => x.id === carteiraId);
     if (!c || !c.acoes.length) { renderCarteiras(); return; }
 
+    // Renderiza imediatamente para mostrar itens novos (ex: monitorar) antes do fetch
+    renderCarteiras();
+
     const elBtn = document.getElementById('cbtn-atualizar-' + carteiraId);
     if (elBtn) { elBtn.textContent = '⏳'; elBtn.disabled = true; }
 
@@ -5884,6 +5887,7 @@
 
     if (erros > 0 && Object.keys(precos).length === 0) {
       if (elBtn) { elBtn.textContent = '❌'; elBtn.disabled = false; setTimeout(() => { if (elBtn) elBtn.textContent = '🔄'; }, 3000); }
+      renderCarteiras();
       return;
     }
 
@@ -6094,7 +6098,7 @@
           '</td>' +
           (isMon ? tdM : '<td style="padding:8px;font-size:12px;text-align:right;">' + Number(a.qtd).toLocaleString('pt-BR') + '</td>') +
           (isMon ? tdM : '<td style="padding:8px;font-size:12px;text-align:right;">' + fmtUSD(a.custo) + (isUSD ? ' <span style="font-size:9px;background:#dbeafe;color:#1d4ed8;border-radius:4px;padding:1px 4px;font-weight:700;">USD</span>' : '') + '</td>') +
-          '<td style="padding:8px;font-size:12px;text-align:right;color:' + (a.precoAtual ? 'var(--text)' : 'var(--text-muted)') + ';">' + (a.precoAtual ? fmtUSD(a.precoAtual) : '—') + '</td>' +
+          '<td style="padding:8px;font-size:12px;text-align:right;color:' + (a.precoAtual ? 'var(--text)' : 'var(--text-muted)') + ';">' + (a.precoAtual ? fmtUSD(a.precoAtual) : (isMon ? '<span title="Ticker não encontrado na brapi.dev — verifique o código">N/D</span>' : '—')) + '</td>' +
           '<td style="padding:8px;font-size:11px;text-align:right;color:' + (a.min52 ? 'var(--danger)' : 'var(--text-muted)') + ';">' + (a.min52 ? fmtUSD(a.min52) : '—') + '</td>' +
           '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + corVsMin + ';">' + (vsMin52 != null ? fmtPct2(vsMin52) : '—') + '</td>' +
           '<td style="padding:8px;font-size:11px;text-align:right;color:' + (a.max52 ? 'var(--success)' : 'var(--text-muted)') + ';">' + (a.max52 ? fmtUSD(a.max52) : '—') + '</td>' +
