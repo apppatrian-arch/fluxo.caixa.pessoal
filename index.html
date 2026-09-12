@@ -5985,40 +5985,52 @@
       return;
     }
 
-    // Busca todos os tickers em lotes de 10 numa única requisição cada (evita rate limit do free tier)
-    const LOTE = 10;
     const getClose = h => h && (h.close || h.adjustedClose || 0);
-    for (let i = 0; i < uniqueTickers.length; i += LOTE) {
-      const lote = uniqueTickers.slice(i, i + LOTE);
-      try {
-        const r = await fetch(brapiUrl('/quote/' + lote.join(',') + '?range=5d&interval=1d&fundamental=false'));
-        if (!r.ok) { erros += lote.length; continue; }
-        const data = await r.json();
-        const results = (data && data.results) || [];
-        for (const q of results) {
-          if (!q || !q.regularMarketPrice) { erros++; continue; }
-          const sym = (q.symbol || '').replace('.SA','').toUpperCase();
-          if (!sym) { erros++; continue; }
-          const hist = q.historicalDataPrice || [];
-          let var7dPct = null;
-          if (hist.length >= 2) {
-            const base = getClose(hist[0]);
-            if (base > 0) var7dPct = (Number(q.regularMarketPrice) - base) / base * 100;
-          }
-          precos[sym] = {
-            preco:     Number(q.regularMarketPrice),
-            moeda:     (q.currency || 'BRL').toUpperCase(),
-            varDiaPct: q.regularMarketChangePercent != null ? Number(q.regularMarketChangePercent) : null,
-            varDiaVal: q.regularMarketChange        != null ? Number(q.regularMarketChange)        : null,
-            var7dPct,
-            min52: q.fiftyTwoWeekLow  != null ? Number(q.fiftyTwoWeekLow)  : null,
-            max52: q.fiftyTwoWeekHigh != null ? Number(q.fiftyTwoWeekHigh) : null,
-          };
+
+    function _parseBrapiResults(results, fonte) {
+      for (const q of (results || [])) {
+        if (!q || !q.regularMarketPrice) continue;
+        const sym = (q.symbol || '').replace('.SA','').toUpperCase();
+        if (!sym) continue;
+        const hist = q.historicalDataPrice || [];
+        let var7dPct = null;
+        if (hist.length >= 2) {
+          const base = getClose(hist[0]);
+          if (base > 0) var7dPct = (Number(q.regularMarketPrice) - base) / base * 100;
         }
-      } catch(e) { erros += lote.length; }
+        precos[sym] = {
+          preco:     Number(q.regularMarketPrice),
+          moeda:     (q.currency || 'BRL').toUpperCase(),
+          varDiaPct: q.regularMarketChangePercent != null ? Number(q.regularMarketChangePercent) : null,
+          varDiaVal: q.regularMarketChange        != null ? Number(q.regularMarketChange)        : null,
+          var7dPct,
+          min52: q.fiftyTwoWeekLow  != null ? Number(q.fiftyTwoWeekLow)  : null,
+          max52: q.fiftyTwoWeekHigh != null ? Number(q.fiftyTwoWeekHigh) : null,
+        };
+      }
     }
 
-    if (erros > 0 && Object.keys(precos).length === 0) {
+    // 1ª tentativa: lote completo
+    try {
+      const r = await fetch(brapiUrl('/quote/' + uniqueTickers.join(',') + '?range=5d&interval=1d&fundamental=false'));
+      if (r.ok) {
+        const data = await r.json();
+        _parseBrapiResults(data && data.results, 'lote');
+      }
+    } catch(e) { /* ignora — faz retry individual abaixo */ }
+
+    // 2ª tentativa: retry individual para os que não vieram no lote
+    const faltando = uniqueTickers.filter(t => !precos[t]);
+    await Promise.allSettled(faltando.map(async ticker => {
+      try {
+        const r = await fetch(brapiUrl('/quote/' + ticker + '?fundamental=false'));
+        if (!r.ok) { erros++; return; }
+        const data = await r.json();
+        _parseBrapiResults(data && data.results, 'individual');
+      } catch(e) { erros++; }
+    }));
+
+    if (Object.keys(precos).length === 0) {
       if (elBtn) { elBtn.textContent = '❌'; elBtn.disabled = false; setTimeout(() => { if (elBtn) elBtn.textContent = '🔄'; }, 3000); }
       renderCarteiras();
       return;
