@@ -5987,48 +5987,45 @@
 
     const getClose = h => h && (h.close || h.adjustedClose || 0);
 
-    function _parseBrapiResults(results, fonte) {
-      for (const q of (results || [])) {
-        if (!q || !q.regularMarketPrice) continue;
-        const sym = (q.symbol || '').replace('.SA','').toUpperCase();
-        if (!sym) continue;
-        const hist = q.historicalDataPrice || [];
-        let var7dPct = null;
-        if (hist.length >= 2) {
-          const base = getClose(hist[0]);
-          if (base > 0) var7dPct = (Number(q.regularMarketPrice) - base) / base * 100;
-        }
-        precos[sym] = {
-          preco:     Number(q.regularMarketPrice),
-          moeda:     (q.currency || 'BRL').toUpperCase(),
-          varDiaPct: q.regularMarketChangePercent != null ? Number(q.regularMarketChangePercent) : null,
-          varDiaVal: q.regularMarketChange        != null ? Number(q.regularMarketChange)        : null,
-          var7dPct,
-          min52: q.fiftyTwoWeekLow  != null ? Number(q.fiftyTwoWeekLow)  : null,
-          max52: q.fiftyTwoWeekHigh != null ? Number(q.fiftyTwoWeekHigh) : null,
-        };
+    function _parseBrapiQ(q) {
+      if (!q || !q.regularMarketPrice) return;
+      const sym = (q.symbol || '').replace('.SA','').toUpperCase();
+      if (!sym) return;
+      const hist = q.historicalDataPrice || [];
+      let var7dPct = null;
+      if (hist.length >= 2) {
+        const base = getClose(hist[0]);
+        if (base > 0) var7dPct = (Number(q.regularMarketPrice) - base) / base * 100;
       }
+      // merge: não sobrescreve var7dPct já preenchido com null
+      const existing = precos[sym] || {};
+      precos[sym] = {
+        preco:     Number(q.regularMarketPrice),
+        moeda:     (q.currency || 'BRL').toUpperCase(),
+        varDiaPct: q.regularMarketChangePercent != null ? Number(q.regularMarketChangePercent) : existing.varDiaPct ?? null,
+        varDiaVal: q.regularMarketChange        != null ? Number(q.regularMarketChange)        : existing.varDiaVal ?? null,
+        var7dPct:  var7dPct !== null ? var7dPct : (existing.var7dPct ?? null),
+        min52: q.fiftyTwoWeekLow  != null ? Number(q.fiftyTwoWeekLow)  : existing.min52 ?? null,
+        max52: q.fiftyTwoWeekHigh != null ? Number(q.fiftyTwoWeekHigh) : existing.max52 ?? null,
+      };
     }
 
-    // 1ª tentativa: lote completo
+    // Fase 1 — lote único sem range: pega preço atual de todos rapidamente
     try {
-      const r = await fetch(brapiUrl('/quote/' + uniqueTickers.join(',') + '?range=5d&interval=1d&fundamental=false'));
-      if (r.ok) {
-        const data = await r.json();
-        _parseBrapiResults(data && data.results, 'lote');
-      }
-    } catch(e) { /* ignora — faz retry individual abaixo */ }
+      const r = await fetch(brapiUrl('/quote/' + uniqueTickers.join(',') + '?fundamental=false'));
+      if (r.ok) { const d = await r.json(); (d && d.results || []).forEach(_parseBrapiQ); }
+    } catch(e) {}
 
-    // 2ª tentativa: retry individual para os que não vieram no lote
-    const faltando = uniqueTickers.filter(t => !precos[t]);
-    await Promise.allSettled(faltando.map(async ticker => {
+    // Fase 2 — individual com range=5d: garante historicalDataPrice para var7d
+    // Requisições sequenciais com delay de 120ms para evitar rate limit
+    for (const ticker of uniqueTickers) {
       try {
-        const r = await fetch(brapiUrl('/quote/' + ticker + '?fundamental=false'));
-        if (!r.ok) { erros++; return; }
-        const data = await r.json();
-        _parseBrapiResults(data && data.results, 'individual');
+        const r = await fetch(brapiUrl('/quote/' + ticker + '?range=5d&interval=1d&fundamental=false'));
+        if (r.ok) { const d = await r.json(); (d && d.results || []).forEach(_parseBrapiQ); }
+        else erros++;
       } catch(e) { erros++; }
-    }));
+      await new Promise(res => setTimeout(res, 120));
+    }
 
     if (Object.keys(precos).length === 0) {
       if (elBtn) { elBtn.textContent = '❌'; elBtn.disabled = false; setTimeout(() => { if (elBtn) elBtn.textContent = '🔄'; }, 3000); }
