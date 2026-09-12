@@ -6009,11 +6009,17 @@
       if (!sym) return;
       const hist = q.historicalDataPrice || [];
       let var7dPct = null;
+      let min3m = null, max3m = null;
       if (hist.length >= 2) {
-        const base = getClose(hist[0]);
+        // var7d: usa preço de ~5 pregões atrás (índice hist.length-6 ou hist[0] se array curto)
+        const idx7d = hist.length >= 6 ? hist.length - 6 : 0;
+        const base = getClose(hist[idx7d]);
         if (base > 0) var7dPct = (Number(q.regularMarketPrice) - base) / base * 100;
+        // min/max 3 meses a partir dos fechamentos do histórico
+        const closes = hist.map(h => getClose(h)).filter(v => v > 0);
+        if (closes.length) { min3m = Math.min(...closes); max3m = Math.max(...closes); }
       }
-      // merge: não sobrescreve var7dPct já preenchido com null
+      // merge: não sobrescreve valores já preenchidos com null
       const existing = precos[sym] || {};
       precos[sym] = {
         preco:     Number(q.regularMarketPrice),
@@ -6023,6 +6029,8 @@
         var7dPct:  var7dPct !== null ? var7dPct : (existing.var7dPct ?? null),
         min52: q.fiftyTwoWeekLow  != null ? Number(q.fiftyTwoWeekLow)  : existing.min52 ?? null,
         max52: q.fiftyTwoWeekHigh != null ? Number(q.fiftyTwoWeekHigh) : existing.max52 ?? null,
+        min3m: min3m !== null ? min3m : (existing.min3m ?? null),
+        max3m: max3m !== null ? max3m : (existing.max3m ?? null),
       };
     }
 
@@ -6036,7 +6044,7 @@
     // Requisições sequenciais com delay de 120ms para evitar rate limit
     for (const ticker of uniqueTickers) {
       try {
-        const r = await fetch(brapiUrl('/quote/' + ticker + '?range=5d&interval=1d&fundamental=false'));
+        const r = await fetch(brapiUrl('/quote/' + ticker + '?range=3mo&interval=1d&fundamental=false'));
         if (r.ok) { const d = await r.json(); (d && d.results || []).forEach(_parseBrapiQ); }
         else erros++;
       } catch(e) { erros++; }
@@ -6060,6 +6068,8 @@
         a.var7dPct   = precos[sym].var7dPct;
         a.min52      = precos[sym].min52;
         a.max52      = precos[sym].max52;
+        a.min3m      = precos[sym].min3m;
+        a.max3m      = precos[sym].max3m;
       } else if (!a.monitorar) {
         falhas.push(a.ticker);
       }
@@ -6159,6 +6169,8 @@
           if (ss.col === 'var7d')     return x.var7dPct  != null ? x.var7dPct  : -Infinity;
           if (ss.col === 'min52')     return x.min52 != null ? x.min52 : -Infinity;
           if (ss.col === 'max52')     return x.max52 != null ? x.max52 : -Infinity;
+          if (ss.col === 'min3m')  return x.min3m || 0;
+          if (ss.col === 'max3m')  return x.max3m || 0;
           if (ss.col === 'vsmin52')   return x.precoAtual != null && x.min52 > 0 ? (x.precoAtual - x.min52) / x.min52 * 100 : -Infinity;
           if (ss.col === 'vsmax52')   return x.precoAtual != null && x.max52 > 0 ? (x.precoAtual - x.max52) / x.max52 * 100 : -Infinity;
           if (ss.col === 'alerta' || ss.col === 'prob30d') {
@@ -6312,6 +6324,8 @@
           (isMon ? tdM : '<td style="padding:8px;font-size:12px;text-align:right;">' + Number(a.qtd).toLocaleString('pt-BR') + '</td>') +
           (isMon ? tdM : '<td style="padding:8px;font-size:12px;text-align:right;">' + fmtUSD(a.custo) + (isUSD ? ' <span style="font-size:9px;background:#dbeafe;color:#1d4ed8;border-radius:4px;padding:1px 4px;font-weight:700;">USD</span>' : '') + '</td>') +
           '<td style="padding:8px;font-size:12px;text-align:right;font-weight:700;color:' + (a.precoAtual ? '#3b82f6' : 'var(--text-muted)') + ';">' + (a.precoAtual ? fmtUSD(a.precoAtual) : (isMon ? '<span title="Ticker não encontrado na brapi.dev — verifique o código">N/D</span>' : '—')) + '</td>' +
+          '<td style="padding:8px;font-size:12px;text-align:right;color:var(--text-muted);">' + (a.min3m ? fmtUSD(a.min3m) : '—') + '</td>' +
+          '<td style="padding:8px;font-size:12px;text-align:right;color:var(--text-muted);">' + (a.max3m ? fmtUSD(a.max3m) : '—') + '</td>' +
           '<td style="padding:8px;font-size:11px;text-align:right;color:' + (a.min52 ? 'var(--danger)' : 'var(--text-muted)') + ';">' + (a.min52 ? fmtUSD(a.min52) : '—') + '</td>' +
           '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + corVsMin + ';">' + (vsMin52 != null ? fmtPct2(vsMin52) : '—') + '</td>' +
           '<td style="padding:8px;font-size:11px;text-align:right;color:' + (a.max52 ? 'var(--success)' : 'var(--text-muted)') + ';">' + (a.max52 ? fmtUSD(a.max52) : '—') + '</td>' +
@@ -6412,6 +6426,8 @@
             th('qtd',       'Qtd',        'right') +
             th('custo',     'Custo',      'right') +
             th('atual',     'Atual',      'right') +
+            th('min3m',     'Mín.3m',     'right') +
+            th('max3m',     'Máx.3m',     'right') +
             th('min52',     'Mín.52sem',  'right') +
             th('vsmin52',   '%vsMin',     'right') +
             th('max52',     'Máx.52sem',  'right') +
