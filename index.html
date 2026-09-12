@@ -5527,20 +5527,26 @@
   async function forcaSincCarteiras() {
     const loaded = await carregarCarteirasDB();
     if (!loaded) {
-      const local = JSON.parse(localStorage.getItem(_chavCarteiras()) || '[]');
-      carteiras = local;
-      if (local.length > 0) {
-        // Tem dados no localStorage mas o banco está vazio — restaura automaticamente
-        _setSyncStatus('⬆️ Restaurando ' + local.length + ' carteira(s) no banco...', null);
-        await sincronizarCarteirasDB();
-      }
+      carteiras = JSON.parse(localStorage.getItem(_chavCarteiras()) || '[]');
+      // Não restaura automaticamente localStorage → DB: evita sobrescrever DB com dados locais desatualizados
+      _setSyncStatus('⚠️ Banco sem dados — use o botão ⬆️ para restaurar do localStorage se necessário', null);
     }
     renderCarteiras();
   }
 
+  // Debounce do sync: agrupa múltiplas chamadas rápidas em uma única operação DB
+  let _syncDebounceTimer = null;
+  function _agendarSyncDB() {
+    if (_syncDebounceTimer) clearTimeout(_syncDebounceTimer);
+    _syncDebounceTimer = setTimeout(async () => {
+      _syncDebounceTimer = null;
+      await sincronizarCarteirasDB();
+    }, 1500);
+  }
+
   function salvarCarteiras() {
     localStorage.setItem(_chavCarteiras(), JSON.stringify(carteiras));
-    sincronizarCarteirasDB();
+    _agendarSyncDB();
   }
 
   function abrirModalCarteira(id) {
