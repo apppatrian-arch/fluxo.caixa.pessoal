@@ -3803,6 +3803,13 @@
       rendaFixa = local ? (JSON.parse(local) || []) : [];
     }
     renderRendaFixa();
+
+    // Alertas — sempre prefere banco (sincroniza entre dispositivos)
+    await _alertasCarregarDB();
+
+    // Token brapi — carrega do banco se não há token local
+    if (!_getBrapiToken()) await _brapiCarregarDB();
+    renderTokenAcoes();
   }
 
   async function buscarSelic() {
@@ -4611,6 +4618,54 @@
   }
 
   // ── ALERTAS DE COTAÇÃO (Ações) ──
+  function _alertasPrefix() { return '_alertas_' + (currentUser || '').toLowerCase() + '|'; }
+
+  async function _alertasSalvarDB() {
+    try {
+      if (!paulToken) await paulAuth();
+      const prefix = _alertasPrefix();
+      const encoded = _cartB64Enc(_getAlertas());
+      const csz = Math.max(40, 200 - prefix.length - 3);
+      const chunks = [];
+      for (let i = 0; i < encoded.length; i += csz) chunks.push(encoded.slice(i, i + csz));
+      const records = await paulFetch('GET', '/paulistinha/financeiro');
+      const antigos = (records || []).filter(r => String(r.descricao || '').startsWith(prefix));
+      for (const r of antigos) { try { await paulFetch('DELETE', '/paulistinha/financeiro/' + r.id); } catch(_) {} }
+      if (chunks.length === 0) chunks.push('');
+      for (let i = 0; i < chunks.length; i++) {
+        await paulFetch('POST', '/paulistinha/financeiro', {
+          data: _CFG_DATE, tipo: _CFG_TIPO, descricao: prefix + i + '|' + chunks[i], valor: 0.01
+        });
+      }
+    } catch(e) { /* silencioso — localStorage é fallback */ }
+  }
+
+  async function _alertasCarregarDB() {
+    try {
+      if (!paulToken) await paulAuth();
+      const prefix = _alertasPrefix();
+      const records = await paulFetch('GET', '/paulistinha/financeiro');
+      const cfgRecs = (records || []).filter(r => String(r.descricao || '').startsWith(prefix));
+      if (!cfgRecs.length) return false;
+      const chunks = cfgRecs.map(r => {
+        const rest = String(r.descricao).slice(prefix.length);
+        const sep = rest.indexOf('|');
+        return { idx: sep > -1 ? parseInt(rest.slice(0, sep)) || 0 : 0, data: sep > -1 ? rest.slice(sep + 1) : rest };
+      }).sort((a, b) => a.idx - b.idx);
+      let decoded = null;
+      try { decoded = _cartB64Dec(chunks.map(c => c.data).join('')); } catch(e) {}
+      if (!decoded || typeof decoded !== 'object' || Array.isArray(decoded)) return false;
+      localStorage.setItem(chaveLocal('acoes_alertas'), JSON.stringify(decoded));
+      return true;
+    } catch(e) { return false; }
+  }
+
+  let _alertasDbTimer = null;
+  function _agendarAlertasSyncDB() {
+    if (_alertasDbTimer) clearTimeout(_alertasDbTimer);
+    _alertasDbTimer = setTimeout(() => { _alertasDbTimer = null; _alertasSalvarDB(); }, 1500);
+  }
+
   function _getAlertas() {
     return JSON.parse(localStorage.getItem(chaveLocal('acoes_alertas')) || '{}');
   }
@@ -4624,11 +4679,13 @@
     if (Object.keys(obj).length) a[ticker] = obj;
     else delete a[ticker];
     localStorage.setItem(chaveLocal('acoes_alertas'), JSON.stringify(a));
+    _agendarAlertasSyncDB();
     renderCarteiras();
   }
   function _delAlerta(ticker) {
     const a = _getAlertas(); delete a[ticker];
     localStorage.setItem(chaveLocal('acoes_alertas'), JSON.stringify(a));
+    _agendarAlertasSyncDB();
     renderCarteiras();
   }
   // Prob. de atingir preço alvo em ~21 dias úteis (σ=30% assumido, Black-Scholes simplificado)
@@ -5136,6 +5193,49 @@
   function _apiLsKey(suffix) {
     return 'fc_api_' + suffix + '_' + (currentUser || '').toLowerCase();
   }
+  function _brapiPrefix() { return '_brapi_' + (currentUser || '').toLowerCase() + '|'; }
+
+  async function _brapiSalvarDB() {
+    try {
+      if (!paulToken) await paulAuth();
+      const prefix = _brapiPrefix();
+      const payload = {
+        token: localStorage.getItem(_apiLsKey('btoken')) || '',
+        date:  localStorage.getItem(_apiLsKey('bdate'))  || '',
+        src:   localStorage.getItem(_apiLsKey('src'))    || 'brapi',
+      };
+      if (!payload.token) return;
+      const encoded = _cartB64Enc(payload);
+      const records = await paulFetch('GET', '/paulistinha/financeiro');
+      const antigos = (records || []).filter(r => String(r.descricao || '').startsWith(prefix));
+      for (const r of antigos) { try { await paulFetch('DELETE', '/paulistinha/financeiro/' + r.id); } catch(_) {} }
+      await paulFetch('POST', '/paulistinha/financeiro', {
+        data: _CFG_DATE, tipo: _CFG_TIPO, descricao: prefix + '0|' + encoded, valor: 0.01
+      });
+    } catch(e) { /* silencioso */ }
+  }
+
+  async function _brapiCarregarDB() {
+    try {
+      if (!paulToken) await paulAuth();
+      const prefix = _brapiPrefix();
+      const records = await paulFetch('GET', '/paulistinha/financeiro');
+      const cfgRecs = (records || []).filter(r => String(r.descricao || '').startsWith(prefix));
+      if (!cfgRecs.length) return false;
+      const chunks = cfgRecs.map(r => {
+        const rest = String(r.descricao).slice(prefix.length);
+        const sep = rest.indexOf('|');
+        return { idx: sep > -1 ? parseInt(rest.slice(0, sep)) || 0 : 0, data: sep > -1 ? rest.slice(sep + 1) : rest };
+      }).sort((a, b) => a.idx - b.idx);
+      let decoded = null;
+      try { decoded = _cartB64Dec(chunks.map(c => c.data).join('')); } catch(e) {}
+      if (!decoded || !decoded.token) return false;
+      localStorage.setItem(_apiLsKey('btoken'), decoded.token);
+      if (decoded.date) localStorage.setItem(_apiLsKey('bdate'), decoded.date);
+      if (decoded.src)  localStorage.setItem(_apiLsKey('src'),   decoded.src);
+      return true;
+    } catch(e) { return false; }
+  }
 
   function _getBrapiToken() {
     const ls = localStorage.getItem(_apiLsKey('btoken'));
@@ -5225,6 +5325,7 @@
     localStorage.setItem(_apiLsKey('btoken'), token);
     localStorage.setItem(_apiLsKey('bdate'),  dataStr);
     localStorage.setItem(_apiLsKey('src'),    'brapi');
+    _brapiSalvarDB();
     renderTokenAcoes();
   }
 
