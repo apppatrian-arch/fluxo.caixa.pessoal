@@ -1416,10 +1416,18 @@
               <input id="rf-data" type="date"
                 style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text);box-sizing:border-box;" />
             </div>
-            <div style="grid-column:1/-1;">
-              <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">Observação (opcional)</div>
-              <input id="rf-obs" type="text" placeholder="CDB 1 ano, LCI etc." maxlength="80"
-                style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text);box-sizing:border-box;" />
+            <div style="grid-column:1/-1;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+              <div style="flex:1;min-width:180px;">
+                <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">Observação (opcional)</div>
+                <input id="rf-obs" type="text" placeholder="CDB 1 ano, LCI etc." maxlength="80"
+                  style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text);box-sizing:border-box;" />
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;padding-top:16px;white-space:nowrap;">
+                <input type="checkbox" id="rf-isento-ir" style="width:16px;height:16px;accent-color:#22c55e;cursor:pointer;" />
+                <label for="rf-isento-ir" style="font-size:13px;font-weight:700;color:var(--text);cursor:pointer;">
+                  🟢 Isento de IR <span style="font-size:11px;font-weight:400;color:var(--text-muted);">(LCI, LCA, CRI, CRA, Debentures incentivadas)</span>
+                </label>
+              </div>
             </div>
           </div>
           <div style="display:flex;gap:8px;margin-top:4px;">
@@ -3984,17 +3992,18 @@
     return 15;
   }
 
-  // Retorna { liquido, ir, aliquota } sobre o rendimento total desde a data de aplicação
+  // Retorna { liquido, ir, aliquota, isento } sobre o rendimento total desde a data de aplicação
   function _rfCalcLiquidoIR(item, provisionado) {
+    if (item.isentoIR) return { liquido: provisionado, ir: 0, aliquota: 0, diasCorridos: 0, isento: true };
     const inicio = item.dataAplicacao || item.dataAtualizacao;
-    if (!inicio) return { liquido: provisionado, ir: 0, aliquota: 22.5 };
+    if (!inicio) return { liquido: provisionado, ir: 0, aliquota: 22.5, isento: false };
     const base = new Date(inicio + 'T00:00:00'); base.setHours(0,0,0,0);
     const hoje = new Date(); hoje.setHours(0,0,0,0);
     const diasCorridos = Math.max(0, Math.round((hoje - base) / 86400000));
     const aliquota = _rfAliquotaIR(diasCorridos);
     const rendBruto = Math.max(0, provisionado - (item.valorAplicado || item.valorAtualizado || 0));
     const ir = rendBruto * aliquota / 100;
-    return { liquido: provisionado - ir, ir, aliquota, diasCorridos };
+    return { liquido: provisionado - ir, ir, aliquota, diasCorridos, isento: false };
   }
 
   function _rfSalvarLocal() {
@@ -4063,6 +4072,7 @@
       document.getElementById('rf-data-aplicacao').value = item.dataAplicacao   || '';
       document.getElementById('rf-data').value           = item.dataAtualizacao || '';
       document.getElementById('rf-obs').value            = item.observacao      || '';
+      document.getElementById('rf-isento-ir').checked   = !!item.isentoIR;
     } else {
       document.getElementById('rf-inst').value           = '';
       document.getElementById('rf-pct').value            = 100;
@@ -4071,6 +4081,7 @@
       document.getElementById('rf-data-aplicacao').value = new Date().toISOString().slice(0,10);
       document.getElementById('rf-data').value           = new Date().toISOString().slice(0,10);
       document.getElementById('rf-obs').value            = '';
+      document.getElementById('rf-isento-ir').checked   = false;
     }
     form.style.display = 'block';
     document.getElementById('rf-inst').focus();
@@ -4088,6 +4099,7 @@
     const dataAplicacao = document.getElementById('rf-data-aplicacao').value;
     const data          = document.getElementById('rf-data').value;
     const obs           = document.getElementById('rf-obs').value.trim();
+    const isentoIR      = document.getElementById('rf-isento-ir').checked;
     const editId        = document.getElementById('rf-edit-id').value;
 
     if (!inst)    { alert('Informe o nome da instituição.'); return; }
@@ -4096,7 +4108,8 @@
 
     const item = { id: editId || _rfNovoId(), instituicao: inst, percentualCDI: pct,
                    valorAplicado: aplicado, valorAtualizado: atual,
-                   dataAplicacao: dataAplicacao || data, dataAtualizacao: data, observacao: obs };
+                   dataAplicacao: dataAplicacao || data, dataAtualizacao: data,
+                   observacao: obs, isentoIR: isentoIR || false };
     if (editId) {
       const idx = rendaFixa.findIndex(x => x.id === editId);
       if (idx > -1) rendaFixa[idx] = item; else rendaFixa.push(item);
@@ -4207,6 +4220,7 @@
           const pctCDI     = Number(item.percentualCDI || 100).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:2});
           return '<tr style="border-bottom:1px solid var(--border);background:' + bg + ';">' +
             '<td style="padding:8px;font-size:12px;font-weight:700;">' + (item.instituicao || '—') +
+              (item.isentoIR ? '<span style="display:inline-block;margin-left:5px;font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;background:rgba(34,197,94,0.15);color:#16a34a;vertical-align:middle;">Isento IR</span>' : '') +
               (item.observacao ? '<div style="font-size:10px;color:var(--text-muted);font-weight:400;">' + item.observacao + '</div>' : '') +
             '</td>' +
             '<td style="padding:8px;font-size:12px;text-align:right;font-weight:700;color:#7c3aed;">' + pctCDI + '%</td>' +
@@ -4218,8 +4232,10 @@
             '<td style="padding:8px;font-size:13px;font-weight:800;text-align:right;color:#7c3aed;">' + fmt(item.provisionado) + '</td>' +
             '<td style="padding:8px;font-size:13px;font-weight:800;text-align:right;color:#059669;">' + fmt(item.liquido) + '</td>' +
             '<td style="padding:8px;font-size:11px;text-align:right;">' +
-              '<span style="background:#fee2e2;color:#dc2626;border-radius:5px;padding:2px 6px;font-weight:700;font-size:10px;">' + item.aliquota.toFixed(1) + '%</span>' +
-              '<div style="font-size:10px;color:var(--danger);margin-top:2px;">−' + fmt(item.ir) + '</div>' +
+              (item.isento
+                ? '<span style="background:rgba(34,197,94,0.12);color:#16a34a;border-radius:5px;padding:2px 6px;font-weight:700;font-size:10px;">🟢 Isento</span>'
+                : '<span style="background:#fee2e2;color:#dc2626;border-radius:5px;padding:2px 6px;font-weight:700;font-size:10px;">' + item.aliquota.toFixed(1) + '%</span>' +
+                  '<div style="font-size:10px;color:var(--danger);margin-top:2px;">−' + fmt(item.ir) + '</div>') +
             '</td>' +
             '<td style="padding:8px;font-size:12px;font-weight:700;text-align:right;color:' + corP + ';">' + (rendPeriodo >= 0 ? '+' : '') + fmt(rendPeriodo) + '</td>' +
             '<td style="padding:8px;font-size:12px;font-weight:700;text-align:right;color:' + corT + ';">' + (rendTotal >= 0 ? '+' : '') + fmt(rendTotal) + '</td>' +
