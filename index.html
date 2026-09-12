@@ -6078,6 +6078,37 @@
     renderCarteiras();
   }
 
+  // Validação de ticker ao digitar no formulário da carteira
+  const _tickerValidTimer = {};
+  function _validarTickerCarteira(carteiraId) {
+    const inp = document.getElementById('ci-ticker-' + carteiraId);
+    const statusEl = document.getElementById('ci-ticker-status-' + carteiraId);
+    if (!inp || !statusEl) return;
+    const ticker = inp.value.trim().toUpperCase().replace('.SA','');
+    if (_tickerValidTimer[carteiraId]) clearTimeout(_tickerValidTimer[carteiraId]);
+    if (ticker.length < 4) { statusEl.innerHTML = ''; inp.style.borderColor = 'var(--border)'; return; }
+    statusEl.innerHTML = '<span style="color:var(--text-muted);">⏳ validando...</span>';
+    _tickerValidTimer[carteiraId] = setTimeout(async () => {
+      try {
+        const r = await fetch(brapiUrl('/quote/' + ticker + '?fundamental=false'));
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const data = await r.json();
+        const q = data && data.results && data.results[0];
+        if (!q || !q.regularMarketPrice) throw new Error('não encontrado');
+        const preco = Number(q.regularMarketPrice).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+        const nome  = q.longName || q.shortName || '';
+        inp.style.borderColor = '#22c55e';
+        statusEl.innerHTML = '<span style="color:#22c55e;font-weight:700;">✅ R$ ' + preco + (nome ? ' · ' + nome.slice(0,30) : '') + '</span>';
+        // Pré-preenche custo se ainda estiver vazio
+        const custoInp = document.getElementById('ci-custo-' + carteiraId);
+        if (custoInp && !custoInp.value) custoInp.value = Number(q.regularMarketPrice).toFixed(2);
+      } catch(e) {
+        inp.style.borderColor = '#ef4444';
+        statusEl.innerHTML = '<span style="color:#ef4444;font-weight:700;">❌ Ticker não encontrado na brapi.dev</span>';
+      }
+    }, 700);
+  }
+
   function renderCarteiras() {
     const el = document.getElementById('carteiras-lista');
     if (!el) return;
@@ -6396,7 +6427,8 @@
           '</div>' +
           '<div style="display:grid;grid-template-columns:2fr 1.5fr 1.5fr auto;gap:6px;align-items:end;">' +
             '<div><label style="font-size:10px;color:var(--text-muted);">Ticker</label>' +
-              '<input type="text" id="ci-ticker-' + c.id + '" placeholder="BBAS3" maxlength="10" oninput="this.value=this.value.toUpperCase()" style="width:100%;margin-top:3px;padding:8px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;font-weight:700;background:var(--surface);color:var(--text);"/></div>' +
+              '<input type="text" id="ci-ticker-' + c.id + '" placeholder="BBAS3" maxlength="10" oninput="this.value=this.value.toUpperCase();_validarTickerCarteira(\'' + c.id + '\')" style="width:100%;margin-top:3px;padding:8px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;font-weight:700;background:var(--surface);color:var(--text);"/>' +
+              '<div id="ci-ticker-status-' + c.id + '" style="font-size:10px;margin-top:3px;min-height:14px;"></div></div>' +
             '<div id="ci-qtd-wrap-' + c.id + '"><label style="font-size:10px;color:var(--text-muted);">Quantidade</label>' +
               '<input type="number" id="ci-qtd-' + c.id + '" placeholder="0" min="0.001" step="any" style="width:100%;margin-top:3px;padding:8px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text);"/></div>' +
             '<div id="ci-custo-wrap-' + c.id + '"><label style="font-size:10px;color:var(--text-muted);">Custo Unit. R$</label>' +
