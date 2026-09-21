@@ -6077,6 +6077,7 @@
       }
       // merge: não sobrescreve valores já preenchidos com null
       const existing = precos[sym] || {};
+      const closesAll = hist.length >= 2 ? hist.map(h => getClose(h)).filter(v => v > 0) : [];
       precos[sym] = {
         preco:     Number(q.regularMarketPrice),
         moeda:     (q.currency || 'BRL').toUpperCase(),
@@ -6087,6 +6088,7 @@
         max52: q.fiftyTwoWeekHigh != null ? Number(q.fiftyTwoWeekHigh) : existing.max52 ?? null,
         min3m: min3m !== null ? min3m : (existing.min3m ?? null),
         max3m: max3m !== null ? max3m : (existing.max3m ?? null),
+        hist3m: closesAll.length >= 2 ? closesAll : (existing.hist3m ?? null),
       };
     }
 
@@ -6126,6 +6128,7 @@
         a.max52      = precos[sym].max52;
         a.min3m      = precos[sym].min3m;
         a.max3m      = precos[sym].max3m;
+        a.hist3m     = precos[sym].hist3m || null;
       } else if (!a.monitorar) {
         falhas.push(a.ticker);
       }
@@ -6186,6 +6189,29 @@
         statusEl.innerHTML = '<span style="color:#ef4444;font-weight:700;">❌ Ticker não encontrado na brapi.dev</span>';
       }
     }, 700);
+  }
+
+  function _sparklineSVG(hist, sym) {
+    if (!hist || hist.length < 4) return '<span style="color:var(--text-muted);font-size:10px;">—</span>';
+    const w = 100, h = 34, pad = 2;
+    const mn = Math.min(...hist), mx = Math.max(...hist);
+    const range = mx - mn || 0.01;
+    const xs = (i) => pad + (i / (hist.length - 1)) * (w - pad * 2);
+    const ys = (v) => (h - pad) - ((v - mn) / range) * (h - pad * 2);
+    const pts = hist.map((v, i) => xs(i).toFixed(1) + ',' + ys(v).toFixed(1));
+    const col = hist[hist.length - 1] >= hist[0] ? '#22c55e' : '#ef4444';
+    const gid = 'sp_' + (sym || '').replace(/[^a-z0-9]/gi, '');
+    const linePath  = 'M' + pts.join(' L');
+    const areaPath  = linePath + ' L' + xs(hist.length - 1).toFixed(1) + ',' + (h - pad) + ' L' + pad + ',' + (h - pad) + ' Z';
+    return '<svg width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '" xmlns="http://www.w3.org/2000/svg" style="display:block;">' +
+      '<defs><linearGradient id="' + gid + '" x1="0" y1="0" x2="0" y2="1">' +
+        '<stop offset="0%" stop-color="' + col + '" stop-opacity="0.25"/>' +
+        '<stop offset="100%" stop-color="' + col + '" stop-opacity="0.03"/>' +
+      '</linearGradient></defs>' +
+      '<path d="' + areaPath + '" fill="url(#' + gid + ')"/>' +
+      '<path d="' + linePath + '" stroke="' + col + '" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '<circle cx="' + xs(hist.length - 1).toFixed(1) + '" cy="' + ys(hist[hist.length - 1]).toFixed(1) + '" r="2" fill="' + col + '"/>' +
+    '</svg>';
   }
 
   function renderCarteiras() {
@@ -6382,6 +6408,7 @@
           '<td style="padding:8px;font-size:12px;text-align:right;font-weight:700;color:' + (a.precoAtual ? '#3b82f6' : 'var(--text-muted)') + ';">' + (a.precoAtual ? fmtUSD(a.precoAtual) : (isMon ? '<span title="Ticker não encontrado na brapi.dev — verifique o código">N/D</span>' : '—')) + '</td>' +
           '<td style="padding:8px;font-size:12px;text-align:right;color:var(--text-muted);">' + (a.min3m ? fmtUSD(a.min3m) : '—') + '</td>' +
           '<td style="padding:8px;font-size:12px;text-align:right;color:var(--text-muted);">' + (a.max3m ? fmtUSD(a.max3m) : '—') + '</td>' +
+          '<td style="padding:4px 8px;text-align:center;vertical-align:middle;">' + _sparklineSVG(a.hist3m, a.ticker) + '</td>' +
           '<td style="padding:8px;font-size:11px;text-align:right;color:' + (a.min52 ? 'var(--danger)' : 'var(--text-muted)') + ';">' + (a.min52 ? fmtUSD(a.min52) : '—') + '</td>' +
           '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + corVsMin + ';">' + (vsMin52 != null ? fmtPct2(vsMin52) : '—') + '</td>' +
           '<td style="padding:8px;font-size:11px;text-align:right;color:' + (a.max52 ? 'var(--success)' : 'var(--text-muted)') + ';">' + (a.max52 ? fmtUSD(a.max52) : '—') + '</td>' +
@@ -6398,7 +6425,7 @@
           '<td style="padding:6px 8px;text-align:right;">' + cellProb + '</td>' +
           '<td style="padding:8px;">' + acoes + '</td>' +
         '</tr>';
-      }).join('') : '<tr><td colspan="19" style="padding:12px;text-align:center;color:var(--text-muted);font-size:12px;">Nenhuma ação. Adicione abaixo.</td></tr>';
+      }).join('') : '<tr><td colspan="20" style="padding:12px;text-align:center;color:var(--text-muted);font-size:12px;">Nenhuma ação. Adicione abaixo.</td></tr>';
 
       const lucroTotal   = totalAtual - totalCusto;
       const corLucroTot  = lucroTotal >= 0 ? 'var(--success)' : 'var(--danger)';
@@ -6484,6 +6511,7 @@
             th('atual',     'Atual',      'right') +
             th('min3m',     'Mín.3m',     'right') +
             th('max3m',     'Máx.3m',     'right') +
+            '<th style="padding:7px 8px;font-size:10px;color:var(--text-muted);text-align:center;font-weight:700;white-space:nowrap;">Gráf.3M</th>' +
             th('min52',     'Mín.52sem',  'right') +
             th('vsmin52',   '%vsMin',     'right') +
             th('max52',     'Máx.52sem',  'right') +
