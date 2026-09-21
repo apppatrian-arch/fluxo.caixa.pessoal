@@ -246,6 +246,31 @@
         align-items: start;
         margin-bottom: 16px;
       }
+      /* ── FINANCEIRO — layout desktop ── */
+      .content.content-financeiro {
+        max-width: 940px;
+        padding: 20px;
+      }
+      .fp-hist-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+      }
+      .fp-lanc-layout {
+        display: grid;
+        grid-template-columns: 260px 1fr;
+        gap: 14px;
+        align-items: start;
+      }
+      .fp-lanc-sidebar { /* saldo + filtros */ }
+      .fp-lanc-main   { /* lista */ }
+      .fp-novo-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 12px;
+      }
+      .fp-novo-grid .form-group { margin-bottom: 0; }
+      .fp-novo-full { grid-column: 1 / -1; }
     }
 
     /* ── INDÚSTRIA A — RESPONSIVO ── */
@@ -843,23 +868,48 @@
 
     <!-- ── PAINEL LANÇAMENTOS ── -->
     <div id="painel-lancamentos">
-      <div class="periodo-wrap">
-        <span style="font-size:16px;">📅</span>
-        <select id="filtro-periodo" onchange="renderLancamentos()">
-          <option value="hoje">Hoje</option>
-          <option value="semana">Esta semana</option>
-          <option value="mes" selected>Este mês</option>
-          <option value="todos">Todos</option>
-        </select>
-      </div>
-
-      <div class="card">
-        <div class="filtros">
-          <button class="filtro-btn active" id="filtro-todos" onclick="setFiltro('todos')">Todos</button>
-          <button class="filtro-btn" id="filtro-rec" onclick="setFiltro('rec')">Recebimentos</button>
-          <button class="filtro-btn" id="filtro-pag" onclick="setFiltro('pag')">Pagamentos</button>
+      <div class="fp-lanc-layout">
+        <!-- Sidebar: saldo mini + filtro período -->
+        <div class="fp-lanc-sidebar">
+          <div class="periodo-wrap">
+            <span style="font-size:16px;">📅</span>
+            <select id="filtro-periodo" onchange="renderLancamentos()">
+              <option value="hoje">Hoje</option>
+              <option value="semana">Esta semana</option>
+              <option value="mes" selected>Este mês</option>
+              <option value="todos">Todos</option>
+            </select>
+          </div>
+          <!-- Mini resumo do período (desktop) -->
+          <div class="card" style="padding:16px;">
+            <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-muted);margin-bottom:10px;">Resumo do período</div>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-size:12px;color:var(--text-muted);">↑ Recebimentos</span>
+                <span id="fp-mini-rec" style="font-size:14px;font-weight:700;color:var(--success);">R$ 0,00</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-size:12px;color:var(--text-muted);">↓ Pagamentos</span>
+                <span id="fp-mini-pag" style="font-size:14px;font-weight:700;color:var(--danger);">R$ 0,00</span>
+              </div>
+              <div style="border-top:1px solid var(--border);padding-top:8px;display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-size:12px;font-weight:700;color:var(--text);">Saldo período</span>
+                <span id="fp-mini-saldo" style="font-size:15px;font-weight:800;color:var(--text);">R$ 0,00</span>
+              </div>
+            </div>
+          </div>
         </div>
-        <div id="lista-lancamentos"></div>
+        <!-- Main: filtros + lista -->
+        <div class="fp-lanc-main">
+          <div class="card">
+            <div class="filtros">
+              <button class="filtro-btn active" id="filtro-todos" onclick="setFiltro('todos')">Todos</button>
+              <button class="filtro-btn" id="filtro-rec" onclick="setFiltro('rec')">Recebimentos</button>
+              <button class="filtro-btn" id="filtro-pag" onclick="setFiltro('pag')">Pagamentos</button>
+            </div>
+            <div id="lista-lancamentos"></div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -873,7 +923,7 @@
           <button class="tipo-btn" id="tipo-pag" onclick="setTipo('pag')">⬇ Pagamento</button>
         </div>
 
-        <div class="form-row">
+        <div class="fp-novo-grid">
           <div class="form-group">
             <label>Data</label>
             <input type="date" id="novo-data" />
@@ -882,30 +932,28 @@
             <label>Valor (R$)</label>
             <input type="number" id="novo-valor" placeholder="0,00" step="0.01" min="0.01" />
           </div>
-        </div>
-
-        <div class="form-group">
-          <label id="label-origem">Pessoa</label>
-          <div style="display:flex;gap:8px;align-items:center;">
-            <select id="novo-pessoa" style="flex:1;"></select>
-            <button type="button" class="btn btn-ghost btn-sm" onclick="abrirModalNovaPessoa()" title="Cadastrar pessoa" style="flex-shrink:0;padding:11px 12px;">+</button>
+          <div class="form-group">
+            <label id="label-origem">Pessoa</label>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <select id="novo-pessoa" style="flex:1;"></select>
+              <button type="button" class="btn btn-ghost btn-sm" onclick="abrirModalNovaPessoa()" title="Cadastrar pessoa" style="flex-shrink:0;padding:11px 12px;">+</button>
+            </div>
+          </div>
+          <div class="form-group fp-novo-full">
+            <label>Descrição (opcional)</label>
+            <input type="text" id="novo-descricao" placeholder="Detalhes adicionais..." />
+          </div>
+          <div class="form-group">
+            <label>Categoria</label>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <select id="novo-categoria" style="flex:1;"></select>
+              <button type="button" class="btn btn-ghost btn-sm" onclick="abrirModalCategorias()" title="Gerenciar categorias" style="flex-shrink:0;padding:11px 12px;">⚙</button>
+            </div>
+          </div>
+          <div class="fp-novo-full" style="margin-top:4px;">
+            <button class="btn btn-primary" id="btn-salvar" onclick="salvarLancamento()">Salvar Lançamento</button>
           </div>
         </div>
-
-        <div class="form-group">
-          <label>Descrição (opcional)</label>
-          <input type="text" id="novo-descricao" placeholder="Detalhes adicionais..." />
-        </div>
-
-        <div class="form-group">
-          <label>Categoria</label>
-          <div style="display:flex;gap:8px;align-items:center;">
-            <select id="novo-categoria" style="flex:1;"></select>
-            <button type="button" class="btn btn-ghost btn-sm" onclick="abrirModalCategorias()" title="Gerenciar categorias" style="flex-shrink:0;padding:11px 12px;">⚙</button>
-          </div>
-        </div>
-
-        <button class="btn btn-primary" id="btn-salvar" onclick="salvarLancamento()">Salvar Lançamento</button>
       </div>
     </div>
 
@@ -935,40 +983,42 @@
     <!-- ── PAINEL HISTÓRICO ── -->
     <div id="painel-historico" style="display:none;">
 
-      <!-- Gráfico de área — evolução mensal -->
-      <div style="background:#0d1117;border-radius:16px;padding:18px 16px;margin-bottom:14px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-          <div>
-            <div style="font-size:11px;color:#8b949e;text-transform:uppercase;letter-spacing:0.5px;">Evolução Mensal</div>
-            <div id="hist-saldo-total" style="font-size:22px;font-weight:700;color:#e6edf3;margin-top:2px;"></div>
+      <div class="fp-hist-grid">
+        <!-- Gráfico de área — evolução mensal -->
+        <div style="background:#0d1117;border-radius:16px;padding:18px 16px;margin-bottom:14px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+            <div>
+              <div style="font-size:11px;color:#8b949e;text-transform:uppercase;letter-spacing:0.5px;">Evolução Mensal</div>
+              <div id="hist-saldo-total" style="font-size:22px;font-weight:700;color:#e6edf3;margin-top:2px;"></div>
+            </div>
+            <div id="hist-variacao" style="font-size:13px;font-weight:700;padding:4px 10px;border-radius:20px;"></div>
           </div>
-          <div id="hist-variacao" style="font-size:13px;font-weight:700;padding:4px 10px;border-radius:20px;"></div>
+          <div style="display:flex;gap:16px;margin-bottom:14px;">
+            <button onclick="setHistVista('area')" id="hvbtn-area" class="hv-btn hv-ativo" style="">Área</button>
+            <button onclick="setHistVista('barras')" id="hvbtn-barras" class="hv-btn">Barras</button>
+          </div>
+          <div style="position:relative;height:180px;">
+            <canvas id="chart-area"></canvas>
+          </div>
         </div>
-        <div style="display:flex;gap:16px;margin-bottom:14px;">
-          <button onclick="setHistVista('area')" id="hvbtn-area" class="hv-btn hv-ativo" style="">Área</button>
-          <button onclick="setHistVista('barras')" id="hvbtn-barras" class="hv-btn">Barras</button>
-        </div>
-        <div style="position:relative;height:180px;">
-          <canvas id="chart-area"></canvas>
+
+        <!-- Doughnut do mês -->
+        <div style="background:#0d1117;border-radius:16px;padding:18px 16px;margin-bottom:14px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+            <div style="font-size:13px;font-weight:700;color:#e6edf3;">Distribuição</div>
+            <select id="hist-mes-sel" onchange="renderHistorico()" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:600;color:#e6edf3;"></select>
+          </div>
+          <div style="display:flex;align-items:center;gap:16px;">
+            <div style="position:relative;width:120px;height:120px;flex-shrink:0;">
+              <canvas id="chart-pizza"></canvas>
+              <div id="pizza-centro" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;"></div>
+            </div>
+            <div id="pizza-legenda" style="flex:1;font-size:13px;display:flex;flex-direction:column;gap:10px;"></div>
+          </div>
         </div>
       </div>
 
-      <!-- Doughnut do mês -->
-      <div style="background:#0d1117;border-radius:16px;padding:18px 16px;margin-bottom:14px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-          <div style="font-size:13px;font-weight:700;color:#e6edf3;">Distribuição</div>
-          <select id="hist-mes-sel" onchange="renderHistorico()" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:600;color:#e6edf3;"></select>
-        </div>
-        <div style="display:flex;align-items:center;gap:16px;">
-          <div style="position:relative;width:120px;height:120px;flex-shrink:0;">
-            <canvas id="chart-pizza"></canvas>
-            <div id="pizza-centro" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;"></div>
-          </div>
-          <div id="pizza-legenda" style="flex:1;font-size:13px;display:flex;flex-direction:column;gap:10px;"></div>
-        </div>
-      </div>
-
-      <!-- Tabela resumo -->
+      <!-- Tabela resumo — largura total -->
       <div style="background:#0d1117;border-radius:16px;padding:18px 16px;margin-bottom:14px;">
         <div style="font-size:13px;font-weight:700;color:#e6edf3;margin-bottom:12px;">Resumo Mensal</div>
         <div id="historico-lista"></div>
@@ -2130,7 +2180,8 @@
   }
 
   function setTab(tab) {
-    document.querySelector('.content').classList.toggle('content-wide', tab === 'acoes' || tab === 'opcoes' || tab === 'paulistinha');
+    document.querySelector('.content').classList.toggle('content-wide',      tab === 'acoes' || tab === 'opcoes' || tab === 'paulistinha');
+    document.querySelector('.content').classList.toggle('content-financeiro', tab === 'pessoal');
     ['pessoal', 'paulistinha', 'acoes', 'opcoes'].forEach(t => {
       document.getElementById('painel-' + t).style.display = (t === tab) ? 'block' : 'none';
       const btn = document.getElementById('tab-' + t);
@@ -2243,6 +2294,15 @@
     let lista = lancamentos.filter(filtPeriodo);
     if (filtroAtual !== 'todos') lista = lista.filter(l => l.tipo === filtroAtual);
     lista.sort((a, b) => new Date(b.data) - new Date(a.data) || b.criadoEm.localeCompare(a.criadoEm));
+
+    // Mini resumo sidebar (desktop)
+    const todosP = lancamentos.filter(filtPeriodo);
+    const miniRec   = todosP.filter(l => l.tipo === 'rec').reduce((s, l) => s + l.valor, 0);
+    const miniPag   = todosP.filter(l => l.tipo === 'pag').reduce((s, l) => s + l.valor, 0);
+    const miniSaldo = miniRec - miniPag;
+    const elMR = document.getElementById('fp-mini-rec');   if (elMR) elMR.textContent = fmt(miniRec);
+    const elMP = document.getElementById('fp-mini-pag');   if (elMP) elMP.textContent = fmt(miniPag);
+    const elMS = document.getElementById('fp-mini-saldo'); if (elMS) { elMS.textContent = fmt(miniSaldo); elMS.style.color = miniSaldo >= 0 ? 'var(--success)' : 'var(--danger)'; }
 
     const el = document.getElementById('lista-lancamentos');
     if (!lista.length) {
