@@ -6253,24 +6253,38 @@
 
   function _sparklineSVG(hist, sym) {
     if (!hist || hist.length < 4) return '<span style="color:var(--text-muted);font-size:10px;">—</span>';
-    const w = 100, h = 34, pad = 2;
+    const cw = 102, lw = 42, w = cw + lw, h = 50, pad = 3;
     const mn = Math.min(...hist), mx = Math.max(...hist);
+    const mid = (mn + mx) / 2;
     const range = mx - mn || 0.01;
-    const xs = (i) => pad + (i / (hist.length - 1)) * (w - pad * 2);
+    const xs = (i) => pad + (i / (hist.length - 1)) * (cw - pad * 2);
     const ys = (v) => (h - pad) - ((v - mn) / range) * (h - pad * 2);
     const pts = hist.map((v, i) => xs(i).toFixed(1) + ',' + ys(v).toFixed(1));
     const col = hist[hist.length - 1] >= hist[0] ? '#22c55e' : '#ef4444';
     const gid = 'sp_' + (sym || '').replace(/[^a-z0-9]/gi, '');
-    const linePath  = 'M' + pts.join(' L');
-    const areaPath  = linePath + ' L' + xs(hist.length - 1).toFixed(1) + ',' + (h - pad) + ' L' + pad + ',' + (h - pad) + ' Z';
+    const linePath = 'M' + pts.join(' L');
+    const areaPath = linePath + ' L' + xs(hist.length - 1).toFixed(1) + ',' + (h - pad) + ' L' + pad + ',' + (h - pad) + ' Z';
+    const fmtL = (v) => v.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+    // 3 linhas de referência: máx, meio, mín
+    const refs = [
+      { v: mx,  y: ys(mx)  },
+      { v: mid, y: ys(mid) },
+      { v: mn,  y: ys(mn)  },
+    ];
+    const refHtml = refs.map(r => {
+      const yc = Math.max(pad + 4, Math.min(h - 2, r.y));
+      return '<line x1="' + pad + '" y1="' + yc.toFixed(1) + '" x2="' + (cw - pad) + '" y2="' + yc.toFixed(1) + '" stroke="rgba(150,150,150,0.3)" stroke-width="0.7" stroke-dasharray="2,2"/>' +
+        '<text x="' + (cw + 2) + '" y="' + (yc + 2.8).toFixed(1) + '" font-size="7" font-family="\'Segoe UI\',system-ui,sans-serif" fill="rgba(130,130,130,0.85)">' + fmtL(r.v) + '</text>';
+    }).join('');
     return '<svg width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '" xmlns="http://www.w3.org/2000/svg" style="display:block;">' +
       '<defs><linearGradient id="' + gid + '" x1="0" y1="0" x2="0" y2="1">' +
-        '<stop offset="0%" stop-color="' + col + '" stop-opacity="0.25"/>' +
+        '<stop offset="0%" stop-color="' + col + '" stop-opacity="0.28"/>' +
         '<stop offset="100%" stop-color="' + col + '" stop-opacity="0.03"/>' +
       '</linearGradient></defs>' +
+      refHtml +
       '<path d="' + areaPath + '" fill="url(#' + gid + ')"/>' +
       '<path d="' + linePath + '" stroke="' + col + '" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>' +
-      '<circle cx="' + xs(hist.length - 1).toFixed(1) + '" cy="' + ys(hist[hist.length - 1]).toFixed(1) + '" r="2" fill="' + col + '"/>' +
+      '<circle cx="' + xs(hist.length - 1).toFixed(1) + '" cy="' + ys(hist[hist.length - 1]).toFixed(1) + '" r="2.2" fill="' + col + '"/>' +
     '</svg>';
   }
 
