@@ -4642,9 +4642,7 @@
         (rfAplic > 0 ? sep('RENDA FIXA') +
           grid(150,
             kpi('Total Aplicado', fmt(rfAplic)) +
-            kpi('Provisionado Bruto', fmt(rfBruto), 'var(--text)', 'Rendimento: ' + fmt(rfRend)) +
-            kpi('Provisionado Líq. IR', fmt(rfLiq), 'var(--success)') +
-            kpi('IR Estimado Total', fmt(rfIR), '#f59e0b')
+            kpi('Provisionado Bruto', fmt(rfBruto), 'var(--text)', 'Rendimento: ' + fmt(rfRend))
           )
         : '') +
 
