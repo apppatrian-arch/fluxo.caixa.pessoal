@@ -4312,8 +4312,6 @@
           '<th style="' + thS + 'right;">Dias Úteis</th>' +
           '<th style="' + thS + 'right;">Taxa Diária</th>' +
           '<th style="' + thS + 'right;color:#7c3aed;">Prov. Bruto</th>' +
-          '<th style="' + thS + 'right;color:#059669;">Prov. Líq. IR</th>' +
-          '<th style="' + thS + 'right;">IR (alíq.)</th>' +
           '<th style="' + thS + 'right;">Rend. Período</th>' +
           '<th style="' + thS + 'right;">Rend. Total</th>' +
           '<th style="' + thS + 'center;">Ações</th>' +
@@ -4341,13 +4339,6 @@
             '<td style="padding:8px;font-size:12px;text-align:right;">' + item.dias + 'd</td>' +
             '<td style="padding:8px;font-size:11px;text-align:right;color:var(--text-muted);">' + (taxaDiaria > 0 ? taxaDiaria.toFixed(4) + '%' : '—') + '</td>' +
             '<td style="padding:8px;font-size:13px;font-weight:800;text-align:right;color:#7c3aed;">' + fmt(item.provisionado) + '</td>' +
-            '<td style="padding:8px;font-size:13px;font-weight:800;text-align:right;color:#059669;">' + fmt(item.liquido) + '</td>' +
-            '<td style="padding:8px;font-size:11px;text-align:right;">' +
-              (item.isento
-                ? '<span style="background:rgba(34,197,94,0.12);color:#16a34a;border-radius:5px;padding:2px 6px;font-weight:700;font-size:10px;">🟢 Isento</span>'
-                : '<span style="background:#fee2e2;color:#dc2626;border-radius:5px;padding:2px 6px;font-weight:700;font-size:10px;">' + item.aliquota.toFixed(1) + '%</span>' +
-                  '<div style="font-size:10px;color:var(--danger);margin-top:2px;">−' + fmt(item.ir) + '</div>') +
-            '</td>' +
             '<td style="padding:8px;font-size:12px;font-weight:700;text-align:right;color:' + corP + ';">' + (rendPeriodo >= 0 ? '+' : '') + fmt(rendPeriodo) + '</td>' +
             '<td style="padding:8px;font-size:12px;font-weight:700;text-align:right;color:' + corT + ';">' + (rendTotal >= 0 ? '+' : '') + fmt(rendTotal) + '</td>' +
             '<td style="padding:8px;text-align:center;white-space:nowrap;">' +
