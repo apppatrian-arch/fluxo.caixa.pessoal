@@ -4275,24 +4275,19 @@
           '</div>' +
         '</div>' +
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">' +
-          '<div>' +
-            '<div style="font-size:9px;color:var(--text-muted);margin-bottom:2px;">Provisionado</div>' +
-            '<div style="font-size:14px;font-weight:800;color:#7c3aed;">' + fmt(g.provisionado) + '</div>' +
+          '<div style="grid-column:1/-1;">' +
+            '<div style="font-size:9px;color:var(--text-muted);margin-bottom:2px;">Prov. Bruto</div>' +
+            '<div style="font-size:15px;font-weight:800;color:#7c3aed;">' + fmt(g.provisionado) + '</div>' +
           '</div>' +
           '<div>' +
-            '<div style="font-size:9px;color:var(--text-muted);margin-bottom:2px;">Líq. IR</div>' +
-            '<div style="font-size:14px;font-weight:800;color:#059669;">' + fmt(g.liquido) + '</div>' +
-          '</div>' +
-          '<div>' +
-            '<div style="font-size:9px;color:var(--text-muted);margin-bottom:2px;">Rendimento</div>' +
-            '<div style="font-size:12px;font-weight:700;color:' + corR + ';">' + (rend >= 0 ? '+' : '') + fmt(rend) + '</div>' +
+            '<div style="font-size:9px;color:var(--text-muted);margin-bottom:2px;">Rend. Total</div>' +
+            '<div style="font-size:13px;font-weight:700;color:' + corR + ';">' + (rend >= 0 ? '+' : '') + fmt(rend) + '</div>' +
           '</div>' +
           '<div>' +
             '<div style="font-size:9px;color:var(--text-muted);margin-bottom:2px;">Participação</div>' +
-            '<div style="font-size:12px;font-weight:700;color:var(--text);">' + pct.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}) + '%</div>' +
+            '<div style="font-size:13px;font-weight:700;color:var(--text);">' + pct.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}) + '%</div>' +
           '</div>' +
         '</div>' +
-        (g.ir > 0 ? '<div style="font-size:10px;color:var(--danger);margin-top:6px;">IR estimado: −' + fmt(g.ir) + '</div>' : '') +
       '</div>';
     }).join('');
     const elInst = document.getElementById('rf-por-inst');
