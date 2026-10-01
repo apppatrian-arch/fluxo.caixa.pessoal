@@ -4779,7 +4779,7 @@
       rvInvest += inv; rvAtual += atu;
       if (vd != null) rvVarDia += vd;
       const sym = (a.ticker || '').replace('.SA','').toUpperCase();
-      const nomeEmpresa = (precos[sym] && precos[sym].nomeEmpresa) || null;
+      const nomeEmpresa = (_precosGlobal[sym] && _precosGlobal[sym].nomeEmpresa) || null;
       return { ...a, inv, atu, lucro, lp, vd, nomeEmpresa };
     });
     const rvLucro = rvAtual - rvInvest;
@@ -5922,6 +5922,7 @@
   let _selicAnual    = 0;   // meta anual % a.a. — atualizado por buscarSelic()
   let _selicDiaria   = 0;   // taxa Over diária real (BCB série 11) — atualizado por buscarSelic()
   let rendaFixa      = [];  // carteira de renda fixa
+  let _precosGlobal  = {};  // cache de cotações: sym → { preco, nomeEmpresa, hist3m, ... }
   let _chartAlocacao  = null;
   let _chartOpcoes    = null;
   let opcoes          = [];  // carteira de opções
@@ -5995,8 +5996,14 @@
       // Apaga todos os chunks antigos
       const existentes = (records || []).filter(r => String(r.descricao || '').startsWith(prefix));
       for (const r of existentes) await paulFetch('DELETE', '/paulistinha/financeiro/' + r.id);
+      // Strip de campos voláteis/grandes antes de serializar (hist3m pode ser 60+ números)
+      const carteirasSave = carteiras.map(c => ({
+        ...c, acoes: (c.acoes || []).map(a => {
+          const { hist3m, ...rest } = a; return rest;
+        })
+      }));
       // Divide em chunks e salva cada um
-      const encoded = _cartB64Enc(carteiras);
+      const encoded = _cartB64Enc(carteirasSave);
       const chunks = [];
       const csz = _chunkSize();
       for (let i = 0; i < encoded.length; i += csz) chunks.push(encoded.slice(i, i + csz));
@@ -6446,12 +6453,13 @@
         a.max52      = precos[sym].max52;
         a.min3m      = precos[sym].min3m;
         a.max3m      = precos[sym].max3m;
-        a.hist3m     = precos[sym].hist3m || null;
-        // nomeEmpresa fica só em precos[], não no objeto a (evita salvar no banco)
+        // hist3m e nomeEmpresa ficam só em _precosGlobal[], nunca no objeto a (evita salvar no banco)
       } else if (!a.monitorar) {
         falhas.push(a.ticker);
       }
     });
+    // Mescla no cache global de cotações (usado por renderVisaoGeral e sparklines)
+    Object.assign(_precosGlobal, precos);
     if (falhas.length) {
       _setSyncStatus('⚠️ Cotação não encontrada na brapi.dev: ' + falhas.join(', ') + ' — verifique se os tickers estão corretos', false);
     } else {
@@ -6741,7 +6749,7 @@
           '<td style="padding:8px;font-size:12px;text-align:right;font-weight:700;color:' + (a.precoAtual ? '#3b82f6' : 'var(--text-muted)') + ';">' + (a.precoAtual ? fmtUSD(a.precoAtual) : (isMon ? '<span title="Ticker não encontrado na brapi.dev — verifique o código">N/D</span>' : '—')) + '</td>' +
           '<td style="padding:8px;font-size:12px;text-align:right;color:var(--text-muted);">' + (a.min3m ? fmtUSD(a.min3m) : '—') + '</td>' +
           '<td style="padding:8px;font-size:12px;text-align:right;color:var(--text-muted);">' + (a.max3m ? fmtUSD(a.max3m) : '—') + '</td>' +
-          '<td style="padding:4px 8px;text-align:center;vertical-align:middle;">' + _sparklineSVG(a.hist3m, a.ticker) + '</td>' +
+          '<td style="padding:4px 8px;text-align:center;vertical-align:middle;">' + _sparklineSVG((_precosGlobal[a.ticker.replace('.SA','').toUpperCase()] || {}).hist3m || null, a.ticker) + '</td>' +
           '<td style="padding:8px;font-size:11px;text-align:right;color:' + (a.min52 ? 'var(--danger)' : 'var(--text-muted)') + ';">' + (a.min52 ? fmtUSD(a.min52) : '—') + '</td>' +
           '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + corVsMin + ';">' + (vsMin52 != null ? fmtPct2(vsMin52) : '—') + '</td>' +
           '<td style="padding:8px;font-size:11px;text-align:right;color:' + (a.max52 ? 'var(--success)' : 'var(--text-muted)') + ';">' + (a.max52 ? fmtUSD(a.max52) : '—') + '</td>' +
