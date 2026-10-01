@@ -4588,11 +4588,11 @@
     const svgItems = rects.map(r => {
       const bg = _tmColorRV(r.varDiaPct);
       const varPct = r.varDiaPct;
-      const arrow  = varPct == null ? '' : varPct >= 0 ? ' ▲' : ' ▼';
-      const varStr = varPct != null ? (varPct >= 0 ? '+' : '') + varPct.toFixed(2) + '%' + arrow : '—';
+      const arrow  = varPct == null ? '' : varPct >= 0 ? ' &#x25B2;' : ' &#x25BC;';
+      const varStr = varPct != null ? (varPct >= 0 ? '+' : '') + varPct.toFixed(2) + '%' + arrow : '&#x2014;';
       const nomeRaw = r.nomeEmpresa || '';
       const nome = nomeRaw.replace(/\s+(S\.?A\.?|HOLDING|PARTICIPAÇÕES|CIA\.?|COMPANHIA|ENERGIA|ELÉTRICA|DO BRASIL|SA).*$/i,'').trim();
-      const nomeShort = nome.length > 18 ? nome.slice(0,17) + '…' : nome;
+      const nomeShort = _svgEsc(nome.length > 18 ? nome.slice(0,17) + '…' : nome);
 
       const isTiny  = r.w < 55  || r.h < 42;
       const isSmall = r.w < 95  || r.h < 65;
@@ -4606,12 +4606,13 @@
 
       let s = `<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" fill="${bg}" rx="8"/>`;
       if (!isTiny) {
-        s += `<text x="${r.x+pad}" y="${r.y+pad+tkSize}" font-size="${tkSize}" font-weight="800" fill="#ffffff" font-family="system-ui,sans-serif" letter-spacing="-0.3">${r.ticker}</text>`;
+        s += `<text x="${r.x+pad}" y="${r.y+pad+tkSize}" font-size="${tkSize}" font-weight="800" fill="#ffffff" font-family="system-ui,sans-serif" letter-spacing="-0.3">${_svgEsc(r.ticker)}</text>`;
         if (nmSize > 0 && nomeShort)
           s += `<text x="${r.x+pad}" y="${r.y+pad+tkSize+nmSize+4}" font-size="${nmSize}" fill="rgba(255,255,255,0.65)" font-family="system-ui,sans-serif">${nomeShort}</text>`;
         s += `<text x="${r.x+pad}" y="${r.y+r.h-pad}" font-size="${vSize}" font-weight="700" fill="${varColor}" font-family="system-ui,sans-serif">${varStr}</text>`;
       }
-      s += `<title>${r.ticker}${nomeShort?' — '+nomeShort:''}\nPeso: ${r.pct.toFixed(1)}%\nVar.dia: ${varPct != null ? (varPct>=0?'+':'')+varPct.toFixed(2)+'%' : '—'}</title>`;
+      const varTip = varPct != null ? (varPct>=0?'+':'')+varPct.toFixed(2)+'%' : '—';
+      s += `<title>${_svgEsc(r.ticker)}${nomeShort?' — '+nomeShort:''}\nPeso: ${r.pct.toFixed(1)}%\nVar.dia: ${_svgEsc(varTip)}</title>`;
       return s;
     }).join('');
 
