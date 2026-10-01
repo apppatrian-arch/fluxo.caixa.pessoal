@@ -4580,9 +4580,27 @@
   function _renderTreemap(acoesInfo) {
     const itens = acoesInfo.filter(a => a.atu > 0 && !a.monitorar);
     if (itens.length < 1) return '';
-    itens.sort((a, b) => b.atu - a.atu);
-    const total = itens.reduce((s, a) => s + a.atu, 0);
-    const withPct = itens.map(a => ({ ...a, pct: a.atu / total * 100 }));
+
+    // Agrega por ticker (mesmo ativo pode estar em múltiplas carteiras)
+    const byTicker = {};
+    itens.forEach(a => {
+      const sym = (a.ticker || '').toUpperCase();
+      if (!byTicker[sym]) {
+        byTicker[sym] = { ...a, atu: 0, inv: 0, vd: 0, _vdNull: true };
+      }
+      byTicker[sym].atu += a.atu;
+      byTicker[sym].inv += a.inv;
+      if (a.vd != null) { byTicker[sym].vd += a.vd; byTicker[sym]._vdNull = false; }
+    });
+    const agregados = Object.values(byTicker).map(a => ({
+      ...a,
+      vd:       a._vdNull ? null : a.vd,
+      varDiaPct: (_precosGlobal[a.ticker.replace('.SA','').toUpperCase()] || {}).varDiaPct ?? a.varDiaPct ?? null,
+      nomeEmpresa: (_precosGlobal[a.ticker.replace('.SA','').toUpperCase()] || {}).nomeEmpresa || a.nomeEmpresa || null,
+    }));
+    agregados.sort((a, b) => b.atu - a.atu);
+    const total = agregados.reduce((s, a) => s + a.atu, 0);
+    const withPct = agregados.map(a => ({ ...a, pct: a.atu / total * 100 }));
 
     const W = 1000, H = 400, GAP = 4;
     const rects = _squarify(withPct, 0, 0, W, H, GAP);
@@ -4614,8 +4632,8 @@
         s += `<text x="${r.x+pad}" y="${r.y+r.h-pad}" font-size="${vSize}" font-weight="700" fill="${varColor}" font-family="system-ui,sans-serif">${varStr}</text>`;
       }
       const varTip = varPct != null ? (varPct>=0?'+':'')+varPct.toFixed(2)+'%' : '—';
-      const pesoPct = (r.w * r.h / (W * H) * 100);
-      s += `<title>${_svgEsc(r.ticker)}${nomeShort?' — '+nomeShort:''}\nPeso: ${pesoPct.toFixed(1)}%\nVar.dia: ${_svgEsc(varTip)}</title>`;
+      const atuFmt = 'R$ ' + r.atu.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+      s += `<title>${_svgEsc(r.ticker)}${nomeShort?' — '+nomeShort:''}\nValor atual: ${_svgEsc(atuFmt)}\nPeso: ${r.pct.toFixed(1)}%\nVar.dia: ${_svgEsc(varTip)}</title>`;
       return s;
     }).join('');
 
