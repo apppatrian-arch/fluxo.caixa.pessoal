@@ -4541,25 +4541,78 @@
   }
 
   // ── TREEMAP DE DESEMPENHO ──
-  // Algoritmo squarify (divisão binária recursiva)
+  // Algoritmo squarified de Bruls et al. — minimiza o aspect-ratio de cada célula
   function _squarify(items, x, y, w, h, gap) {
     if (!items.length) return [];
-    if (items.length === 1) return [{ ...items[0], x, y, w: Math.max(0, w), h: Math.max(0, h) }];
-    const t = items.reduce((s, a) => s + a.pct, 0);
-    let acc = 0, split = 0;
-    const half = t / 2;
-    for (let i = 0; i < items.length; i++) { acc += items[i].pct; split = i + 1; if (acc >= half) break; }
-    const a1 = items.slice(0, split), a2 = items.slice(split);
-    const ap = a1.reduce((s, x) => s + x.pct, 0) / t;
-    const g = gap;
-    if (w >= h) {
-      const w1 = Math.max(0, Math.round(w * ap) - Math.round(g / 2));
-      const w2 = Math.max(0, w - w1 - g);
-      return [..._squarify(a1, x, y, w1, h, gap), ..._squarify(a2, x + w1 + g, y, w2, h, gap)];
+    const total = items.reduce((s, a) => s + a.pct, 0);
+    const norm  = items.map(a => ({ ...a, _w: a.pct / total }));
+    const out   = [];
+    _sqLayout(norm, x, y, w, h, gap, out);
+    return out;
+  }
+
+  function _sqLayout(items, x, y, w, h, gap, out) {
+    if (!items.length) return;
+    if (items.length === 1) { out.push({ ...items[0], x, y, w: Math.max(0, w), h: Math.max(0, h) }); return; }
+    const horiz = w >= h;
+    const side  = horiz ? h : w;   // dimensão na qual os itens se empilham na faixa
+
+    // pior aspect-ratio de uma faixa candidata
+    const worstAR = (row, frac) => {
+      const sLen = frac * (horiz ? w : h);
+      let r = 0;
+      for (const n of row) {
+        const cLen = (n._w / frac) * side;
+        r = Math.max(r, Math.max(sLen / cLen, cLen / sLen));
+      }
+      return r;
+    };
+
+    // greedy: adiciona itens enquanto o aspect-ratio melhora
+    let row = [], frac = 0, wprev = Infinity, cut = 1;
+    for (let i = 0; i < items.length; i++) {
+      const tr = [...row, items[i]], tf = frac + items[i]._w;
+      const w_ = worstAR(tr, tf);
+      if (row.length && w_ > wprev) { cut = i; break; }
+      wprev = w_; row = tr; frac = tf; cut = i + 1;
+    }
+
+    const strip = items.slice(0, cut);
+    const rest  = items.slice(cut);
+    const sF    = strip.reduce((s, n) => s + n._w, 0);
+
+    if (horiz) {
+      const rawW = Math.round(w * sF);
+      const sW   = Math.max(0, rawW - Math.round(gap / 2));
+      let cy = y;
+      strip.forEach((n, i) => {
+        const last = i === strip.length - 1;
+        const rH = Math.round(h * (n._w / sF));
+        const cH = last ? Math.max(0, y + h - cy) : Math.max(0, rH - gap);
+        out.push({ ...n, x, y: cy, w: sW, h: cH });
+        cy += last ? cH : rH;
+      });
+      if (rest.length) {
+        const rt = rest.reduce((s, n) => s + n._w, 0);
+        const rx = x + rawW + Math.ceil(gap / 2);
+        _sqLayout(rest.map(n => ({ ...n, _w: n._w / rt })), rx, y, Math.max(0, x + w - rx), h, gap, out);
+      }
     } else {
-      const h1 = Math.max(0, Math.round(h * ap) - Math.round(g / 2));
-      const h2 = Math.max(0, h - h1 - g);
-      return [..._squarify(a1, x, y, w, h1, gap), ..._squarify(a2, x, y + h1 + g, w, h2, gap)];
+      const rawH = Math.round(h * sF);
+      const sH   = Math.max(0, rawH - Math.round(gap / 2));
+      let cx = x;
+      strip.forEach((n, i) => {
+        const last = i === strip.length - 1;
+        const rW = Math.round(w * (n._w / sF));
+        const cW = last ? Math.max(0, x + w - cx) : Math.max(0, rW - gap);
+        out.push({ ...n, x: cx, y, w: cW, h: sH });
+        cx += last ? cW : rW;
+      });
+      if (rest.length) {
+        const rt = rest.reduce((s, n) => s + n._w, 0);
+        const ry = y + rawH + Math.ceil(gap / 2);
+        _sqLayout(rest.map(n => ({ ...n, _w: n._w / rt })), x, ry, w, Math.max(0, y + h - ry), gap, out);
+      }
     }
   }
 
@@ -4605,7 +4658,7 @@
     const total = agregados.reduce((s, a) => s + a.atu, 0);
     const withPct = agregados.map(a => ({ ...a, pct: a.atu / total * 100 }));
 
-    const W = 1000, H = 400, GAP = 4;
+    const W = 1000, H = 480, GAP = 4;
     const rects = _squarify(withPct, 0, 0, W, H, GAP);
 
     const svgItems = rects.map(r => {
@@ -4617,9 +4670,9 @@
       const nome = nomeRaw.replace(/\s+(S\.?A\.?|HOLDING|PARTICIPAÇÕES|CIA\.?|COMPANHIA|ENERGIA|ELÉTRICA|DO BRASIL|SA).*$/i,'').trim();
       const nomeShort = _svgEsc(nome.length > 18 ? nome.slice(0,17) + '…' : nome);
 
-      const isTiny  = r.w < 55  || r.h < 42;
-      const isSmall = r.w < 95  || r.h < 65;
-      const isMed   = r.w < 150 || r.h < 100;
+      const isTiny  = r.w < 38  || r.h < 30;
+      const isSmall = r.w < 72  || r.h < 55;
+      const isMed   = r.w < 130 || r.h < 85;
 
       const tkSize = isTiny ? 10 : isSmall ? 13 : isMed ? 16 : Math.min(22, Math.max(15, r.w / 6.5));
       const nmSize = (isTiny || isSmall) ? 0 : isMed ? 10 : Math.min(13, Math.max(10, r.w / 11));
@@ -4648,7 +4701,7 @@
           '<div style="font-size:15px;font-weight:800;color:#fff;">Seus investimentos visualizados</div>' +
           '<div style="font-size:11px;color:#8888aa;margin-top:3px;">O tamanho da caixa representa o peso do ativo na sua carteira. A cor indica o desempenho de hoje.</div>' +
         '</div>' +
-        '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;height:340px;border-radius:10px;display:block;">' + svgItems + '</svg>' +
+        '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;height:420px;border-radius:10px;display:block;">' + svgItems + '</svg>' +
       '</div>'
     );
   }
@@ -4676,7 +4729,7 @@
     const total = itens.reduce((s, a) => s + a.prov, 0);
     const withPct = itens.map(a => ({ ...a, pct: a.prov / total * 100 }));
 
-    const W = 1000, H = 320, GAP = 4;
+    const W = 1000, H = 380, GAP = 4;
     const rects = _squarify(withPct, 0, 0, W, H, GAP);
     const fmtR = v => 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
@@ -4690,9 +4743,9 @@
       const instTitle = _svgEsc(instRaw);
       const cdiEsc  = _svgEsc(cdiStr);
 
-      const isTiny  = r.w < 55  || r.h < 42;
-      const isSmall = r.w < 95  || r.h < 65;
-      const isMed   = r.w < 150 || r.h < 100;
+      const isTiny  = r.w < 38  || r.h < 30;
+      const isSmall = r.w < 72  || r.h < 55;
+      const isMed   = r.w < 130 || r.h < 85;
       const tkSize  = isTiny ? 10 : isSmall ? 12 : isMed ? 15 : Math.min(20, Math.max(13, r.w / 7));
       const nmSize  = (isTiny || isSmall) ? 0 : isMed ? 10 : Math.min(12, Math.max(10, r.w / 11));
       const vSize   = isTiny ? 9 : isSmall ? 10 : isMed ? 11 : Math.min(13, Math.max(10, r.w / 9));
@@ -4718,7 +4771,7 @@
           '<div style="font-size:15px;font-weight:800;color:#fff;">Renda Fixa — Mapa de Aplicações</div>' +
           '<div style="font-size:11px;color:#8888aa;margin-top:3px;">O tamanho da caixa representa o valor provisionado. A cor indica o rendimento acumulado.</div>' +
         '</div>' +
-        '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;height:260px;border-radius:10px;display:block;">' + svgItems + '</svg>' +
+        '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;height:310px;border-radius:10px;display:block;">' + svgItems + '</svg>' +
       '</div>'
     );
   }
