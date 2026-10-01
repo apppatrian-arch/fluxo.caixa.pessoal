@@ -4614,7 +4614,8 @@
         s += `<text x="${r.x+pad}" y="${r.y+r.h-pad}" font-size="${vSize}" font-weight="700" fill="${varColor}" font-family="system-ui,sans-serif">${varStr}</text>`;
       }
       const varTip = varPct != null ? (varPct>=0?'+':'')+varPct.toFixed(2)+'%' : '—';
-      s += `<title>${_svgEsc(r.ticker)}${nomeShort?' — '+nomeShort:''}\nPeso: ${r.pct.toFixed(1)}%\nVar.dia: ${_svgEsc(varTip)}</title>`;
+      const pesoPct = (r.w * r.h / (W * H) * 100);
+      s += `<title>${_svgEsc(r.ticker)}${nomeShort?' — '+nomeShort:''}\nPeso: ${pesoPct.toFixed(1)}%\nVar.dia: ${_svgEsc(varTip)}</title>`;
       return s;
     }).join('');
 
@@ -4682,7 +4683,8 @@
           s += `<text x="${r.x+pad}" y="${r.y+pad+tkSize+nmSize+4}" font-size="${nmSize}" fill="rgba(255,255,255,0.60)" font-family="system-ui,sans-serif">${cdiEsc}</text>`;
         s += `<text x="${r.x+pad}" y="${r.y+r.h-pad}" font-size="${vSize}" font-weight="700" fill="${rendColor}" font-family="system-ui,sans-serif">${_svgEsc(rendStr)} &#x25B2;</text>`;
       }
-      s += `<title>${instTitle}${cdiEsc?' · '+cdiEsc:''}\nProvisionado: ${_svgEsc(fmtR(r.prov))}\nRendimento: ${_svgEsc(rendStr)}\nPeso: ${r.pct.toFixed(1)}%</title>`;
+      const rfPesoPct = (r.w * r.h / (W * H) * 100);
+      s += `<title>${instTitle}${cdiEsc?' · '+cdiEsc:''}\nProvisionado: ${_svgEsc(fmtR(r.prov))}\nRendimento: ${_svgEsc(rendStr)}\nPeso: ${rfPesoPct.toFixed(1)}%</title>`;
       return s;
     }).join('');
 
