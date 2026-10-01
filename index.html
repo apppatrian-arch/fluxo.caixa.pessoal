@@ -1430,6 +1430,9 @@
 
       </div><!-- /acoes-top-cards -->
 
+      <!-- VISÃO GERAL — DIRETORIA (treemaps, patrimônio, estratégias) -->
+      <div id="acoes-visao-geral"></div>
+
       <!-- TABELA: Minhas Carteiras — largura total -->
       <div style="background:var(--card);border-radius:14px;padding:16px;margin-bottom:14px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
@@ -1518,9 +1521,6 @@
           <div style="text-align:center;color:var(--text-muted);font-size:13px;padding:24px 0;">Carregando dados...</div>
         </div>
       </div>
-
-      <!-- VISÃO GERAL — DIRETORIA -->
-      <div id="acoes-visao-geral"></div>
 
     </div><!-- /painel-acoes -->
 
@@ -4856,10 +4856,12 @@
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(' + cols + 'px,1fr));gap:10px;">' + content + '</div>';
 
     // ── TREEMAPS + RF POR BANCO ──
-    const treemapHtml   = _renderTreemap(acoesInfo);
+    let treemapHtml = '';
+    try { treemapHtml = _renderTreemap(acoesInfo); } catch(e) { console.warn('treemapRV:', e); }
     let treemapRFHtml = '';
     try { treemapRFHtml = _renderTreemapRF(); } catch(e) { console.warn('treemapRF:', e); }
-    const rfBancoHtml   = _renderRFPorBanco();
+    let rfBancoHtml = '';
+    try { rfBancoHtml = _renderRFPorBanco(); } catch(e) { console.warn('rfBanco:', e); }
 
     el.innerHTML =
       treemapHtml +
