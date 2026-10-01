@@ -3927,6 +3927,8 @@
     // Token brapi — carrega do banco se não há token local
     if (!_getBrapiToken()) await _brapiCarregarDB();
     renderTokenAcoes();
+    // Garante renderização da visão geral mesmo se renderGraficoAlocacao não chegou lá
+    renderVisaoGeral();
   }
 
   async function buscarSelic() {
