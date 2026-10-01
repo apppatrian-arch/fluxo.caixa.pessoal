@@ -816,7 +816,7 @@
           </button>
           <div style="padding:10px 14px;background:var(--bg);border-top:1px solid var(--border);text-align:center;">
             <div style="font-size:11px;color:var(--text-muted);">Versão <strong id="paul-menu-versao" style="color:var(--text);">v111</strong></div>
-            <div style="font-size:10px;color:var(--text-muted);margin-top:2px;" id="paul-menu-versao-data">01/10/2026 às 17:30</div>
+            <div style="font-size:10px;color:var(--text-muted);margin-top:2px;" id="paul-menu-versao-data">01/10/2026 às 18:00</div>
             <button onclick="forcarAtualizacaoApp()" id="btn-forcar-update" style="margin-top:8px;width:100%;padding:5px 14px;background:transparent;border:1.5px solid var(--border);border-radius:8px;font-size:11px;cursor:pointer;color:var(--text-muted);">🔄 Verificar atualização</button>
             <button onclick="limparTudoERecarregar()" style="margin-top:5px;width:100%;padding:5px 14px;background:transparent;border:1.5px solid var(--danger);border-radius:8px;font-size:11px;cursor:pointer;color:var(--danger);">🗑️ Limpar cache e recarregar</button>
           </div>
@@ -1203,47 +1203,49 @@
         </div>
 
         <!-- Form nova movimentação de estoque -->
-        <div id="pest-bloco-form" style="background:var(--card);border-radius:14px;padding:16px;margin-bottom:14px;">
-          <div style="font-size:13px;font-weight:700;margin-bottom:12px;">Nova Movimentação</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+        <div id="pest-bloco-form" style="background:var(--card);border-radius:14px;padding:12px 16px;margin-bottom:14px;">
+          <div style="font-size:13px;font-weight:700;margin-bottom:10px;">Nova Movimentação</div>
+          <!-- Linha 1: Data · Motivo · Produto -->
+          <div style="display:grid;grid-template-columns:140px 180px 1fr;gap:8px;margin-bottom:8px;">
             <div>
-              <label style="font-size:11px;color:var(--text-muted);font-weight:600;">Data</label>
-              <input type="date" id="pest-data" style="width:100%;margin-top:4px;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg);color:var(--text);" />
+              <label style="font-size:10px;color:var(--text-muted);font-weight:600;">Data</label>
+              <input type="date" id="pest-data" style="width:100%;margin-top:3px;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--bg);color:var(--text);" />
             </div>
             <div>
-              <label style="font-size:11px;color:var(--text-muted);font-weight:600;">Motivo</label>
-              <select id="pest-tipo" style="width:100%;margin-top:4px;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg);color:var(--text);">
+              <label style="font-size:10px;color:var(--text-muted);font-weight:600;">Motivo</label>
+              <select id="pest-tipo" style="width:100%;margin-top:3px;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--bg);color:var(--text);">
                 <option value="">Selecione...</option>
               </select>
             </div>
-          </div>
-          <div style="margin-bottom:10px;">
-            <label style="font-size:11px;color:var(--text-muted);font-weight:600;">Produto</label>
-            <select id="pest-produto" style="width:100%;margin-top:4px;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg);color:var(--text);">
-              <option value="">Selecione o produto...</option>
-              <option value="54">54 – PAULISTINHA TRADICIONAL</option>
-              <option value="60">60 – PAULISTINHA MENTA</option>
-              <option value="97">97 – PAULISTINHA CEREJA ICE</option>
-              <option value="110">110 – PAULISTINHA SERIE OURO</option>
-              <option value="1654">1654 – PAULISTINHA CLASSIC C/ FILTRO</option>
-              <option value="1990">1990 – PAULISTINHA CLASSIC MENTA C/ FILTRO</option>
-              <option value="7050">7050 – AROEIRO TRADICIONAL</option>
-              <option value="11196">11196 – AROEIRO MENTA</option>
-            </select>
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
             <div>
-              <label style="font-size:11px;color:var(--text-muted);font-weight:600;">Qtd (cx) <span style="font-weight:400;">+ Entrada / − Saída</span></label>
-              <input type="number" id="pest-qtd" placeholder="Ex: 10 ou -5" step="1" style="width:100%;margin-top:4px;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg);color:var(--text);" />
-            </div>
-            <div>
-              <label style="font-size:11px;color:var(--text-muted);font-weight:600;">Obs. <span style="font-weight:400;">(opcional)</span></label>
-              <input type="text" id="pest-obs" placeholder="Detalhe..." maxlength="80" style="width:100%;margin-top:4px;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg);color:var(--text);" />
+              <label style="font-size:10px;color:var(--text-muted);font-weight:600;">Produto</label>
+              <select id="pest-produto" style="width:100%;margin-top:3px;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--bg);color:var(--text);">
+                <option value="">Selecione o produto...</option>
+                <option value="54">54 – PAULISTINHA TRADICIONAL</option>
+                <option value="60">60 – PAULISTINHA MENTA</option>
+                <option value="97">97 – PAULISTINHA CEREJA ICE</option>
+                <option value="110">110 – PAULISTINHA SERIE OURO</option>
+                <option value="1654">1654 – PAULISTINHA CLASSIC C/ FILTRO</option>
+                <option value="1990">1990 – PAULISTINHA CLASSIC MENTA C/ FILTRO</option>
+                <option value="7050">7050 – AROEIRO TRADICIONAL</option>
+                <option value="11196">11196 – AROEIRO MENTA</option>
+              </select>
             </div>
           </div>
-          <div style="display:flex;gap:8px;">
-            <button id="pest-btn-salvar" onclick="salvarMovEstoque()" style="flex:1;padding:12px;background:var(--primary);color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">+ Registrar</button>
-            <button id="pest-btn-cancelar" onclick="cancelarEdicaoEstoque()" style="display:none;padding:12px 16px;background:var(--surface);border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;color:var(--text);">✕ Cancelar</button>
+          <!-- Linha 2: Qtd · Obs · Botão -->
+          <div style="display:grid;grid-template-columns:160px 1fr auto;gap:8px;align-items:flex-end;">
+            <div>
+              <label style="font-size:10px;color:var(--text-muted);font-weight:600;">Qtd (cx) <span style="font-weight:400;font-size:9px;">+ Ent / − Saí</span></label>
+              <input type="number" id="pest-qtd" placeholder="Ex: 10 ou -5" step="1" style="width:100%;margin-top:3px;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--bg);color:var(--text);" />
+            </div>
+            <div>
+              <label style="font-size:10px;color:var(--text-muted);font-weight:600;">Obs. <span style="font-weight:400;">(opcional)</span></label>
+              <input type="text" id="pest-obs" placeholder="Detalhe..." maxlength="80" style="width:100%;margin-top:3px;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--bg);color:var(--text);" />
+            </div>
+            <div style="display:flex;gap:6px;">
+              <button id="pest-btn-salvar" onclick="salvarMovEstoque()" style="padding:8px 16px;background:var(--primary);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">+ Registrar</button>
+              <button id="pest-btn-cancelar" onclick="cancelarEdicaoEstoque()" style="display:none;padding:8px 12px;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;color:var(--text);">✕</button>
+            </div>
           </div>
         </div>
 
