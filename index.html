@@ -4578,8 +4578,8 @@
   }
 
   function _renderTreemap(acoesInfo) {
-    const itens = acoesInfo.filter(a => a.atu > 0 && a.precoAtual && !a.monitorar);
-    if (itens.length < 2) return '';
+    const itens = acoesInfo.filter(a => a.atu > 0 && !a.monitorar);
+    if (itens.length < 1) return '';
     itens.sort((a, b) => b.atu - a.atu);
     const total = itens.reduce((s, a) => s + a.atu, 0);
     const withPct = itens.map(a => ({ ...a, pct: a.atu / total * 100 }));
@@ -4751,8 +4751,15 @@
   // ── VISÃO GERAL — DIRETORIA ──
   function renderVisaoGeral() {
     const el = document.getElementById('acoes-visao-geral');
-    if (!el) return;
+    if (!el) { console.warn('renderVisaoGeral: #acoes-visao-geral não encontrado'); return; }
+    try { _renderVisaoGeralInner(el); }
+    catch(e) {
+      console.error('renderVisaoGeral erro:', e);
+      el.innerHTML = '<div style="background:#fee2e2;border-radius:12px;padding:16px;margin-top:12px;font-size:12px;color:#991b1b;">Erro ao renderizar Visão Geral: ' + String(e) + '</div>';
+    }
+  }
 
+  function _renderVisaoGeralInner(el) {
     const fmt  = v => 'R$ ' + Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
     const fmtS = v => (v>=0?'+':'-') + ' R$ ' + Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
     const fmtP = v => (v>=0?'+':'') + Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) + '%';
