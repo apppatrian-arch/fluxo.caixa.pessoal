@@ -835,16 +835,17 @@
         <button class="tab tab-secundaria" id="tab-acoes" onclick="setTab('acoes')" style="white-space:nowrap;display:none;">📈 Ações</button>
         <button class="tab tab-secundaria" id="tab-opcoes" onclick="setTab('opcoes')" style="white-space:nowrap;display:none;">🎯 Opções</button>
         <button class="tab tab-secundaria" id="tab-pessoal" onclick="setTab('pessoal')" style="white-space:nowrap;display:none;">💼 Financeiro</button>
-        <div id="tabs-mais-wrap" style="position:relative;display:flex;align-items:center;">
-          <button id="btn-tabs-mais" onclick="_toggleMenuTabs()" title="Mais abas" style="background:none;border:1.5px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:15px;padding:4px 10px;cursor:pointer;line-height:1;letter-spacing:2px;opacity:0.6;transition:opacity 0.2s;" onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity=_tabMenuAberto?'1':'0.6'">⋯</button>
-          <div id="tabs-dropdown" style="display:none;position:absolute;top:calc(100% + 6px);right:0;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,0.15);z-index:999;min-width:160px;overflow:hidden;">
-            <button onclick="_escolherTabMenu('acoes')" style="display:flex;align-items:center;gap:8px;width:100%;padding:10px 14px;background:none;border:none;color:var(--text);font-size:13px;cursor:pointer;text-align:left;" onmouseenter="this.style.background='var(--surface2)'" onmouseleave="this.style.background='none'">📈 Ações</button>
-            <button onclick="_escolherTabMenu('opcoes')" style="display:flex;align-items:center;gap:8px;width:100%;padding:10px 14px;background:none;border:none;color:var(--text);font-size:13px;cursor:pointer;text-align:left;" onmouseenter="this.style.background='var(--surface2)'" onmouseleave="this.style.background='none'">🎯 Opções</button>
-            <button onclick="_escolherTabMenu('pessoal')" style="display:flex;align-items:center;gap:8px;width:100%;padding:10px 14px;background:none;border:none;color:var(--text);font-size:13px;cursor:pointer;text-align:left;" onmouseenter="this.style.background='var(--surface2)'" onmouseleave="this.style.background='none'">💼 Financeiro</button>
-          </div>
-        </div>
       </div>
       <button class="tabs-arrow" id="tabs-next" onclick="scrollTabs(1)" title="Próximo">›</button>
+      <!-- Botão ⋯ fora da .tabs para não ser cortado pelo overflow -->
+      <button id="btn-tabs-mais" onclick="_toggleMenuTabs(event)" title="Mais abas" style="flex:0 0 auto;background:none;border:1.5px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:14px;padding:4px 9px;cursor:pointer;line-height:1;letter-spacing:1px;opacity:0.6;transition:opacity 0.2s;margin-left:4px;">⋯</button>
+    </div>
+
+    <!-- Dropdown de abas secundárias (position:fixed para não ser cortado por overflow) -->
+    <div id="tabs-dropdown" style="display:none;position:fixed;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,0.18);z-index:9999;min-width:160px;overflow:hidden;">
+      <button onclick="_escolherTabMenu('acoes')" style="display:flex;align-items:center;gap:8px;width:100%;padding:10px 14px;background:none;border:none;color:var(--text);font-size:13px;cursor:pointer;text-align:left;" onmouseenter="this.style.background='var(--surface2)'" onmouseleave="this.style.background='none'">📈 Ações</button>
+      <button onclick="_escolherTabMenu('opcoes')" style="display:flex;align-items:center;gap:8px;width:100%;padding:10px 14px;background:none;border:none;color:var(--text);font-size:13px;cursor:pointer;text-align:left;" onmouseenter="this.style.background='var(--surface2)'" onmouseleave="this.style.background='none'">🎯 Opções</button>
+      <button onclick="_escolherTabMenu('pessoal')" style="display:flex;align-items:center;gap:8px;width:100%;padding:10px 14px;background:none;border:none;color:var(--text);font-size:13px;cursor:pointer;text-align:left;" onmouseenter="this.style.background='var(--surface2)'" onmouseleave="this.style.background='none'">💼 Financeiro</button>
     </div>
 
     <!-- ── PAINEL PESSOAL (wrapper das sub-abas financeiras pessoais) ── -->
@@ -6636,15 +6637,27 @@
   }
 
   // Abas secundárias: ocultas na barra, acessíveis via dropdown ⋯
-  let _tabMenuAberto = false;
-  let _tabSecundariaAtiva = null;
+  var _tabMenuAberto = false;
+  var _tabSecundariaAtiva = null;
 
-  function _toggleMenuTabs() {
+  function _toggleMenuTabs(evt) {
     _tabMenuAberto = !_tabMenuAberto;
     const dd = document.getElementById('tabs-dropdown');
     const btn = document.getElementById('btn-tabs-mais');
-    if (dd) dd.style.display = _tabMenuAberto ? 'block' : 'none';
+    if (dd) {
+      if (_tabMenuAberto) {
+        // Posiciona o dropdown abaixo do botão usando fixed
+        const r = btn.getBoundingClientRect();
+        dd.style.top  = (r.bottom + 6) + 'px';
+        dd.style.right = (window.innerWidth - r.right) + 'px';
+        dd.style.left = 'auto';
+        dd.style.display = 'block';
+      } else {
+        dd.style.display = 'none';
+      }
+    }
     if (btn) btn.style.opacity = _tabMenuAberto ? '1' : (_tabSecundariaAtiva ? '1' : '0.6');
+    if (evt) evt.stopPropagation();
   }
 
   function _fecharMenuTabs() {
