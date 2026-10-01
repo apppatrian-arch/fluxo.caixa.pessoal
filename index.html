@@ -816,7 +816,7 @@
           </button>
           <div style="padding:10px 14px;background:var(--bg);border-top:1px solid var(--border);text-align:center;">
             <div style="font-size:11px;color:var(--text-muted);">Versão <strong id="paul-menu-versao" style="color:var(--text);">v111</strong></div>
-            <div style="font-size:10px;color:var(--text-muted);margin-top:2px;" id="paul-menu-versao-data">01/10/2026 às 09:00</div>
+            <div style="font-size:10px;color:var(--text-muted);margin-top:2px;" id="paul-menu-versao-data">01/10/2026 às 14:30</div>
             <button onclick="forcarAtualizacaoApp()" id="btn-forcar-update" style="margin-top:8px;width:100%;padding:5px 14px;background:transparent;border:1.5px solid var(--border);border-radius:8px;font-size:11px;cursor:pointer;color:var(--text-muted);">🔄 Verificar atualização</button>
             <button onclick="limparTudoERecarregar()" style="margin-top:5px;width:100%;padding:5px 14px;background:transparent;border:1.5px solid var(--danger);border-radius:8px;font-size:11px;cursor:pointer;color:var(--danger);">🗑️ Limpar cache e recarregar</button>
           </div>
@@ -832,9 +832,17 @@
       <button class="tabs-arrow" id="tabs-prev" onclick="scrollTabs(-1)" title="Anterior">‹</button>
       <div class="tabs" id="tabs-bar">
         <button class="tab tab-destaque active" id="tab-paulistinha" onclick="setTab('paulistinha')" style="white-space:nowrap;">🚬 Indústria P</button>
-        <button class="tab tab-secundaria" id="tab-acoes" onclick="setTab('acoes')" style="white-space:nowrap;opacity:0.55;font-size:12px;">📈 Ações</button>
-        <button class="tab tab-secundaria" id="tab-opcoes" onclick="setTab('opcoes')" style="white-space:nowrap;opacity:0.55;font-size:12px;">🎯 Opções</button>
-        <button class="tab tab-secundaria" id="tab-pessoal" onclick="setTab('pessoal')" style="white-space:nowrap;opacity:0.55;font-size:12px;">💼 Financeiro</button>
+        <button class="tab tab-secundaria" id="tab-acoes" onclick="setTab('acoes')" style="white-space:nowrap;display:none;">📈 Ações</button>
+        <button class="tab tab-secundaria" id="tab-opcoes" onclick="setTab('opcoes')" style="white-space:nowrap;display:none;">🎯 Opções</button>
+        <button class="tab tab-secundaria" id="tab-pessoal" onclick="setTab('pessoal')" style="white-space:nowrap;display:none;">💼 Financeiro</button>
+        <div id="tabs-mais-wrap" style="position:relative;display:flex;align-items:center;">
+          <button id="btn-tabs-mais" onclick="_toggleMenuTabs()" title="Mais abas" style="background:none;border:1.5px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:15px;padding:4px 10px;cursor:pointer;line-height:1;letter-spacing:2px;opacity:0.6;transition:opacity 0.2s;" onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity=_tabMenuAberto?'1':'0.6'">⋯</button>
+          <div id="tabs-dropdown" style="display:none;position:absolute;top:calc(100% + 6px);right:0;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,0.15);z-index:999;min-width:160px;overflow:hidden;">
+            <button onclick="_escolherTabMenu('acoes')" style="display:flex;align-items:center;gap:8px;width:100%;padding:10px 14px;background:none;border:none;color:var(--text);font-size:13px;cursor:pointer;text-align:left;" onmouseenter="this.style.background='var(--surface2)'" onmouseleave="this.style.background='none'">📈 Ações</button>
+            <button onclick="_escolherTabMenu('opcoes')" style="display:flex;align-items:center;gap:8px;width:100%;padding:10px 14px;background:none;border:none;color:var(--text);font-size:13px;cursor:pointer;text-align:left;" onmouseenter="this.style.background='var(--surface2)'" onmouseleave="this.style.background='none'">🎯 Opções</button>
+            <button onclick="_escolherTabMenu('pessoal')" style="display:flex;align-items:center;gap:8px;width:100%;padding:10px 14px;background:none;border:none;color:var(--text);font-size:13px;cursor:pointer;text-align:left;" onmouseenter="this.style.background='var(--surface2)'" onmouseleave="this.style.background='none'">💼 Financeiro</button>
+          </div>
+        </div>
       </div>
       <button class="tabs-arrow" id="tabs-next" onclick="scrollTabs(1)" title="Próximo">›</button>
     </div>
@@ -6627,23 +6635,61 @@
     renderGraficoAlocacao();
   }
 
-  // Abas secundárias: sempre visíveis, opacidade reduzida quando inativas
+  // Abas secundárias: ocultas na barra, acessíveis via dropdown ⋯
+  let _tabMenuAberto = false;
+  let _tabSecundariaAtiva = null;
+
+  function _toggleMenuTabs() {
+    _tabMenuAberto = !_tabMenuAberto;
+    const dd = document.getElementById('tabs-dropdown');
+    const btn = document.getElementById('btn-tabs-mais');
+    if (dd) dd.style.display = _tabMenuAberto ? 'block' : 'none';
+    if (btn) btn.style.opacity = _tabMenuAberto ? '1' : (_tabSecundariaAtiva ? '1' : '0.6');
+  }
+
+  function _fecharMenuTabs() {
+    _tabMenuAberto = false;
+    const dd = document.getElementById('tabs-dropdown');
+    const btn = document.getElementById('btn-tabs-mais');
+    if (dd) dd.style.display = 'none';
+    if (btn) btn.style.opacity = _tabSecundariaAtiva ? '1' : '0.6';
+  }
+
+  function _escolherTabMenu(tab) {
+    _fecharMenuTabs();
+    setTab(tab);
+  }
+
   function _atualizarOpacidadeAbas(tabAtiva) {
-    ['acoes','opcoes','pessoal'].forEach(t => {
-      const btn = document.getElementById('tab-' + t);
-      if (!btn) return;
-      if (t === tabAtiva) {
+    const secundarias = ['acoes','opcoes','pessoal'];
+    _tabSecundariaAtiva = secundarias.includes(tabAtiva) ? tabAtiva : null;
+    // Atualiza label do botão ⋯ para mostrar qual aba secundária está ativa
+    const btn = document.getElementById('btn-tabs-mais');
+    if (btn) {
+      if (_tabSecundariaAtiva) {
+        const labels = { acoes: '📈', opcoes: '🎯', pessoal: '💼' };
+        btn.textContent = (labels[_tabSecundariaAtiva] || '') + ' ⋯';
         btn.style.opacity = '1';
-        btn.style.fontSize = '';
+        btn.style.color = 'var(--primary)';
+        btn.style.borderColor = 'var(--primary)';
       } else {
-        btn.style.opacity = '0.55';
-        btn.style.fontSize = '12px';
+        btn.textContent = '⋯';
+        btn.style.opacity = '0.6';
+        btn.style.color = 'var(--text-muted)';
+        btn.style.borderColor = 'var(--border)';
       }
-    });
+    }
   }
   function _garantirTabExtraVisivel(tab) {
     _atualizarOpacidadeAbas(tab);
   }
+
+  // Fecha dropdown ao clicar fora
+  document.addEventListener('click', function(e) {
+    if (_tabMenuAberto && !document.getElementById('tabs-mais-wrap')?.contains(e.target)) {
+      _fecharMenuTabs();
+    }
+  });
 
   // ── SETAS DE NAVEGAÇÃO DAS TABS ──
   function scrollTabs(dir) {
