@@ -1,4 +1,4 @@
-const CACHE = 'fluxo-caixa-v220';
+const CACHE = 'fluxo-caixa-v222';
 const ASSETS = [
   './manifest.json',
   './icon.svg',
@@ -19,6 +19,10 @@ self.addEventListener('activate', e => {
     )
   );
   self.clients.claim();
+});
+
+self.addEventListener('message', e => {
+  if (e.data && e.data.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
 self.addEventListener('fetch', e => {

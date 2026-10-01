@@ -816,8 +816,9 @@
           </button>
           <div style="padding:10px 14px;background:var(--bg);border-top:1px solid var(--border);text-align:center;">
             <div style="font-size:11px;color:var(--text-muted);">Versão <strong id="paul-menu-versao" style="color:var(--text);">v111</strong></div>
-            <div style="font-size:10px;color:var(--text-muted);margin-top:2px;" id="paul-menu-versao-data">17/07/2026 às 10:30</div>
-            <button onclick="forcarAtualizacaoApp()" id="btn-forcar-update" style="margin-top:8px;padding:5px 14px;background:transparent;border:1.5px solid var(--border);border-radius:8px;font-size:11px;cursor:pointer;color:var(--text-muted);">🔄 Verificar atualização</button>
+            <div style="font-size:10px;color:var(--text-muted);margin-top:2px;" id="paul-menu-versao-data">01/10/2026 às 09:00</div>
+            <button onclick="forcarAtualizacaoApp()" id="btn-forcar-update" style="margin-top:8px;width:100%;padding:5px 14px;background:transparent;border:1.5px solid var(--border);border-radius:8px;font-size:11px;cursor:pointer;color:var(--text-muted);">🔄 Verificar atualização</button>
+            <button onclick="limparTudoERecarregar()" style="margin-top:5px;width:100%;padding:5px 14px;background:transparent;border:1.5px solid var(--danger);border-radius:8px;font-size:11px;cursor:pointer;color:var(--danger);">🗑️ Limpar cache e recarregar</button>
           </div>
         </div>
       </div>
@@ -831,9 +832,10 @@
       <button class="tabs-arrow" id="tabs-prev" onclick="scrollTabs(-1)" title="Anterior">‹</button>
       <div class="tabs" id="tabs-bar">
         <button class="tab tab-destaque active" id="tab-paulistinha" onclick="setTab('paulistinha')" style="white-space:nowrap;">🚬 Indústria P</button>
-        <button class="tab" id="tab-pessoal" onclick="setTab('pessoal')" style="white-space:nowrap;">💼 Financeiro</button>
-        <button class="tab" id="tab-acoes" onclick="setTab('acoes')" style="white-space:nowrap;">📈 Ações</button>
-        <button class="tab" id="tab-opcoes" onclick="setTab('opcoes')" style="white-space:nowrap;">🎯 Opções</button>
+        <button id="tabs-mais-btn" onclick="toggleTabsExtras()" title="Mais abas" style="flex:0 0 auto;padding:6px 10px;border:none;border-radius:8px;background:rgba(255,255,255,0.12);color:white;font-size:15px;cursor:pointer;line-height:1;white-space:nowrap;transition:background 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.22)'" onmouseout="this.style.background='rgba(255,255,255,0.12)'">⋯</button>
+        <button class="tab tabs-extra" id="tab-acoes" onclick="setTab('acoes')" style="white-space:nowrap;display:none;">📈 Ações</button>
+        <button class="tab tabs-extra" id="tab-opcoes" onclick="setTab('opcoes')" style="white-space:nowrap;display:none;">🎯 Opções</button>
+        <button class="tab tabs-extra" id="tab-pessoal" onclick="setTab('pessoal')" style="white-space:nowrap;display:none;">💼 Financeiro</button>
       </div>
       <button class="tabs-arrow" id="tabs-next" onclick="scrollTabs(1)" title="Próximo">›</button>
     </div>
@@ -2180,6 +2182,7 @@
   }
 
   function setTab(tab) {
+    _garantirTabExtraVisivel(tab);
     document.querySelector('.content').classList.toggle('content-wide',      tab === 'acoes' || tab === 'opcoes' || tab === 'paulistinha');
     document.querySelector('.content').classList.toggle('content-financeiro', tab === 'pessoal');
     ['pessoal', 'paulistinha', 'acoes', 'opcoes'].forEach(t => {
@@ -3777,18 +3780,36 @@
     });
     let _swReg = null;
 
+    async function limparTudoERecarregar() {
+      if (!confirm('Isso vai apagar o cache local e recarregar a página. Continuar?')) return;
+      // Desregistra todos os service workers
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r => r.unregister()));
+      }
+      // Apaga todos os caches
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+      window.location.reload();
+    }
+
     function forcarAtualizacaoApp() {
       const btn = document.getElementById('btn-forcar-update');
       if (btn) { btn.textContent = '⏳ Verificando...'; btn.disabled = true; }
+      // Desregistra o SW atual e recarrega — garante versão mais recente
       if (_swReg) {
         _swReg.update().then(() => {
           if (_swReg.waiting) {
             _swReg.waiting.postMessage({ type: 'SKIP_WAITING' });
-          } else {
-            if (btn) { btn.textContent = '✅ Já está na versão mais recente'; btn.disabled = false; }
           }
+          // Independente de haver update, força reload com cache limpo
+          setTimeout(() => {
+            caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k)))).finally(() => {
+              window.location.reload();
+            });
+          }, 800);
         }).catch(() => {
-          if (btn) { btn.textContent = '❌ Erro ao verificar'; btn.disabled = false; }
+          window.location.reload();
         });
       } else {
         window.location.reload();
@@ -6605,6 +6626,22 @@
       '</div>';
     }).join('');
     renderGraficoAlocacao();
+  }
+
+  // ── TOGGLE ABAS EXTRAS ──
+  let _tabsExtrasVisiveis = false;
+  function toggleTabsExtras() {
+    _tabsExtrasVisiveis = !_tabsExtrasVisiveis;
+    document.querySelectorAll('.tabs-extra').forEach(el => {
+      el.style.display = _tabsExtrasVisiveis ? '' : 'none';
+    });
+    const btn = document.getElementById('tabs-mais-btn');
+    if (btn) btn.textContent = _tabsExtrasVisiveis ? '✕' : '⋯';
+    atualizarSetasTabs();
+  }
+  // Se a aba ativa for uma extra, mostrá-las automaticamente
+  function _garantirTabExtraVisivel(tab) {
+    if (['acoes','opcoes','pessoal'].includes(tab) && !_tabsExtrasVisiveis) toggleTabsExtras();
   }
 
   // ── SETAS DE NAVEGAÇÃO DAS TABS ──
