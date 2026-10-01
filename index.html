@@ -816,7 +816,7 @@
           </button>
           <div style="padding:10px 14px;background:var(--bg);border-top:1px solid var(--border);text-align:center;">
             <div style="font-size:11px;color:var(--text-muted);">Versão <strong id="paul-menu-versao" style="color:var(--text);">v111</strong></div>
-            <div style="font-size:10px;color:var(--text-muted);margin-top:2px;" id="paul-menu-versao-data">01/10/2026 às 19:30</div>
+            <div style="font-size:10px;color:var(--text-muted);margin-top:2px;" id="paul-menu-versao-data">01/10/2026 às 20:30</div>
             <button onclick="forcarAtualizacaoApp()" id="btn-forcar-update" style="margin-top:8px;width:100%;padding:5px 14px;background:transparent;border:1.5px solid var(--border);border-radius:8px;font-size:11px;cursor:pointer;color:var(--text-muted);">🔄 Verificar atualização</button>
             <button onclick="limparTudoERecarregar()" style="margin-top:5px;width:100%;padding:5px 14px;background:transparent;border:1.5px solid var(--danger);border-radius:8px;font-size:11px;cursor:pointer;color:var(--danger);">🗑️ Limpar cache e recarregar</button>
           </div>
@@ -4539,82 +4539,133 @@
   }
 
   // ── TREEMAP DE DESEMPENHO ──
-  function _renderTreemap(acoesInfo, totalRV) {
-    const itens = acoesInfo.filter(a => a.atu > 0 && a.precoAtual);
+  // Algoritmo squarify (divisão binária recursiva)
+  function _squarify(items, x, y, w, h, gap) {
+    if (!items.length) return [];
+    if (items.length === 1) return [{ ...items[0], x, y, w: Math.max(0, w), h: Math.max(0, h) }];
+    const t = items.reduce((s, a) => s + a.pct, 0);
+    let acc = 0, split = 0;
+    const half = t / 2;
+    for (let i = 0; i < items.length; i++) { acc += items[i].pct; split = i + 1; if (acc >= half) break; }
+    const a1 = items.slice(0, split), a2 = items.slice(split);
+    const ap = a1.reduce((s, x) => s + x.pct, 0) / t;
+    const g = gap;
+    if (w >= h) {
+      const w1 = Math.max(0, Math.round(w * ap) - Math.round(g / 2));
+      const w2 = Math.max(0, w - w1 - g);
+      return [..._squarify(a1, x, y, w1, h, gap), ..._squarify(a2, x + w1 + g, y, w2, h, gap)];
+    } else {
+      const h1 = Math.max(0, Math.round(h * ap) - Math.round(g / 2));
+      const h2 = Math.max(0, h - h1 - g);
+      return [..._squarify(a1, x, y, w, h1, gap), ..._squarify(a2, x, y + h1 + g, w, h2, gap)];
+    }
+  }
+
+  function _tmColorRV(pct) {
+    if (pct == null) return '#3a3a4a';
+    const v = Math.max(-5, Math.min(5, pct));
+    if (v >= 0) {
+      const t = v / 5;
+      return `rgb(${Math.round(15+t*5)},${Math.round(110+t*90)},${Math.round(55+t*10)})`;
+    } else {
+      const t = Math.abs(v) / 5;
+      return `rgb(${Math.round(130+t*60)},${Math.round(30+t*5)},${Math.round(30+t*5)})`;
+    }
+  }
+
+  function _renderTreemap(acoesInfo) {
+    const itens = acoesInfo.filter(a => a.atu > 0 && a.precoAtual && !a.monitorar);
     if (itens.length < 2) return '';
-
-    // Ordena por valor atual desc (maior = maior bloco)
     itens.sort((a, b) => b.atu - a.atu);
-
-    // Calcula pesos percentuais
     const total = itens.reduce((s, a) => s + a.atu, 0);
     const withPct = itens.map(a => ({ ...a, pct: a.atu / total * 100 }));
 
-    // Cor por variação diária
-    function _tmColor(pct) {
-      if (pct == null) return 'rgba(100,100,120,0.6)';
-      const v = Math.max(-4, Math.min(4, pct));
-      if (v >= 0) {
-        const t = v / 4;
-        const r = Math.round(22  + (34  - 22)  * t);
-        const g = Math.round(197 + (197 - 197) * t);
-        const b = Math.round(94  + (94  - 94)  * t);
-        const a = 0.45 + t * 0.45;
-        return `rgba(${r},${g},${b},${a})`;
-      } else {
-        const t = Math.abs(v) / 4;
-        const r = Math.round(239 + (185 - 239) * (1-t));
-        const g = Math.round(68  + (28  - 68)  * (1-t));
-        const b = Math.round(68  + (28  - 68)  * (1-t));
-        const a = 0.45 + t * 0.45;
-        return `rgba(${r},${g},${b},${a})`;
-      }
-    }
+    const W = 1000, H = 340, GAP = 3;
+    const rects = _squarify(withPct, 0, 0, W, H, GAP);
 
-    // Gera blocos com largura proporcional ao peso (flex-wrap)
-    // Agrupa em "linhas" onde cada linha soma ~50% ou por corte natural
-    const CONTAINER_H = 220; // px total height do container
-    const GAP = 2;
-
-    // Algoritmo simples: divide em 2-3 colunas de acordo com peso
-    // Linha 1: itens grandes (até ~60% do total), Linha 2: resto
-    let htmlItems = '';
-    withPct.forEach(a => {
-      const varPct = a.varDiaPct;
+    const svgItems = rects.map(r => {
+      const bg = _tmColorRV(r.varDiaPct);
+      const varPct = r.varDiaPct;
       const varStr = varPct != null ? (varPct >= 0 ? '+' : '') + varPct.toFixed(2) + '%' : '—';
-      const cor    = _tmColor(varPct);
-      const corTxt = varPct == null ? '#aaa' : varPct >= 0 ? '#86efac' : '#fca5a5';
-      const nome   = a.nomeEmpresa ? a.nomeEmpresa.replace(/\s+(S\.?A\.?|HOLDING|PARTICIPAÇÕES|ENERGIA|ELÉTRICA).*$/i, '').trim() : '';
-      // Tamanho mínimo 4%, máximo 40%
-      const w = Math.max(4, Math.min(40, a.pct));
-      const isSmall = w < 7;
-      htmlItems +=
-        '<div style="flex:' + w + ' ' + w + ' ' + w + '%;min-width:' + (isSmall?60:90) + 'px;background:' + cor + ';border-radius:6px;padding:' + (isSmall?'6px 4px':'10px 8px') + ';display:flex;flex-direction:column;justify-content:space-between;cursor:default;transition:filter 0.15s;overflow:hidden;" ' +
-        'title="' + a.ticker + ' — ' + (nome||'') + '\nPeso: ' + a.pct.toFixed(1) + '% | Var.dia: ' + varStr + '">' +
-          '<div>' +
-            '<div style="font-size:' + (isSmall?'10px':'12px') + ';font-weight:800;color:#fff;line-height:1.1;">' + a.ticker + '</div>' +
-            (!isSmall && nome ? '<div style="font-size:9px;color:rgba(255,255,255,0.75);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + nome + '</div>' : '') +
-          '</div>' +
-          '<div style="font-size:' + (isSmall?'9px':'11px') + ';font-weight:700;color:' + corTxt + ';margin-top:4px;">' + varStr + '</div>' +
-        '</div>';
-    });
+      const nome = r.nomeEmpresa ? r.nomeEmpresa.replace(/\s+(S\.?A\.?|HOLDING|PARTICIPAÇÕES|ENERGIA|ELÉTRICA|CIA\.?|COMPANHIA).*$/i,'').trim().slice(0,22) : '';
+      const isTiny  = r.w < 60  || r.h < 45;
+      const isSmall = r.w < 110 || r.h < 75;
+      const tkSize  = isTiny ? 11 : isSmall ? 14 : Math.min(20, Math.max(14, r.w / 7));
+      const nmSize  = isSmall ? 0 : Math.min(12, Math.max(10, r.w / 10));
+      const vSize   = isTiny ? 10 : isSmall ? 12 : Math.min(15, Math.max(11, r.w / 8));
+      const varColor= varPct == null ? '#9ca3af' : varPct >= 0 ? '#bbf7d0' : '#fecaca';
+      const pad = isTiny ? 5 : 10;
+      let s = `<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" fill="${bg}" rx="5"/>`;
+      if (!isTiny) {
+        s += `<text x="${r.x+pad}" y="${r.y+pad+tkSize}" font-size="${tkSize}" font-weight="800" fill="#fff" font-family="system-ui,sans-serif" clip-path="url(#clip-${r.x}-${r.y})">${r.ticker}</text>`;
+        if (!isSmall && nome && nmSize > 0)
+          s += `<text x="${r.x+pad}" y="${r.y+pad+tkSize+nmSize+3}" font-size="${nmSize}" fill="rgba(255,255,255,0.72)" font-family="system-ui,sans-serif">${nome}</text>`;
+        s += `<text x="${r.x+pad}" y="${r.y+r.h-pad}" font-size="${vSize}" font-weight="700" fill="${varColor}" font-family="system-ui,sans-serif">${varStr}</text>`;
+      }
+      s += `<title>${r.ticker}${nome?' — '+nome:''}\nPeso: ${r.pct.toFixed(1)}%\nVar.dia: ${varStr}</title>`;
+      return s;
+    }).join('');
 
+    const legend = (cor, txt) => `<span style="display:flex;align-items:center;gap:4px;color:var(--text-muted);font-size:11px;"><span style="width:12px;height:12px;border-radius:3px;background:${cor};display:inline-block;"></span>${txt}</span>`;
     return (
       '<div style="background:var(--card);border-radius:16px;padding:16px 20px;margin-top:16px;">' +
-        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">' +
-          '<div>' +
-            '<div style="font-size:14px;font-weight:800;">🗺️ Mapa de Desempenho</div>' +
-            '<div style="font-size:11px;color:var(--text-muted);margin-top:1px;">Tamanho = peso na carteira &nbsp;·&nbsp; Cor = variação do dia</div>' +
-          '</div>' +
-          '<div style="display:flex;gap:10px;font-size:10px;align-items:center;">' +
-            '<span style="display:flex;align-items:center;gap:4px;color:var(--text-muted);"><span style="width:10px;height:10px;border-radius:2px;background:rgba(34,197,94,0.8);display:inline-block;"></span> Alta</span>' +
-            '<span style="display:flex;align-items:center;gap:4px;color:var(--text-muted);"><span style="width:10px;height:10px;border-radius:2px;background:rgba(239,68,68,0.8);display:inline-block;"></span> Baixa</span>' +
-            '<span style="display:flex;align-items:center;gap:4px;color:var(--text-muted);"><span style="width:10px;height:10px;border-radius:2px;background:rgba(100,100,120,0.6);display:inline-block;"></span> Sem dado</span>' +
-          '</div>' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">' +
+          '<div><div style="font-size:14px;font-weight:800;">🗺️ Mapa de Desempenho — Ações</div>' +
+          '<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Tamanho = peso na carteira &nbsp;·&nbsp; Cor = variação do dia</div></div>' +
+          '<div style="display:flex;gap:12px;">' + legend('rgb(20,180,65)','Alta') + legend('rgb(185,35,35)','Baixa') + legend('#3a3a4a','Sem dado') + '</div>' +
         '</div>' +
-        '<div style="display:flex;flex-wrap:wrap;gap:' + GAP + 'px;height:' + CONTAINER_H + 'px;overflow:hidden;">' +
-          htmlItems +
-        '</div>' +
+        '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;height:300px;border-radius:8px;display:block;">' + svgItems + '</svg>' +
+      '</div>'
+    );
+  }
+
+  function _renderRFPorBanco() {
+    if (!rendaFixa || !rendaFixa.length) return '';
+    const porInst = {};
+    rendaFixa.forEach(x => {
+      const k = (x.instituicao || '—').trim();
+      if (!porInst[k]) porInst[k] = { aplicado: 0, provisionado: 0 };
+      porInst[k].aplicado     += x.valorAplicado || 0;
+      porInst[k].provisionado += _rfCalcProvisionado(x);
+    });
+    const inst = Object.entries(porInst).sort((a,b) => b[1].aplicado - a[1].aplicado);
+    if (!inst.length) return '';
+    const maxVal = inst[0][1].aplicado;
+    const fmtR = v => 'R$ ' + Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+    const CORES = ['#6366f1','#22c55e','#f59e0b','#38bdf8','#a78bfa','#fb923c','#34d399','#f472b6'];
+    const totalApl = inst.reduce((s,[,v])=>s+v.aplicado,0);
+
+    const rows = inst.map(([nome, v], i) => {
+      const cor = CORES[i % CORES.length];
+      const barW = maxVal > 0 ? (v.aplicado / maxVal * 100) : 0;
+      const pct = totalApl > 0 ? v.aplicado / totalApl * 100 : 0;
+      const rend = v.provisionado - v.aplicado;
+      const rendCor = rend >= 0 ? '#22c55e' : '#ef4444';
+      return (
+        '<div style="margin-bottom:12px;">' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">' +
+            '<div style="display:flex;align-items:center;gap:8px;">' +
+              '<span style="width:10px;height:10px;border-radius:50%;background:' + cor + ';flex-shrink:0;display:inline-block;"></span>' +
+              '<span style="font-size:13px;font-weight:600;color:var(--text);">' + nome + '</span>' +
+              '<span style="font-size:11px;color:var(--text-muted);">' + pct.toFixed(1) + '%</span>' +
+            '</div>' +
+            '<div style="display:flex;gap:16px;text-align:right;">' +
+              '<div><div style="font-size:10px;color:var(--text-muted);">Aplicado</div><div style="font-size:12px;font-weight:700;color:var(--text);">' + fmtR(v.aplicado) + '</div></div>' +
+              '<div><div style="font-size:10px;color:var(--text-muted);">Rendimento</div><div style="font-size:12px;font-weight:700;color:' + rendCor + ';">' + (rend>=0?'+':'') + fmtR(rend) + '</div></div>' +
+            '</div>' +
+          '</div>' +
+          '<div style="background:var(--border);border-radius:4px;height:8px;overflow:hidden;">' +
+            '<div style="width:' + barW.toFixed(1) + '%;height:100%;background:' + cor + ';border-radius:4px;transition:width 0.5s;"></div>' +
+          '</div>' +
+        '</div>'
+      );
+    }).join('');
+
+    return (
+      '<div style="background:var(--card);border-radius:16px;padding:16px 20px;margin-top:14px;">' +
+        '<div style="font-size:14px;font-weight:800;margin-bottom:4px;">🏦 Renda Fixa por Instituição</div>' +
+        '<div style="font-size:11px;color:var(--text-muted);margin-bottom:14px;">Distribuição do capital aplicado em renda fixa</div>' +
+        rows +
       '</div>'
     );
   }
@@ -4726,11 +4777,13 @@
     const grid = (cols, content) =>
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(' + cols + 'px,1fr));gap:10px;">' + content + '</div>';
 
-    // ── TREEMAP DE DESEMPENHO ──
-    const treemapHtml = _renderTreemap(acoesInfo, rvAtual);
+    // ── TREEMAP DE DESEMPENHO + RF POR BANCO ──
+    const treemapHtml = _renderTreemap(acoesInfo);
+    const rfBancoHtml = _renderRFPorBanco();
 
     el.innerHTML =
       treemapHtml +
+      rfBancoHtml +
       '<div style="background:var(--card);border-radius:16px;padding:20px;margin-top:16px;">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">' +
           '<div>' +
