@@ -816,7 +816,7 @@
           </button>
           <div style="padding:10px 14px;background:var(--bg);border-top:1px solid var(--border);text-align:center;">
             <div style="font-size:11px;color:var(--text-muted);">Versão <strong id="paul-menu-versao" style="color:var(--text);">v111</strong></div>
-            <div style="font-size:10px;color:var(--text-muted);margin-top:2px;" id="paul-menu-versao-data">01/10/2026 às 18:30</div>
+            <div style="font-size:10px;color:var(--text-muted);margin-top:2px;" id="paul-menu-versao-data">01/10/2026 às 19:30</div>
             <button onclick="forcarAtualizacaoApp()" id="btn-forcar-update" style="margin-top:8px;width:100%;padding:5px 14px;background:transparent;border:1.5px solid var(--border);border-radius:8px;font-size:11px;cursor:pointer;color:var(--text-muted);">🔄 Verificar atualização</button>
             <button onclick="limparTudoERecarregar()" style="margin-top:5px;width:100%;padding:5px 14px;background:transparent;border:1.5px solid var(--danger);border-radius:8px;font-size:11px;cursor:pointer;color:var(--danger);">🗑️ Limpar cache e recarregar</button>
           </div>
@@ -4538,6 +4538,87 @@
     renderVisaoGeral();
   }
 
+  // ── TREEMAP DE DESEMPENHO ──
+  function _renderTreemap(acoesInfo, totalRV) {
+    const itens = acoesInfo.filter(a => a.atu > 0 && a.precoAtual);
+    if (itens.length < 2) return '';
+
+    // Ordena por valor atual desc (maior = maior bloco)
+    itens.sort((a, b) => b.atu - a.atu);
+
+    // Calcula pesos percentuais
+    const total = itens.reduce((s, a) => s + a.atu, 0);
+    const withPct = itens.map(a => ({ ...a, pct: a.atu / total * 100 }));
+
+    // Cor por variação diária
+    function _tmColor(pct) {
+      if (pct == null) return 'rgba(100,100,120,0.6)';
+      const v = Math.max(-4, Math.min(4, pct));
+      if (v >= 0) {
+        const t = v / 4;
+        const r = Math.round(22  + (34  - 22)  * t);
+        const g = Math.round(197 + (197 - 197) * t);
+        const b = Math.round(94  + (94  - 94)  * t);
+        const a = 0.45 + t * 0.45;
+        return `rgba(${r},${g},${b},${a})`;
+      } else {
+        const t = Math.abs(v) / 4;
+        const r = Math.round(239 + (185 - 239) * (1-t));
+        const g = Math.round(68  + (28  - 68)  * (1-t));
+        const b = Math.round(68  + (28  - 68)  * (1-t));
+        const a = 0.45 + t * 0.45;
+        return `rgba(${r},${g},${b},${a})`;
+      }
+    }
+
+    // Gera blocos com largura proporcional ao peso (flex-wrap)
+    // Agrupa em "linhas" onde cada linha soma ~50% ou por corte natural
+    const CONTAINER_H = 220; // px total height do container
+    const GAP = 2;
+
+    // Algoritmo simples: divide em 2-3 colunas de acordo com peso
+    // Linha 1: itens grandes (até ~60% do total), Linha 2: resto
+    let htmlItems = '';
+    withPct.forEach(a => {
+      const varPct = a.varDiaPct;
+      const varStr = varPct != null ? (varPct >= 0 ? '+' : '') + varPct.toFixed(2) + '%' : '—';
+      const cor    = _tmColor(varPct);
+      const corTxt = varPct == null ? '#aaa' : varPct >= 0 ? '#86efac' : '#fca5a5';
+      const nome   = a.nomeEmpresa ? a.nomeEmpresa.replace(/\s+(S\.?A\.?|HOLDING|PARTICIPAÇÕES|ENERGIA|ELÉTRICA).*$/i, '').trim() : '';
+      // Tamanho mínimo 4%, máximo 40%
+      const w = Math.max(4, Math.min(40, a.pct));
+      const isSmall = w < 7;
+      htmlItems +=
+        '<div style="flex:' + w + ' ' + w + ' ' + w + '%;min-width:' + (isSmall?60:90) + 'px;background:' + cor + ';border-radius:6px;padding:' + (isSmall?'6px 4px':'10px 8px') + ';display:flex;flex-direction:column;justify-content:space-between;cursor:default;transition:filter 0.15s;overflow:hidden;" ' +
+        'title="' + a.ticker + ' — ' + (nome||'') + '\nPeso: ' + a.pct.toFixed(1) + '% | Var.dia: ' + varStr + '">' +
+          '<div>' +
+            '<div style="font-size:' + (isSmall?'10px':'12px') + ';font-weight:800;color:#fff;line-height:1.1;">' + a.ticker + '</div>' +
+            (!isSmall && nome ? '<div style="font-size:9px;color:rgba(255,255,255,0.75);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + nome + '</div>' : '') +
+          '</div>' +
+          '<div style="font-size:' + (isSmall?'9px':'11px') + ';font-weight:700;color:' + corTxt + ';margin-top:4px;">' + varStr + '</div>' +
+        '</div>';
+    });
+
+    return (
+      '<div style="background:var(--card);border-radius:16px;padding:16px 20px;margin-top:16px;">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">' +
+          '<div>' +
+            '<div style="font-size:14px;font-weight:800;">🗺️ Mapa de Desempenho</div>' +
+            '<div style="font-size:11px;color:var(--text-muted);margin-top:1px;">Tamanho = peso na carteira &nbsp;·&nbsp; Cor = variação do dia</div>' +
+          '</div>' +
+          '<div style="display:flex;gap:10px;font-size:10px;align-items:center;">' +
+            '<span style="display:flex;align-items:center;gap:4px;color:var(--text-muted);"><span style="width:10px;height:10px;border-radius:2px;background:rgba(34,197,94,0.8);display:inline-block;"></span> Alta</span>' +
+            '<span style="display:flex;align-items:center;gap:4px;color:var(--text-muted);"><span style="width:10px;height:10px;border-radius:2px;background:rgba(239,68,68,0.8);display:inline-block;"></span> Baixa</span>' +
+            '<span style="display:flex;align-items:center;gap:4px;color:var(--text-muted);"><span style="width:10px;height:10px;border-radius:2px;background:rgba(100,100,120,0.6);display:inline-block;"></span> Sem dado</span>' +
+          '</div>' +
+        '</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:' + GAP + 'px;height:' + CONTAINER_H + 'px;overflow:hidden;">' +
+          htmlItems +
+        '</div>' +
+      '</div>'
+    );
+  }
+
   // ── VISÃO GERAL — DIRETORIA ──
   function renderVisaoGeral() {
     const el = document.getElementById('acoes-visao-geral');
@@ -4645,7 +4726,11 @@
     const grid = (cols, content) =>
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(' + cols + 'px,1fr));gap:10px;">' + content + '</div>';
 
+    // ── TREEMAP DE DESEMPENHO ──
+    const treemapHtml = _renderTreemap(acoesInfo, rvAtual);
+
     el.innerHTML =
+      treemapHtml +
       '<div style="background:var(--card);border-radius:16px;padding:20px;margin-top:16px;">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">' +
           '<div>' +
@@ -6176,6 +6261,7 @@
         min3m: min3m !== null ? min3m : (existing.min3m ?? null),
         max3m: max3m !== null ? max3m : (existing.max3m ?? null),
         hist3m: closesAll.length >= 2 ? closesAll : (existing.hist3m ?? null),
+        nomeEmpresa: q.longName || q.shortName || existing.nomeEmpresa || null,
       };
     }
 
@@ -6216,6 +6302,7 @@
         a.min3m      = precos[sym].min3m;
         a.max3m      = precos[sym].max3m;
         a.hist3m     = precos[sym].hist3m || null;
+        a.nomeEmpresa= precos[sym].nomeEmpresa || null;
       } else if (!a.monitorar) {
         falhas.push(a.ticker);
       }
