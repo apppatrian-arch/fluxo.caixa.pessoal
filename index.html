@@ -4562,14 +4562,16 @@
   }
 
   function _tmColorRV(pct) {
-    if (pct == null) return '#3a3a4a';
+    if (pct == null) return '#2b2b3d';
     const v = Math.max(-5, Math.min(5, pct));
     if (v >= 0) {
       const t = v / 5;
-      return `rgb(${Math.round(15+t*5)},${Math.round(110+t*90)},${Math.round(55+t*10)})`;
+      // near-zero: #173526, strong: #0d6633
+      return `rgb(${Math.round(23-10*t)},${Math.round(53+50*t)},${Math.round(38-3*t)})`;
     } else {
       const t = Math.abs(v) / 5;
-      return `rgb(${Math.round(130+t*60)},${Math.round(30+t*5)},${Math.round(30+t*5)})`;
+      // near-zero: #3d1520, strong: #7a1520
+      return `rgb(${Math.round(61+58*t)},${Math.round(21-2*t)},${Math.round(32-8*t)})`;
     }
   }
 
@@ -4580,41 +4582,46 @@
     const total = itens.reduce((s, a) => s + a.atu, 0);
     const withPct = itens.map(a => ({ ...a, pct: a.atu / total * 100 }));
 
-    const W = 1000, H = 340, GAP = 3;
+    const W = 1000, H = 400, GAP = 4;
     const rects = _squarify(withPct, 0, 0, W, H, GAP);
 
     const svgItems = rects.map(r => {
       const bg = _tmColorRV(r.varDiaPct);
       const varPct = r.varDiaPct;
-      const varStr = varPct != null ? (varPct >= 0 ? '+' : '') + varPct.toFixed(2) + '%' : '—';
-      const nome = r.nomeEmpresa ? r.nomeEmpresa.replace(/\s+(S\.?A\.?|HOLDING|PARTICIPAÇÕES|ENERGIA|ELÉTRICA|CIA\.?|COMPANHIA).*$/i,'').trim().slice(0,22) : '';
-      const isTiny  = r.w < 60  || r.h < 45;
-      const isSmall = r.w < 110 || r.h < 75;
-      const tkSize  = isTiny ? 11 : isSmall ? 14 : Math.min(20, Math.max(14, r.w / 7));
-      const nmSize  = isSmall ? 0 : Math.min(12, Math.max(10, r.w / 10));
-      const vSize   = isTiny ? 10 : isSmall ? 12 : Math.min(15, Math.max(11, r.w / 8));
-      const varColor= varPct == null ? '#9ca3af' : varPct >= 0 ? '#bbf7d0' : '#fecaca';
-      const pad = isTiny ? 5 : 10;
-      let s = `<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" fill="${bg}" rx="5"/>`;
+      const arrow  = varPct == null ? '' : varPct >= 0 ? ' ▲' : ' ▼';
+      const varStr = varPct != null ? (varPct >= 0 ? '+' : '') + varPct.toFixed(2) + '%' + arrow : '—';
+      const nomeRaw = r.nomeEmpresa || '';
+      const nome = nomeRaw.replace(/\s+(S\.?A\.?|HOLDING|PARTICIPAÇÕES|CIA\.?|COMPANHIA|ENERGIA|ELÉTRICA|DO BRASIL|SA).*$/i,'').trim();
+      const nomeShort = nome.length > 18 ? nome.slice(0,17) + '…' : nome;
+
+      const isTiny  = r.w < 55  || r.h < 42;
+      const isSmall = r.w < 95  || r.h < 65;
+      const isMed   = r.w < 150 || r.h < 100;
+
+      const tkSize = isTiny ? 10 : isSmall ? 13 : isMed ? 16 : Math.min(22, Math.max(15, r.w / 6.5));
+      const nmSize = (isTiny || isSmall) ? 0 : isMed ? 10 : Math.min(13, Math.max(10, r.w / 11));
+      const vSize  = isTiny ? 9 : isSmall ? 11 : isMed ? 12 : Math.min(14, Math.max(11, r.w / 9));
+      const varColor = varPct == null ? '#8888aa' : varPct >= 0 ? '#6ee87a' : '#f87171';
+      const pad = isTiny ? 4 : isSmall ? 7 : 10;
+
+      let s = `<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" fill="${bg}" rx="8"/>`;
       if (!isTiny) {
-        s += `<text x="${r.x+pad}" y="${r.y+pad+tkSize}" font-size="${tkSize}" font-weight="800" fill="#fff" font-family="system-ui,sans-serif" clip-path="url(#clip-${r.x}-${r.y})">${r.ticker}</text>`;
-        if (!isSmall && nome && nmSize > 0)
-          s += `<text x="${r.x+pad}" y="${r.y+pad+tkSize+nmSize+3}" font-size="${nmSize}" fill="rgba(255,255,255,0.72)" font-family="system-ui,sans-serif">${nome}</text>`;
+        s += `<text x="${r.x+pad}" y="${r.y+pad+tkSize}" font-size="${tkSize}" font-weight="800" fill="#ffffff" font-family="system-ui,sans-serif" letter-spacing="-0.3">${r.ticker}</text>`;
+        if (nmSize > 0 && nomeShort)
+          s += `<text x="${r.x+pad}" y="${r.y+pad+tkSize+nmSize+4}" font-size="${nmSize}" fill="rgba(255,255,255,0.65)" font-family="system-ui,sans-serif">${nomeShort}</text>`;
         s += `<text x="${r.x+pad}" y="${r.y+r.h-pad}" font-size="${vSize}" font-weight="700" fill="${varColor}" font-family="system-ui,sans-serif">${varStr}</text>`;
       }
-      s += `<title>${r.ticker}${nome?' — '+nome:''}\nPeso: ${r.pct.toFixed(1)}%\nVar.dia: ${varStr}</title>`;
+      s += `<title>${r.ticker}${nomeShort?' — '+nomeShort:''}\nPeso: ${r.pct.toFixed(1)}%\nVar.dia: ${varPct != null ? (varPct>=0?'+':'')+varPct.toFixed(2)+'%' : '—'}</title>`;
       return s;
     }).join('');
 
-    const legend = (cor, txt) => `<span style="display:flex;align-items:center;gap:4px;color:var(--text-muted);font-size:11px;"><span style="width:12px;height:12px;border-radius:3px;background:${cor};display:inline-block;"></span>${txt}</span>`;
     return (
-      '<div style="background:var(--card);border-radius:16px;padding:16px 20px;margin-top:16px;">' +
-        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">' +
-          '<div><div style="font-size:14px;font-weight:800;">🗺️ Mapa de Desempenho — Ações</div>' +
-          '<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Tamanho = peso na carteira &nbsp;·&nbsp; Cor = variação do dia</div></div>' +
-          '<div style="display:flex;gap:12px;">' + legend('rgb(20,180,65)','Alta') + legend('rgb(185,35,35)','Baixa') + legend('#3a3a4a','Sem dado') + '</div>' +
+      '<div style="background:#111118;border-radius:16px;padding:16px 20px;margin-top:16px;">' +
+        '<div style="margin-bottom:12px;">' +
+          '<div style="font-size:15px;font-weight:800;color:#fff;">Seus investimentos visualizados</div>' +
+          '<div style="font-size:11px;color:#8888aa;margin-top:3px;">O tamanho da caixa representa o peso do ativo na sua carteira. A cor indica o desempenho de hoje.</div>' +
         '</div>' +
-        '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;height:300px;border-radius:8px;display:block;">' + svgItems + '</svg>' +
+        '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;height:340px;border-radius:10px;display:block;">' + svgItems + '</svg>' +
       '</div>'
     );
   }
