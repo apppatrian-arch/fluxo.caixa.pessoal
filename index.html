@@ -4581,22 +4581,25 @@
     const itens = acoesInfo.filter(a => a.atu > 0 && !a.monitorar);
     if (itens.length < 1) return '';
 
-    // Agrega por ticker (mesmo ativo pode estar em múltiplas carteiras)
-    const byTicker = {};
+    // Agrega por ticker normalizado (remove .SA, trim, uppercase)
+    // — mesmo ativo pode ter 'TAEE11' e 'TAEE11.SA' ou aparecer em múltiplas carteiras
+    const normTicker = t => (t || '').trim().replace(/\.SA$/i, '').toUpperCase();
+    const byTicker = new Map();
     itens.forEach(a => {
-      const sym = (a.ticker || '').toUpperCase();
-      if (!byTicker[sym]) {
-        byTicker[sym] = { ...a, atu: 0, inv: 0, vd: 0, _vdNull: true };
+      const sym = normTicker(a.ticker);
+      if (!byTicker.has(sym)) {
+        byTicker.set(sym, { ...a, ticker: sym, atu: 0, inv: 0, vd: 0, _vdNull: true });
       }
-      byTicker[sym].atu += a.atu;
-      byTicker[sym].inv += a.inv;
-      if (a.vd != null) { byTicker[sym].vd += a.vd; byTicker[sym]._vdNull = false; }
+      const entry = byTicker.get(sym);
+      entry.atu += a.atu;
+      entry.inv += a.inv;
+      if (a.vd != null) { entry.vd += a.vd; entry._vdNull = false; }
     });
-    const agregados = Object.values(byTicker).map(a => ({
+    const agregados = [...byTicker.values()].map(a => ({
       ...a,
-      vd:       a._vdNull ? null : a.vd,
-      varDiaPct: (_precosGlobal[a.ticker.replace('.SA','').toUpperCase()] || {}).varDiaPct ?? a.varDiaPct ?? null,
-      nomeEmpresa: (_precosGlobal[a.ticker.replace('.SA','').toUpperCase()] || {}).nomeEmpresa || a.nomeEmpresa || null,
+      vd:        a._vdNull ? null : a.vd,
+      varDiaPct: (_precosGlobal[a.ticker] || {}).varDiaPct  ?? a.varDiaPct  ?? null,
+      nomeEmpresa: (_precosGlobal[a.ticker] || {}).nomeEmpresa || a.nomeEmpresa || null,
     }));
     agregados.sort((a, b) => b.atu - a.atu);
     const total = agregados.reduce((s, a) => s + a.atu, 0);
