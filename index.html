@@ -4693,7 +4693,9 @@
       const vd   = a.varDiaVal != null ? a.qtd * a.varDiaVal * f : null;
       rvInvest += inv; rvAtual += atu;
       if (vd != null) rvVarDia += vd;
-      return { ...a, inv, atu, lucro, lp, vd };
+      const sym = (a.ticker || '').replace('.SA','').toUpperCase();
+      const nomeEmpresa = (precos[sym] && precos[sym].nomeEmpresa) || null;
+      return { ...a, inv, atu, lucro, lp, vd, nomeEmpresa };
     });
     const rvLucro = rvAtual - rvInvest;
     const rvLP    = rvInvest > 0 ? rvLucro/rvInvest*100 : 0;
@@ -6355,7 +6357,7 @@
         a.min3m      = precos[sym].min3m;
         a.max3m      = precos[sym].max3m;
         a.hist3m     = precos[sym].hist3m || null;
-        a.nomeEmpresa= precos[sym].nomeEmpresa || null;
+        // nomeEmpresa fica só em precos[], não no objeto a (evita salvar no banco)
       } else if (!a.monitorar) {
         falhas.push(a.ticker);
       }
