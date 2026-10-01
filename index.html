@@ -4626,6 +4626,10 @@
     );
   }
 
+  function _svgEsc(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
   function _tmColorRF(rendPct) {
     if (rendPct == null || rendPct < 0) return '#111a2e';
     const t = Math.min(1, rendPct / 25);
@@ -4654,7 +4658,10 @@
       const rendStr = (r.rendPct >= 0 ? '+' : '') + r.rendPct.toFixed(1) + '%';
       const cdiStr  = r.percentualCDI ? r.percentualCDI + '% CDI' : '';
       const instRaw = r.instituicao || '—';
-      const inst    = instRaw.length > 18 ? instRaw.slice(0, 17) + '…' : instRaw;
+      const instShort = instRaw.length > 18 ? instRaw.slice(0, 17) + '…' : instRaw;
+      const inst    = _svgEsc(instShort);
+      const instTitle = _svgEsc(instRaw);
+      const cdiEsc  = _svgEsc(cdiStr);
 
       const isTiny  = r.w < 55  || r.h < 42;
       const isSmall = r.w < 95  || r.h < 65;
@@ -4668,11 +4675,11 @@
       let s = `<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" fill="${bg}" rx="8"/>`;
       if (!isTiny) {
         s += `<text x="${r.x+pad}" y="${r.y+pad+tkSize}" font-size="${tkSize}" font-weight="800" fill="#ffffff" font-family="system-ui,sans-serif">${inst}</text>`;
-        if (nmSize > 0 && cdiStr)
-          s += `<text x="${r.x+pad}" y="${r.y+pad+tkSize+nmSize+4}" font-size="${nmSize}" fill="rgba(255,255,255,0.60)" font-family="system-ui,sans-serif">${cdiStr}</text>`;
-        s += `<text x="${r.x+pad}" y="${r.y+r.h-pad}" font-size="${vSize}" font-weight="700" fill="${rendColor}" font-family="system-ui,sans-serif">${rendStr} ▲</text>`;
+        if (nmSize > 0 && cdiEsc)
+          s += `<text x="${r.x+pad}" y="${r.y+pad+tkSize+nmSize+4}" font-size="${nmSize}" fill="rgba(255,255,255,0.60)" font-family="system-ui,sans-serif">${cdiEsc}</text>`;
+        s += `<text x="${r.x+pad}" y="${r.y+r.h-pad}" font-size="${vSize}" font-weight="700" fill="${rendColor}" font-family="system-ui,sans-serif">${_svgEsc(rendStr)} &#x25B2;</text>`;
       }
-      s += `<title>${instRaw}${cdiStr?' · '+cdiStr:''}\nProvisionado: ${fmtR(r.prov)}\nRendimento: ${rendStr}\nPeso: ${r.pct.toFixed(1)}%</title>`;
+      s += `<title>${instTitle}${cdiEsc?' · '+cdiEsc:''}\nProvisionado: ${_svgEsc(fmtR(r.prov))}\nRendimento: ${_svgEsc(rendStr)}\nPeso: ${r.pct.toFixed(1)}%</title>`;
       return s;
     }).join('');
 
@@ -4849,7 +4856,8 @@
 
     // ── TREEMAPS + RF POR BANCO ──
     const treemapHtml   = _renderTreemap(acoesInfo);
-    const treemapRFHtml = _renderTreemapRF();
+    let treemapRFHtml = '';
+    try { treemapRFHtml = _renderTreemapRF(); } catch(e) { console.warn('treemapRF:', e); }
     const rfBancoHtml   = _renderRFPorBanco();
 
     el.innerHTML =
