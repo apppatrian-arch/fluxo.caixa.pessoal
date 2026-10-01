@@ -832,10 +832,9 @@
       <button class="tabs-arrow" id="tabs-prev" onclick="scrollTabs(-1)" title="Anterior">‹</button>
       <div class="tabs" id="tabs-bar">
         <button class="tab tab-destaque active" id="tab-paulistinha" onclick="setTab('paulistinha')" style="white-space:nowrap;">🚬 Indústria P</button>
-        <button id="tabs-mais-btn" onclick="toggleTabsExtras()" title="Mais abas" style="flex:0 0 auto;padding:6px 10px;border:none;border-radius:8px;background:rgba(255,255,255,0.12);color:white;font-size:15px;cursor:pointer;line-height:1;white-space:nowrap;transition:background 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.22)'" onmouseout="this.style.background='rgba(255,255,255,0.12)'">⋯</button>
-        <button class="tab tabs-extra" id="tab-acoes" onclick="setTab('acoes')" style="white-space:nowrap;display:none;">📈 Ações</button>
-        <button class="tab tabs-extra" id="tab-opcoes" onclick="setTab('opcoes')" style="white-space:nowrap;display:none;">🎯 Opções</button>
-        <button class="tab tabs-extra" id="tab-pessoal" onclick="setTab('pessoal')" style="white-space:nowrap;display:none;">💼 Financeiro</button>
+        <button class="tab tab-secundaria" id="tab-acoes" onclick="setTab('acoes')" style="white-space:nowrap;opacity:0.55;font-size:12px;">📈 Ações</button>
+        <button class="tab tab-secundaria" id="tab-opcoes" onclick="setTab('opcoes')" style="white-space:nowrap;opacity:0.55;font-size:12px;">🎯 Opções</button>
+        <button class="tab tab-secundaria" id="tab-pessoal" onclick="setTab('pessoal')" style="white-space:nowrap;opacity:0.55;font-size:12px;">💼 Financeiro</button>
       </div>
       <button class="tabs-arrow" id="tabs-next" onclick="scrollTabs(1)" title="Próximo">›</button>
     </div>
@@ -6628,20 +6627,22 @@
     renderGraficoAlocacao();
   }
 
-  // ── TOGGLE ABAS EXTRAS ──
-  let _tabsExtrasVisiveis = false;
-  function toggleTabsExtras() {
-    _tabsExtrasVisiveis = !_tabsExtrasVisiveis;
-    document.querySelectorAll('.tabs-extra').forEach(el => {
-      el.style.display = _tabsExtrasVisiveis ? '' : 'none';
+  // Abas secundárias: sempre visíveis, opacidade reduzida quando inativas
+  function _atualizarOpacidadeAbas(tabAtiva) {
+    ['acoes','opcoes','pessoal'].forEach(t => {
+      const btn = document.getElementById('tab-' + t);
+      if (!btn) return;
+      if (t === tabAtiva) {
+        btn.style.opacity = '1';
+        btn.style.fontSize = '';
+      } else {
+        btn.style.opacity = '0.55';
+        btn.style.fontSize = '12px';
+      }
     });
-    const btn = document.getElementById('tabs-mais-btn');
-    if (btn) btn.textContent = _tabsExtrasVisiveis ? '✕' : '⋯';
-    atualizarSetasTabs();
   }
-  // Se a aba ativa for uma extra, mostrá-las automaticamente
   function _garantirTabExtraVisivel(tab) {
-    if (['acoes','opcoes','pessoal'].includes(tab) && !_tabsExtrasVisiveis) toggleTabsExtras();
+    _atualizarOpacidadeAbas(tab);
   }
 
   // ── SETAS DE NAVEGAÇÃO DAS TABS ──
