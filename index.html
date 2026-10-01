@@ -816,7 +816,7 @@
           </button>
           <div style="padding:10px 14px;background:var(--bg);border-top:1px solid var(--border);text-align:center;">
             <div style="font-size:11px;color:var(--text-muted);">Versão <strong id="paul-menu-versao" style="color:var(--text);">v111</strong></div>
-            <div style="font-size:10px;color:var(--text-muted);margin-top:2px;" id="paul-menu-versao-data">01/10/2026 às 18:00</div>
+            <div style="font-size:10px;color:var(--text-muted);margin-top:2px;" id="paul-menu-versao-data">01/10/2026 às 18:30</div>
             <button onclick="forcarAtualizacaoApp()" id="btn-forcar-update" style="margin-top:8px;width:100%;padding:5px 14px;background:transparent;border:1.5px solid var(--border);border-radius:8px;font-size:11px;cursor:pointer;color:var(--text-muted);">🔄 Verificar atualização</button>
             <button onclick="limparTudoERecarregar()" style="margin-top:5px;width:100%;padding:5px 14px;background:transparent;border:1.5px solid var(--danger);border-radius:8px;font-size:11px;cursor:pointer;color:var(--danger);">🗑️ Limpar cache e recarregar</button>
           </div>
@@ -2466,31 +2466,32 @@
     if (!meses.length) { elResumo.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:12px;font-size:13px;">Sem dados no período.</div>'; return; }
     const c = paulChartOpts();
     const _elPfin = document.getElementById('pfin-chart-evo');
-    if (!_elPfin) return;
-    const ctx = _elPfin.getContext('2d');
-    const isA = pfin_vista === 'area';
-    const grad = ctx.createLinearGradient(0,0,0,140);
-    grad.addColorStop(0,'rgba(99,102,241,0.35)'); grad.addColorStop(1,'rgba(99,102,241,0)');
-    pfin_chart = new Chart(ctx, {
-      type: isA ? 'line' : 'bar',
-      data: { labels: meses.map(_paulMesLabel), datasets: [{
-        label: 'Total', data: meses.map(m => totais[m]),
-        borderColor: '#6366f1', backgroundColor: isA ? grad : 'rgba(99,102,241,0.6)',
-        borderWidth: isA?2:0, borderRadius: isA?0:6, fill: isA, tension: 0.4,
-        pointRadius: isA?3:0, pointBackgroundColor: '#6366f1'
-      }]},
-      options: { responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
-        plugins: {
-          legend:{display:false},
-          tooltip:{backgroundColor:c.tipBg,borderColor:c.tipBord,borderWidth:1,titleColor:c.tipTxt,bodyColor:c.tick,
-            callbacks:{label: ctx2 => ' ' + fmtMoeda(ctx2.raw)}}
-        },
-        scales: {
-          x:{grid:{color:c.grid},ticks:{color:c.tick,font:{size:10}}},
-          y:{grid:{color:c.grid},ticks:{color:c.tick,font:{size:10},callback:v=>v>=1000?(v/1000).toFixed(0)+'k':v}}
+    if (_elPfin) {
+      const ctx = _elPfin.getContext('2d');
+      const isA = pfin_vista === 'area';
+      const grad = ctx.createLinearGradient(0,0,0,140);
+      grad.addColorStop(0,'rgba(99,102,241,0.35)'); grad.addColorStop(1,'rgba(99,102,241,0)');
+      pfin_chart = new Chart(ctx, {
+        type: isA ? 'line' : 'bar',
+        data: { labels: meses.map(_paulMesLabel), datasets: [{
+          label: 'Total', data: meses.map(m => totais[m]),
+          borderColor: '#6366f1', backgroundColor: isA ? grad : 'rgba(99,102,241,0.6)',
+          borderWidth: isA?2:0, borderRadius: isA?0:6, fill: isA, tension: 0.4,
+          pointRadius: isA?3:0, pointBackgroundColor: '#6366f1'
+        }]},
+        options: { responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
+          plugins: {
+            legend:{display:false},
+            tooltip:{backgroundColor:c.tipBg,borderColor:c.tipBord,borderWidth:1,titleColor:c.tipTxt,bodyColor:c.tick,
+              callbacks:{label: ctx2 => ' ' + fmtMoeda(ctx2.raw)}}
+          },
+          scales: {
+            x:{grid:{color:c.grid},ticks:{color:c.tick,font:{size:10}}},
+            y:{grid:{color:c.grid},ticks:{color:c.tick,font:{size:10},callback:v=>v>=1000?(v/1000).toFixed(0)+'k':v}}
+          }
         }
-      }
-    });
+      });
+    }
     elResumo.innerHTML = [...meses].reverse().map(m => {
       const [y, mo] = m.split('-');
       const nome = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][parseInt(mo)-1] + ' ' + y;
@@ -2572,31 +2573,32 @@
     if (!meses.length) { elResumo.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:12px;font-size:13px;">Sem dados no período.</div>'; return; }
     const c = paulChartOpts();
     const _elPest = document.getElementById('pest-chart-evo');
-    if (!_elPest) return;
-    const ctx = _elPest.getContext('2d');
-    const isA = pest_vista === 'area';
-    const grad = ctx.createLinearGradient(0,0,0,140);
-    grad.addColorStop(0,'rgba(34,197,94,0.35)'); grad.addColorStop(1,'rgba(34,197,94,0)');
-    pest_chart = new Chart(ctx, {
-      type: isA ? 'line' : 'bar',
-      data: { labels: meses.map(_paulMesLabel), datasets: [{
-        label: 'Entradas', data: meses.map(m => totais[m]),
-        borderColor: '#22c55e', backgroundColor: isA ? grad : 'rgba(34,197,94,0.6)',
-        borderWidth: isA?2:0, borderRadius: isA?0:6, fill: isA, tension: 0.4,
-        pointRadius: isA?3:0, pointBackgroundColor: '#22c55e'
-      }]},
-      options: { responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
-        plugins: {
-          legend:{display:false},
-          tooltip:{backgroundColor:c.tipBg,borderColor:c.tipBord,borderWidth:1,titleColor:c.tipTxt,bodyColor:c.tick,
-            callbacks:{label: ctx2 => ' ' + fmtCx(ctx2.raw)}}
-        },
-        scales: {
-          x:{grid:{color:c.grid},ticks:{color:c.tick,font:{size:10}}},
-          y:{grid:{color:c.grid},ticks:{color:c.tick,font:{size:10},callback:v=>v>=1000?(v/1000).toFixed(0)+'k':v}}
+    if (_elPest) {
+      const ctx = _elPest.getContext('2d');
+      const isA = pest_vista === 'area';
+      const grad = ctx.createLinearGradient(0,0,0,140);
+      grad.addColorStop(0,'rgba(34,197,94,0.35)'); grad.addColorStop(1,'rgba(34,197,94,0)');
+      pest_chart = new Chart(ctx, {
+        type: isA ? 'line' : 'bar',
+        data: { labels: meses.map(_paulMesLabel), datasets: [{
+          label: 'Entradas', data: meses.map(m => totais[m]),
+          borderColor: '#22c55e', backgroundColor: isA ? grad : 'rgba(34,197,94,0.6)',
+          borderWidth: isA?2:0, borderRadius: isA?0:6, fill: isA, tension: 0.4,
+          pointRadius: isA?3:0, pointBackgroundColor: '#22c55e'
+        }]},
+        options: { responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
+          plugins: {
+            legend:{display:false},
+            tooltip:{backgroundColor:c.tipBg,borderColor:c.tipBord,borderWidth:1,titleColor:c.tipTxt,bodyColor:c.tick,
+              callbacks:{label: ctx2 => ' ' + fmtCx(ctx2.raw)}}
+          },
+          scales: {
+            x:{grid:{color:c.grid},ticks:{color:c.tick,font:{size:10}}},
+            y:{grid:{color:c.grid},ticks:{color:c.tick,font:{size:10},callback:v=>v>=1000?(v/1000).toFixed(0)+'k':v}}
+          }
         }
-      }
-    });
+      });
+    }
     elResumo.innerHTML = [...meses].reverse().map(m => {
       const [y, mo] = m.split('-');
       const nome = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][parseInt(mo)-1] + ' ' + y;
