@@ -6008,7 +6008,15 @@
   let _selicAnual    = 0;   // meta anual % a.a. — atualizado por buscarSelic()
   let _selicDiaria   = 0;   // taxa Over diária real (BCB série 11) — atualizado por buscarSelic()
   let rendaFixa      = [];  // carteira de renda fixa
-  let _precosGlobal  = {};  // cache de cotações: sym → { preco, nomeEmpresa, hist3m, ... }
+  let _precosGlobal  = (() => {
+    // Pré-popula com hist3m do localStorage para sparklines ficarem disponíveis sem buscar cotações
+    try {
+      const sc = JSON.parse(localStorage.getItem('_sparkCache') || '{}');
+      const out = {};
+      Object.entries(sc).forEach(([sym, hist3m]) => { out[sym] = { hist3m }; });
+      return out;
+    } catch(e) { return {}; }
+  })();  // cache de cotações: sym → { preco, nomeEmpresa, hist3m, ... }
   let _chartAlocacao  = null;
   let _chartOpcoes    = null;
   let opcoes          = [];  // carteira de opções
@@ -6546,6 +6554,13 @@
     });
     // Mescla no cache global de cotações (usado por renderVisaoGeral e sparklines)
     Object.assign(_precosGlobal, precos);
+    // Persiste hist3m no localStorage para ficar disponível após reload
+    // (não pode ir ao banco — excede VARCHAR(200))
+    try {
+      let sc = JSON.parse(localStorage.getItem('_sparkCache') || '{}');
+      Object.entries(precos).forEach(([sym, p]) => { if (p.hist3m) sc[sym] = p.hist3m; });
+      localStorage.setItem('_sparkCache', JSON.stringify(sc));
+    } catch(e) {}
     if (falhas.length) {
       _setSyncStatus('⚠️ Cotação não encontrada na brapi.dev: ' + falhas.join(', ') + ' — verifique se os tickers estão corretos', false);
     } else {
