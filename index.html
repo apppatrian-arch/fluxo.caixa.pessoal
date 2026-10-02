@@ -4661,7 +4661,7 @@
     const W = 1000, H = 480, GAP = 4;
     const rects = _squarify(withPct, 0, 0, W, H, GAP);
 
-    const svgItems = rects.map(r => {
+    const svgItems = rects.map((r, idx) => {
       const bg = _tmColorRV(r.varDiaPct);
       const varPct = r.varDiaPct;
       const arrow  = varPct == null ? '' : varPct >= 0 ? ' &#x25B2;' : ' &#x25BC;';
@@ -4682,14 +4682,17 @@
 
       const varTip = varPct != null ? (varPct>=0?'+':'')+varPct.toFixed(2)+'%' : '—';
       const atuFmt = 'R$ ' + r.atu.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
-      // <title> deve ser PRIMEIRO filho do <g> para o browser associar o tooltip ao grupo correto
+      const cid = `rv${idx}`;
       let s = `<g><title>${_svgEsc(r.ticker)}${nomeShort?' — '+nomeShort:''}\nValor atual: ${_svgEsc(atuFmt)}\nPeso: ${r.pct.toFixed(1)}%\nVar.dia: ${_svgEsc(varTip)}</title>`;
+      s += `<clipPath id="${cid}"><rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" rx="8"/></clipPath>`;
       s += `<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" fill="${bg}" rx="8"/>`;
       if (!isTiny) {
+        s += `<g clip-path="url(#${cid})">`;
         s += `<text x="${r.x+pad}" y="${r.y+pad+tkSize}" font-size="${tkSize}" font-weight="800" fill="#ffffff" font-family="system-ui,sans-serif" letter-spacing="-0.3">${_svgEsc(r.ticker)}</text>`;
         if (nmSize > 0 && nomeShort)
           s += `<text x="${r.x+pad}" y="${r.y+pad+tkSize+nmSize+4}" font-size="${nmSize}" fill="rgba(255,255,255,0.65)" font-family="system-ui,sans-serif">${nomeShort}</text>`;
         s += `<text x="${r.x+pad}" y="${r.y+r.h-pad}" font-size="${vSize}" font-weight="700" fill="${varColor}" font-family="system-ui,sans-serif">${varStr}</text>`;
+        s += `</g>`;
       }
       s += `</g>`;
       return s;
@@ -4733,7 +4736,7 @@
     const rects = _squarify(withPct, 0, 0, W, H, GAP);
     const fmtR = v => 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
-    const svgItems = rects.map(r => {
+    const svgItems = rects.map((r, idx) => {
       const bg = _tmColorRF(r.rendPct);
       const rendStr = (r.rendPct >= 0 ? '+' : '') + r.rendPct.toFixed(1) + '%';
       const cdiStr  = r.percentualCDI ? r.percentualCDI + '% CDI' : '';
@@ -4753,13 +4756,17 @@
       const pad = isTiny ? 4 : isSmall ? 7 : 10;
 
       const rfPesoPct = (r.w * r.h / (W * H) * 100);
+      const cid = `rf${idx}`;
       let s = `<g><title>${instTitle}${cdiEsc?' · '+cdiEsc:''}\nProvisionado: ${_svgEsc(fmtR(r.prov))}\nRendimento: ${_svgEsc(rendStr)}\nPeso: ${rfPesoPct.toFixed(1)}%</title>`;
+      s += `<clipPath id="${cid}"><rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" rx="8"/></clipPath>`;
       s += `<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" fill="${bg}" rx="8"/>`;
       if (!isTiny) {
+        s += `<g clip-path="url(#${cid})">`;
         s += `<text x="${r.x+pad}" y="${r.y+pad+tkSize}" font-size="${tkSize}" font-weight="800" fill="#ffffff" font-family="system-ui,sans-serif">${inst}</text>`;
         if (nmSize > 0 && cdiEsc)
           s += `<text x="${r.x+pad}" y="${r.y+pad+tkSize+nmSize+4}" font-size="${nmSize}" fill="rgba(255,255,255,0.60)" font-family="system-ui,sans-serif">${cdiEsc}</text>`;
         s += `<text x="${r.x+pad}" y="${r.y+r.h-pad}" font-size="${vSize}" font-weight="700" fill="${rendColor}" font-family="system-ui,sans-serif">${_svgEsc(rendStr)} &#x25B2;</text>`;
+        s += `</g>`;
       }
       s += `</g>`;
       return s;
