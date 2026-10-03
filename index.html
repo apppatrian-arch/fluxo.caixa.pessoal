@@ -3968,43 +3968,43 @@
       }
     } catch(e) {}
 
-    // Helper: fetch com timeout de 8 s
+    // Helper: fetch com timeout de 10 s
     const fetchT = (url) => {
       const ac = new AbortController();
-      const t  = setTimeout(() => ac.abort(), 8000);
+      const t  = setTimeout(() => ac.abort(), 10000);
       return fetch(url, { signal: ac.signal }).finally(() => clearTimeout(t));
     };
 
-    // Tenta BCB direto (série 432 = meta a.a., série 11 = Over diária)
+    // Fonte 1: BrasilAPI (CORS garantido, mais confiável em browser)
     let ok = false;
     try {
-      const [meta, diaria] = await Promise.all([
-        fetchT('https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/1?formato=json').then(r => r.json()),
-        fetchT('https://api.bcb.gov.br/dados/serie/bcdata.sgs.11/dados/ultimos/1?formato=json').then(r => r.json())
-      ]);
-      const taxaMeta   = parseFloat(String(meta[0].valor).replace(',', '.'));
-      const taxaDiaria = parseFloat(String(diaria[0].valor).replace(',', '.'));
+      const taxas  = await fetchT('https://brasilapi.com.br/api/taxa/v1').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+      const entry  = taxas.find(t => /selic/i.test(t.nome || ''));
+      if (!entry) throw new Error('Selic não encontrada');
+      const taxaMeta   = Number(entry.valor);
+      // Diária: (1 + a.a./100)^(1/252) – 1 × 100  (BCB usa 252 dias úteis)
+      const taxaDiaria = (Math.pow(1 + taxaMeta / 100, 1 / 252) - 1) * 100;
       _selicAnual  = taxaMeta;
       _selicDiaria = taxaDiaria;
-      try { localStorage.setItem('_selicCache', JSON.stringify({ meta: taxaMeta, diaria: taxaDiaria, data: meta[0].data })); } catch(e) {}
-      _renderSelicEl(el, taxaMeta, taxaDiaria, meta[0].data, 'Banco Central do Brasil');
+      const dataMeta = entry.data ? String(entry.data).slice(0,10) : new Date().toLocaleDateString('pt-BR');
+      try { localStorage.setItem('_selicCache', JSON.stringify({ meta: taxaMeta, diaria: taxaDiaria, data: dataMeta })); } catch(e) {}
+      _renderSelicEl(el, taxaMeta, taxaDiaria, dataMeta, 'BrasilAPI / BCB');
       ok = true;
-    } catch(e1) { /* tenta fallback abaixo */ }
+    } catch(e1) { /* tenta BCB direto abaixo */ }
 
-    // Fallback: BrasilAPI (CORS garantido, retorna taxa Selic meta a.a.)
+    // Fonte 2 (fallback): BCB SGS direto (série 432 = meta a.a., série 11 = Over diária)
     if (!ok) {
       try {
-        const taxas    = await fetchT('https://brasilapi.com.br/api/taxa/v1').then(r => r.json());
-        const entry    = taxas.find(t => /selic/i.test(t.nome || ''));
-        if (!entry) throw new Error('Selic não encontrada');
-        const taxaMeta   = Number(entry.valor);
-        // Aproxima diária: (1 + a.a./100)^(1/252) - 1 × 100
-        const taxaDiaria = (Math.pow(1 + taxaMeta / 100, 1 / 252) - 1) * 100;
+        const [meta, diaria] = await Promise.all([
+          fetchT('https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/1?formato=json').then(r => r.json()),
+          fetchT('https://api.bcb.gov.br/dados/serie/bcdata.sgs.11/dados/ultimos/1?formato=json').then(r => r.json())
+        ]);
+        const taxaMeta   = parseFloat(String(meta[0].valor).replace(',', '.'));
+        const taxaDiaria = parseFloat(String(diaria[0].valor).replace(',', '.'));
         _selicAnual  = taxaMeta;
         _selicDiaria = taxaDiaria;
-        const dataMeta = new Date().toLocaleDateString('pt-BR');
-        try { localStorage.setItem('_selicCache', JSON.stringify({ meta: taxaMeta, diaria: taxaDiaria, data: dataMeta })); } catch(e) {}
-        _renderSelicEl(el, taxaMeta, taxaDiaria, dataMeta, 'BrasilAPI');
+        try { localStorage.setItem('_selicCache', JSON.stringify({ meta: taxaMeta, diaria: taxaDiaria, data: meta[0].data })); } catch(e) {}
+        _renderSelicEl(el, taxaMeta, taxaDiaria, meta[0].data, 'Banco Central do Brasil');
         ok = true;
       } catch(e2) { /* sem dados ao vivo */ }
     }
