@@ -4009,12 +4009,39 @@
       } catch(e2) { /* sem dados ao vivo */ }
     }
 
-    // Se ambos falharam e não havia cache, mostra erro
-    if (!ok && !localStorage.getItem('_selicCache')) {
-      el.innerHTML = '<div style="color:var(--danger);font-size:12px;text-align:center;">❌ Selic indisponível — tente novamente mais tarde</div>';
+    // Se ambos falharam, mostra entrada manual (APIs podem estar bloqueadas pela rede)
+    if (!ok) {
+      const valCache = (() => { try { return JSON.parse(localStorage.getItem('_selicCache') || 'null'); } catch(e) { return null; } })();
+      const preValor = valCache ? valCache.meta.toFixed(2) : '10.50';
+      el.innerHTML =
+        '<div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;">APIs indisponíveis na sua rede. Informe a taxa atual:</div>' +
+        '<div style="display:flex;gap:8px;align-items:center;">' +
+          '<input id="selic-manual-input" type="number" step="0.01" min="0" max="50" value="' + preValor + '" ' +
+            'style="flex:1;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:16px;font-weight:700;text-align:center;" />' +
+          '<span style="font-size:16px;font-weight:700;color:var(--text);">% a.a.</span>' +
+          '<button onclick="_aplicarSelicManual()" ' +
+            'style="padding:8px 14px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">Aplicar</button>' +
+        '</div>' +
+        '<div style="margin-top:6px;font-size:10px;color:var(--text-muted);">Consulte em <a href="https://www.bcb.gov.br/controleinflacao/taxaselic" target="_blank" style="color:var(--primary);">bcb.gov.br</a></div>';
+      // Aplica automaticamente o valor do cache (se existir) nos cálculos
+      if (valCache) { _selicAnual = valCache.meta; _selicDiaria = valCache.diaria; if (rendaFixa.length) { renderRendaFixa(); renderGraficoAlocacao(); } }
     }
 
     if (btn) btn.style.opacity = '1';
+  }
+
+  function _aplicarSelicManual() {
+    const inp = document.getElementById('selic-manual-input');
+    const el  = document.getElementById('selic-resultado');
+    if (!inp || !el) return;
+    const taxaMeta = parseFloat(inp.value.replace(',','.'));
+    if (isNaN(taxaMeta) || taxaMeta <= 0) return;
+    const taxaDiaria = (Math.pow(1 + taxaMeta / 100, 1 / 252) - 1) * 100;
+    _selicAnual  = taxaMeta;
+    _selicDiaria = taxaDiaria;
+    const dataMeta = new Date().toLocaleDateString('pt-BR');
+    try { localStorage.setItem('_selicCache', JSON.stringify({ meta: taxaMeta, diaria: taxaDiaria, data: dataMeta })); } catch(e) {}
+    _renderSelicEl(el, taxaMeta, taxaDiaria, dataMeta, 'informado manualmente');
   }
 
   async function buscarDolar() {
