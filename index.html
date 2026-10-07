@@ -742,6 +742,8 @@
     .sync-dot.error   { background: var(--danger); }
 
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+    @keyframes pulseMin3m { 0%,100%{background-color:rgba(239,68,68,0.18)} 50%{background-color:rgba(239,68,68,0.42)} }
+    .alerta-min3m { animation: pulseMin3m 1.2s ease-in-out infinite !important; }
 
     .hv-btn {
       background: none; border: none; color: #8b949e;
@@ -4973,6 +4975,17 @@
       atencoes.push({ n:'medio', t:`<strong>${rvPct.toFixed(0)}%</strong> do patrimônio em renda variável. Considere reforçar a RF como proteção de capital.` });
     rfItens.filter(x => x.aliquota >= 20 && x.ir > 50).forEach(x =>
       atencoes.push({ n:'baixo', t:`<strong>${x.instituicao}</strong>: alíquota IR ${x.aliquota}% — ${x.aliquota===22.5?'mantendo até 181 dias':'aguardando 361 dias'} para reduzir tributação.` }));
+    // Alerta de mínima 3 meses (alta prioridade — aparece antes dos outros alertas)
+    acoesInfo.forEach(a => {
+      if (!a.precoAtual || !a.min3m) return;
+      const pctAcima = (a.precoAtual - a.min3m) / a.min3m * 100;
+      if (pctAcima <= 1.0) {
+        const label = pctAcima <= 0
+          ? 'abaixo da mínima dos últimos 3 meses'
+          : `apenas +${pctAcima.toFixed(2)}% acima da mínima dos últimos 3 meses`;
+        atencoes.unshift({ n:'alto', t:`🔻 <strong>${a.ticker}</strong> está ${label} (mín. 3m: R$ ${a.min3m.toFixed(2)} · atual: R$ ${a.precoAtual.toFixed(2)}). <strong>Oportunidade de entrada?</strong>` });
+      }
+    });
     const alertas = _getAlertas();
     acoesInfo.forEach(a => {
       const al = alertas[a.ticker]; if (!al || !a.precoAtual) return;
@@ -6847,6 +6860,8 @@
         const trigV  = aVend && p ? (dirV === 'subir' ? p >= aVend : p <= aVend) : false;
         const nearC  = aComp && p && !trigC ? (dirC === 'subir' ? (aComp - p) / aComp < 0.03 : (p - aComp) / aComp < 0.03) : false;
         const nearV  = aVend && p && !trigV ? (dirV === 'subir' ? (aVend  - p) / aVend  < 0.03 : (p - aVend)  / aVend  < 0.03) : false;
+        // Alerta de mínima 3 meses: preço atual ≤ mínima 3m + 1%
+        const trigMin3m = !!(p && a.min3m && p <= a.min3m * 1.01);
         const fmtAlP = v => Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
         const probC  = _probAlertaAcao(p, aComp, dirC);
         const probV  = _probAlertaAcao(p, aVend, dirV);
@@ -6897,19 +6912,23 @@
               : nearC         ? 'rgba(34,197,94,0.15)'
                               : 'rgba(239,68,68,0.15)')
           : null;
-        const borderAlert = alertaAtivo
-          ? (trigC && trigV ? '2px solid rgba(234,179,8,0.80)'
-            : trigC         ? '2px solid rgba(34,197,94,0.70)'
-                            : '2px solid rgba(239,68,68,0.70)')
-          : alertaProximo
-            ? (nearC && nearV ? '1.5px solid rgba(234,179,8,0.50)'
-              : nearC         ? '1.5px solid rgba(34,197,94,0.45)'
-                              : '1.5px solid rgba(239,68,68,0.45)')
-          : '1px solid var(--border)';
+        const borderAlert = trigMin3m
+          ? '3px solid rgba(239,68,68,0.90)'            // mínima 3m: borda vermelha grossa
+          : alertaAtivo
+            ? (trigC && trigV ? '2px solid rgba(234,179,8,0.80)'
+              : trigC         ? '2px solid rgba(34,197,94,0.70)'
+                              : '2px solid rgba(239,68,68,0.70)')
+            : alertaProximo
+              ? (nearC && nearV ? '1.5px solid rgba(234,179,8,0.50)'
+                : nearC         ? '1.5px solid rgba(34,197,94,0.45)'
+                                : '1.5px solid rgba(239,68,68,0.45)')
+            : '1px solid var(--border)';
         const bgMon = isMon ? (idx%2===0?'rgba(139,92,246,0.06)':'rgba(139,92,246,0.10)') : bgLinha;
-        const bgFinal = bgAlert || bgMon;
+        // trigMin3m usa classe CSS para animação pulsante — bg definido pelo @keyframes
+        const bgFinal = trigMin3m ? '' : (bgAlert || bgMon);
+        const classTr = trigMin3m ? ' class="alerta-min3m"' : '';
         const tdM   = '<td style="padding:8px;text-align:right;color:var(--text-muted);font-size:12px;">—</td>';
-        return '<tr style="border-bottom:' + borderAlert + ';background:' + bgFinal + ';">' +
+        return '<tr' + classTr + ' style="border-bottom:' + borderAlert + ';' + (bgFinal ? 'background:' + bgFinal + ';' : '') + '">' +
           '<td style="padding:8px;font-size:12px;font-weight:700;white-space:nowrap;">' +
             a.ticker +
             (isMon ? ' <span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;background:rgba(139,92,246,0.15);color:#8b5cf6;vertical-align:middle;">👁 Monitor</span>' : '') +
@@ -6917,7 +6936,16 @@
           (isMon ? tdM : '<td style="padding:8px;font-size:12px;text-align:right;">' + Number(a.qtd).toLocaleString('pt-BR') + '</td>') +
           (isMon ? tdM : '<td style="padding:8px;font-size:12px;text-align:right;">' + fmtUSD(a.custo) + (isUSD ? ' <span style="font-size:9px;background:#dbeafe;color:#1d4ed8;border-radius:4px;padding:1px 4px;font-weight:700;">USD</span>' : '') + '</td>') +
           '<td style="padding:8px;font-size:12px;text-align:right;font-weight:700;color:' + (a.precoAtual ? '#3b82f6' : 'var(--text-muted)') + ';">' + (a.precoAtual ? fmtUSD(a.precoAtual) : (isMon ? '<span title="Ticker não encontrado na brapi.dev — verifique o código">N/D</span>' : '—')) + '</td>' +
-          '<td style="padding:8px;font-size:12px;text-align:right;color:var(--text-muted);">' + (a.min3m ? fmtUSD(a.min3m) : '—') + '</td>' +
+          '<td style="padding:8px;font-size:12px;text-align:right;">' +
+            (a.min3m
+              ? (trigMin3m
+                  ? '<div style="display:inline-flex;flex-direction:column;align-items:flex-end;gap:2px;">' +
+                      '<span style="font-weight:800;color:#ef4444;">' + fmtUSD(a.min3m) + '</span>' +
+                      '<span style="font-size:9px;font-weight:800;letter-spacing:0.5px;padding:1px 5px;border-radius:4px;background:#ef4444;color:#fff;white-space:nowrap;">🔻 NA MÍNIMA</span>' +
+                    '</div>'
+                  : '<span style="color:var(--text-muted);">' + fmtUSD(a.min3m) + '</span>')
+              : '—') +
+          '</td>' +
           '<td style="padding:8px;font-size:12px;text-align:right;color:var(--text-muted);">' + (a.max3m ? fmtUSD(a.max3m) : '—') + '</td>' +
           '<td style="padding:4px 8px;text-align:center;vertical-align:middle;">' + _sparklineSVG((_precosGlobal[a.ticker.replace('.SA','').toUpperCase()] || {}).hist3m || null, a.ticker) + '</td>' +
           '<td style="padding:8px;font-size:11px;text-align:right;color:' + (a.min52 ? 'var(--danger)' : 'var(--text-muted)') + ';">' + (a.min52 ? fmtUSD(a.min52) : '—') + '</td>' +
