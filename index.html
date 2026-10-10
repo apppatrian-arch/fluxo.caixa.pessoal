@@ -1664,6 +1664,62 @@
         </div>
       </div>
 
+      <!-- ANALISADOR DE PLANILHA DE OPÇÕES -->
+      <div style="background:var(--card);border-radius:14px;padding:16px;margin-bottom:14px;">
+        <div style="font-size:14px;font-weight:700;margin-bottom:4px;">🔍 Analisar Estratégia de Opções</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:14px;">
+          Importe a planilha Excel da cadeia de opções e receba recomendações de <strong>venda OTM</strong> — estratégia focada em <strong>não ser exercido</strong> e receber o prêmio integralmente.
+        </div>
+
+        <div id="op-anl-drop"
+          onclick="document.getElementById('op-anl-file').click()"
+          ondragover="event.preventDefault();this.style.borderColor='var(--primary)';this.style.background='rgba(59,130,246,0.06)'"
+          ondragleave="this.style.borderColor='var(--border)';this.style.background=''"
+          ondrop="opAnlHandleDrop(event)"
+          style="border:2px dashed var(--border);border-radius:10px;padding:30px 20px;text-align:center;cursor:pointer;transition:all 0.2s;">
+          <div style="font-size:34px;margin-bottom:6px;">📂</div>
+          <div style="font-size:13px;font-weight:600;">Arraste a planilha aqui ou clique para selecionar</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Aceita .xlsx · .xls · .csv</div>
+        </div>
+        <input type="file" id="op-anl-file" accept=".xlsx,.xls,.csv" style="display:none" onchange="opAnlHandleFile(this.files[0])">
+
+        <div id="op-anl-status" style="display:none;margin-top:10px;font-size:12px;color:var(--text-muted);text-align:center;"></div>
+
+        <div id="op-anl-filtros" style="display:none;margin-top:14px;padding:12px 14px;background:var(--bg);border-radius:10px;border:1px solid var(--border);">
+          <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:8px;letter-spacing:.5px;">FILTROS</div>
+          <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
+            <div>
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">Tipo</div>
+              <select id="op-anl-tipo" onchange="opAnlRenderResults()"
+                style="padding:6px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:12px;background:var(--surface);color:var(--text);">
+                <option value="">CALL + PUT</option>
+                <option value="CALL">Apenas CALL</option>
+                <option value="PUT">Apenas PUT</option>
+              </select>
+            </div>
+            <div>
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">Dias úteis (máx.)</div>
+              <input type="number" id="op-anl-dias-max" value="45" min="1" step="1" onchange="opAnlRenderResults()"
+                style="width:76px;padding:6px 8px;border:1.5px solid var(--border);border-radius:7px;font-size:12px;background:var(--surface);color:var(--text);">
+            </div>
+            <div>
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">Delta abs. (máx.)</div>
+              <input type="number" id="op-anl-delta-max" value="0.30" min="0.05" max="1" step="0.05" onchange="opAnlRenderResults()"
+                style="width:76px;padding:6px 8px;border:1.5px solid var(--border);border-radius:7px;font-size:12px;background:var(--surface);color:var(--text);">
+            </div>
+            <div>
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">Dist. mín. (%)</div>
+              <input type="number" id="op-anl-dist-min" value="5" min="0" step="1" onchange="opAnlRenderResults()"
+                style="width:76px;padding:6px 8px;border:1.5px solid var(--border);border-radius:7px;font-size:12px;background:var(--surface);color:var(--text);">
+            </div>
+            <button onclick="opAnlLimpar()"
+              style="padding:6px 12px;background:var(--surface);border:1.5px solid var(--border);border-radius:7px;font-size:12px;cursor:pointer;color:var(--text-muted);">✕ Limpar</button>
+          </div>
+        </div>
+
+        <div id="op-anl-results" style="margin-top:14px;"></div>
+      </div>
+
     </div><!-- /painel-opcoes -->
 
 <!-- MODAL NOVA/EDITAR CARTEIRA -->
@@ -6376,6 +6432,238 @@
     });
 
     _downloadCsv([header, ...linhas].join('\r\n'), 'opcoes_' + hoje + '.csv');
+  }
+
+  // ─── ANALISADOR DE PLANILHA DE OPÇÕES ───────────────────────────────────────
+
+  let _opAnlData = [];
+
+  function opAnlHandleDrop(e) {
+    e.preventDefault();
+    const drop = document.getElementById('op-anl-drop');
+    drop.style.borderColor = 'var(--border)';
+    drop.style.background  = '';
+    const f = e.dataTransfer.files[0];
+    if (f) opAnlHandleFile(f);
+  }
+
+  function opAnlSetStatus(msg) {
+    const el = document.getElementById('op-anl-status');
+    if (!el) return;
+    el.style.display = msg ? '' : 'none';
+    el.textContent   = msg;
+  }
+
+  async function opAnlCarregarXLSX() {
+    if (window.XLSX) return;
+    return new Promise((res, rej) => {
+      const s = document.createElement('script');
+      s.src    = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+      s.onload = res;
+      s.onerror = () => rej(new Error('Falha ao carregar SheetJS'));
+      document.head.appendChild(s);
+    });
+  }
+
+  async function opAnlHandleFile(file) {
+    if (!file) return;
+    opAnlSetStatus('⏳ Carregando biblioteca de leitura...');
+    try { await opAnlCarregarXLSX(); }
+    catch(e) { opAnlSetStatus('❌ Erro ao carregar biblioteca. Verifique sua conexão.'); return; }
+    opAnlSetStatus('📖 Lendo planilha...');
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const wb   = XLSX.read(ev.target.result, { type: 'array' });
+        const ws   = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+        if (!rows.length) { opAnlSetStatus('⚠️ Planilha vazia ou sem dados reconhecíveis.'); return; }
+        _opAnlData = opAnlNormalizar(rows);
+        opAnlSetStatus('');
+        document.getElementById('op-anl-filtros').style.display = '';
+        opAnlRenderResults();
+      } catch(err) {
+        opAnlSetStatus('❌ Erro ao processar planilha: ' + err.message);
+      }
+    };
+    reader.onerror = () => opAnlSetStatus('❌ Erro ao ler arquivo.');
+    reader.readAsArrayBuffer(file);
+  }
+
+  function opAnlNormalizar(rows) {
+    const keys = Object.keys(rows[0]);
+    const norm = k => k.toLowerCase().replace(/[\s.()\/%$*]/g, '');
+    const find = (...terms) => keys.find(k => terms.some(t => norm(k).includes(norm(t)))) || null;
+
+    const colTicker  = find('ticker','código','codigo','serie','ativo');
+    const colVenc    = find('vencimento','venc');
+    const colDias    = find('diasúteis','diasuteis','du','dias');
+    const colStrike  = find('strike','exercicio','exercício');
+    const colOTM     = find('a/i/otm','otm','moneyness','situação','situacao');
+    const colDist    = find('dist','distância','distancia');
+    const colPremio  = find('último','ultimo','prêmio','premio','cotação','cotacao','last');
+    const colVolImpl = find('volimpl','volatimpl','vimpl','vimp','volumeimpl');
+    const colDelta   = find('delta');
+    const colGamma   = find('gamma');
+    const colTheta   = find('theta');
+    const colVega    = find('vega');
+    const colVolFin  = find('volfinanceiro','volumefinanceiro','volfin');
+    const colTipo    = find('tipo','fm','forma');
+
+    const toN = v => {
+      if (v === '' || v == null) return null;
+      const s = String(v).replace(',', '.').replace(/[%\s]/g, '');
+      const n = parseFloat(s);
+      return isNaN(n) ? null : n;
+    };
+    const toS = v => v != null ? String(v).trim() : '';
+
+    return rows.map(r => {
+      const ticker  = toS(colTicker  ? r[colTicker]  : '');
+      const tipoRaw = colTipo ? toS(r[colTipo]).toUpperCase() : '';
+      const tipo    = tipoRaw.includes('PUT') || tipoRaw === 'P' ? 'PUT'
+                    : tipoRaw.includes('CALL') || tipoRaw === 'C' ? 'CALL'
+                    : opAnlTipoDoTicker(ticker);
+      const dist    = Math.abs(toN(colDist   ? r[colDist]   : null) ?? 0);
+      const premio  = toN(colPremio  ? r[colPremio]  : null);
+      const strike  = toN(colStrike  ? r[colStrike]  : null);
+      const delta   = toN(colDelta   ? r[colDelta]   : null);
+      const gamma   = toN(colGamma   ? r[colGamma]   : null);
+      const theta   = toN(colTheta   ? r[colTheta]   : null);
+      const vega    = toN(colVega    ? r[colVega]    : null);
+      const volImpl = toN(colVolImpl ? r[colVolImpl] : null);
+      const dias    = toN(colDias    ? r[colDias]    : null);
+      const otmInd  = toS(colOTM    ? r[colOTM]     : '').toUpperCase();
+      const volFin  = toN(colVolFin  ? r[colVolFin]  : null);
+      const venc    = toS(colVenc    ? r[colVenc]    : '');
+
+      const yieldPct = (premio != null && strike != null && strike > 0)
+        ? (premio / strike * 100) : null;
+
+      // score: prêmio/strike × bonificação de distância × penalização de delta
+      let score = null;
+      if (yieldPct != null && delta != null) {
+        const dAbs  = Math.abs(delta);
+        const distF = dist >= 5 ? (1 + dist / 100) : (dist / 10);
+        score = yieldPct * distF / Math.max(0.05, dAbs);
+      } else if (yieldPct != null) {
+        score = yieldPct * (1 + dist / 100);
+      }
+
+      return { ticker, tipo, venc, dias, dist, premio, strike, yieldPct, delta, gamma, theta, vega, volImpl, volFin, otmInd, score };
+    });
+  }
+
+  function opAnlTipoDoTicker(ticker) {
+    // convenção B3: 5ª letra A-L = CALL, M-X = PUT
+    if (!ticker || ticker.length < 5) return 'CALL';
+    const c = ticker[4].toUpperCase();
+    return 'ABCDEFGHIJKL'.includes(c) ? 'CALL' : 'PUT';
+  }
+
+  function opAnlRenderResults() {
+    const container = document.getElementById('op-anl-results');
+    if (!container || !_opAnlData.length) { if (container) container.innerHTML = ''; return; }
+
+    const tipoFilt = (document.getElementById('op-anl-tipo')?.value  || '').toUpperCase();
+    const diasMax  = parseFloat(document.getElementById('op-anl-dias-max')?.value)  || 45;
+    const deltaMax = parseFloat(document.getElementById('op-anl-delta-max')?.value) || 0.30;
+    const distMin  = parseFloat(document.getElementById('op-anl-dist-min')?.value)  || 5;
+
+    const fN = (v, dec = 2) => v != null ? v.toFixed(dec).replace('.', ',') : '—';
+
+    const sinaliza = row => {
+      const dAbs = Math.abs(row.delta ?? 1);
+      if (dAbs <= 0.20 && row.dist >= 10) return { cor: '#22c55e', label: '🟢 Ótimo'  };
+      if (dAbs <= 0.30 && row.dist >=  5) return { cor: '#f59e0b', label: '🟡 Bom'    };
+      return                               { cor: '#ef4444', label: '🔴 Cuidado' };
+    };
+
+    const isOTM = r => !r.otmInd || r.otmInd.includes('OTM') || r.otmInd === 'F' || r.otmInd === '';
+
+    const filtered = _opAnlData
+      .filter(r => r.ticker)
+      .filter(r => !tipoFilt || r.tipo === tipoFilt)
+      .filter(r => r.dias == null || r.dias <= diasMax)
+      .filter(r => r.delta == null || Math.abs(r.delta) <= deltaMax)
+      .filter(r => r.dist >= distMin)
+      .filter(isOTM)
+      .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+      .slice(0, 50);
+
+    if (!filtered.length) {
+      container.innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:13px;padding:20px 0;">Nenhuma opção encontrada com esses filtros. Tente ampliar os critérios.</div>';
+      return;
+    }
+
+    const linhas = filtered.map((r, i) => {
+      const sig = sinaliza(r);
+      return `<tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:6px 8px;font-size:11px;color:var(--text-muted)">${i + 1}</td>
+        <td style="padding:6px 8px;font-size:12px;font-weight:800;">${r.ticker}</td>
+        <td style="padding:6px 8px;font-size:11px;">
+          <span style="padding:2px 6px;border-radius:5px;font-weight:700;font-size:10px;
+            background:${r.tipo === 'CALL' ? 'rgba(34,197,94,.15)' : 'rgba(239,68,68,.15)'};
+            color:${r.tipo === 'CALL' ? '#16a34a' : '#dc2626'}">${r.tipo}</span>
+        </td>
+        <td style="padding:6px 8px;font-size:11px;color:var(--text-muted)">${r.venc || '—'}</td>
+        <td style="padding:6px 8px;font-size:11px;text-align:right">${r.dias ?? '—'}</td>
+        <td style="padding:6px 8px;font-size:11px;text-align:right">${fN(r.strike)}</td>
+        <td style="padding:6px 8px;font-size:12px;text-align:right;color:#22c55e;font-weight:800">${fN(r.premio)}</td>
+        <td style="padding:6px 8px;font-size:11px;text-align:right">${fN(r.yieldPct)}%</td>
+        <td style="padding:6px 8px;font-size:11px;text-align:right;color:var(--primary)">${fN(r.dist)}%</td>
+        <td style="padding:6px 8px;font-size:11px;text-align:right">${fN(r.delta, 3)}</td>
+        <td style="padding:6px 8px;font-size:11px;text-align:right;color:var(--text-muted)">${fN(r.theta)}</td>
+        <td style="padding:6px 8px;font-size:11px;text-align:right;color:var(--text-muted)">${fN(r.volImpl)}%</td>
+        <td style="padding:6px 8px;font-size:11px;white-space:nowrap">
+          <span style="color:${sig.cor};font-weight:700">${sig.label}</span>
+        </td>
+        <td style="padding:6px 8px;font-size:12px;text-align:right;font-weight:800;color:var(--primary)">${fN(r.score, 1)}</td>
+      </tr>`;
+    }).join('');
+
+    container.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <div style="font-size:12px;font-weight:700;color:var(--text-muted);">RECOMENDAÇÕES — VENDA OTM (não vai executar)</div>
+        <div style="font-size:11px;color:var(--text-muted)">${filtered.length} opções · ordenadas por Score</div>
+      </div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;">
+          <thead>
+            <tr style="border-bottom:2px solid var(--border);">
+              <th style="padding:5px 8px;font-size:10px;color:var(--text-muted);text-align:left;font-weight:600">#</th>
+              <th style="padding:5px 8px;font-size:10px;color:var(--text-muted);text-align:left;font-weight:600">Ticker</th>
+              <th style="padding:5px 8px;font-size:10px;color:var(--text-muted);text-align:left;font-weight:600">Tipo</th>
+              <th style="padding:5px 8px;font-size:10px;color:var(--text-muted);text-align:left;font-weight:600">Vencim.</th>
+              <th style="padding:5px 8px;font-size:10px;color:var(--text-muted);text-align:right;font-weight:600">D.U.</th>
+              <th style="padding:5px 8px;font-size:10px;color:var(--text-muted);text-align:right;font-weight:600">Strike</th>
+              <th style="padding:5px 8px;font-size:10px;color:var(--text-muted);text-align:right;font-weight:600">Prêmio</th>
+              <th style="padding:5px 8px;font-size:10px;color:var(--text-muted);text-align:right;font-weight:600">Yield%</th>
+              <th style="padding:5px 8px;font-size:10px;color:var(--text-muted);text-align:right;font-weight:600">Dist.%</th>
+              <th style="padding:5px 8px;font-size:10px;color:var(--text-muted);text-align:right;font-weight:600">Delta</th>
+              <th style="padding:5px 8px;font-size:10px;color:var(--text-muted);text-align:right;font-weight:600">Theta</th>
+              <th style="padding:5px 8px;font-size:10px;color:var(--text-muted);text-align:right;font-weight:600">V.I.%</th>
+              <th style="padding:5px 8px;font-size:10px;color:var(--text-muted);text-align:left;font-weight:600">Sinal</th>
+              <th style="padding:5px 8px;font-size:10px;color:var(--text-muted);text-align:right;font-weight:600">Score ▼</th>
+            </tr>
+          </thead>
+          <tbody>${linhas}</tbody>
+        </table>
+      </div>
+      <div style="margin-top:12px;padding:10px 14px;background:rgba(59,130,246,0.08);border-radius:8px;border-left:3px solid var(--primary);font-size:11px;color:var(--text-muted);line-height:1.65;">
+        <strong style="color:var(--text)">Score:</strong> Prêmio÷Strike% × Distância × (1÷|Delta|). Maior = melhor relação prêmio×segurança.<br>
+        🟢 <strong>Ótimo:</strong> Delta &lt;0,20 e Dist.&gt;10% &nbsp;·&nbsp; 🟡 <strong>Bom:</strong> Delta &lt;0,30 e Dist.&gt;5% &nbsp;·&nbsp; 🔴 <strong>Cuidado:</strong> mais próximo do strike.<br>
+        <strong style="color:var(--text)">Estratégia:</strong> Venda as opções de maior Score, receba o prêmio e mantenha a posição vendida. Se a ação não atingir o strike até o vencimento, a opção vira pó e você fica com o prêmio integralmente.
+      </div>`;
+  }
+
+  function opAnlLimpar() {
+    _opAnlData = [];
+    const el = id => document.getElementById(id);
+    if (el('op-anl-filtros')) el('op-anl-filtros').style.display = 'none';
+    if (el('op-anl-results')) el('op-anl-results').innerHTML = '';
+    if (el('op-anl-status')) { el('op-anl-status').style.display = 'none'; el('op-anl-status').textContent = ''; }
+    if (el('op-anl-file'))   el('op-anl-file').value = '';
   }
 
   // Controla seleção Compra / Venda / Monitorar no formulário de cada carteira
