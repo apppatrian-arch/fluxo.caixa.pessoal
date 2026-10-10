@@ -1704,12 +1704,12 @@
             </div>
             <div>
               <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">Delta abs. (máx.)</div>
-              <input type="number" id="op-anl-delta-max" value="0.30" min="0.05" max="1" step="0.05" onchange="opAnlRenderResults()"
+              <input type="number" id="op-anl-delta-max" value="0.40" min="0" max="1" step="0.05" onchange="opAnlRenderResults()"
                 style="width:76px;padding:6px 8px;border:1.5px solid var(--border);border-radius:7px;font-size:12px;background:var(--surface);color:var(--text);">
             </div>
             <div>
               <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">Dist. mín. (%)</div>
-              <input type="number" id="op-anl-dist-min" value="5" min="0" step="1" onchange="opAnlRenderResults()"
+              <input type="number" id="op-anl-dist-min" value="3" min="0" step="1" onchange="opAnlRenderResults()"
                 style="width:76px;padding:6px 8px;border:1.5px solid var(--border);border-radius:7px;font-size:12px;background:var(--surface);color:var(--text);">
             </div>
             <button onclick="opAnlLimpar()"
@@ -6479,7 +6479,8 @@
         const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
         if (!rows.length) { opAnlSetStatus('⚠️ Planilha vazia ou sem dados reconhecíveis.'); return; }
         _opAnlData = opAnlNormalizar(rows);
-        opAnlSetStatus('');
+        const total = _opAnlData.filter(r => r.ticker).length;
+        opAnlSetStatus(total ? '✅ ' + total + ' opções importadas. Ajuste os filtros abaixo.' : '⚠️ Nenhuma linha com Ticker reconhecida. Verifique se a primeira linha da planilha contém os cabeçalhos.');
         document.getElementById('op-anl-filtros').style.display = '';
         opAnlRenderResults();
       } catch(err) {
@@ -6492,28 +6493,41 @@
 
   function opAnlNormalizar(rows) {
     const keys = Object.keys(rows[0]);
-    const norm = k => k.toLowerCase().replace(/[\s.()\/%$*]/g, '');
+    const norm = k => k.toLowerCase().replace(/[\s.()\/%$*\-_]/g, '');
     const find = (...terms) => keys.find(k => terms.some(t => norm(k).includes(norm(t)))) || null;
 
-    const colTicker  = find('ticker','código','codigo','serie','ativo');
-    const colVenc    = find('vencimento','venc');
-    const colDias    = find('diasúteis','diasuteis','du','dias');
-    const colStrike  = find('strike','exercicio','exercício');
-    const colOTM     = find('a/i/otm','otm','moneyness','situação','situacao');
-    const colDist    = find('dist','distância','distancia');
-    const colPremio  = find('último','ultimo','prêmio','premio','cotação','cotacao','last');
-    const colVolImpl = find('volimpl','volatimpl','vimpl','vimp','volumeimpl');
+    const colTicker  = find('ticker','código','codigo','serie','ativo','papel');
+    const colVenc    = find('vencimento','venc','expir');
+    const colDias    = find('diasúteis','diasuteis','diautei','du','dpu');
+    const colStrike  = find('strike','exercicio','exercício','preçodeexercicio','prexerc');
+    const colOTM     = find('aiotm','a/i/otm','otm','moneyness','situação','situacao');
+    const colDist    = find('dist','distância','distancia','distdostrike','distrike');
+    const colPremio  = find('último','ultimo','prêmio','premio','cotação','cotacao','last','precoulti','precoult');
+    const colVolImpl = find('volimpl','volatimpl','vimpl','vimp','volumeimpl','impliedvol','vi');
     const colDelta   = find('delta');
-    const colGamma   = find('gamma');
+    const colGamma   = find('gamma','gama');
     const colTheta   = find('theta');
     const colVega    = find('vega');
-    const colVolFin  = find('volfinanceiro','volumefinanceiro','volfin');
+    const colVolFin  = find('volfinanceiro','volumefinanceiro','volfin','volumfin');
     const colTipo    = find('tipo','fm','forma');
 
     const toN = v => {
       if (v === '' || v == null) return null;
-      const s = String(v).replace(',', '.').replace(/[%\s]/g, '');
-      const n = parseFloat(s);
+      if (typeof v === 'number') return isNaN(v) ? null : v;
+      const s = String(v).replace(/\s/g, '').replace('%', '');
+      // lida com formato BR (1.234,56) e US (1,234.56)
+      const hasDot   = s.includes('.');
+      const hasComma = s.includes(',');
+      let cleaned;
+      if (hasDot && hasComma) {
+        // se o último separador é vírgula → BR: remove ponto, troca vírgula por ponto
+        cleaned = s.lastIndexOf(',') > s.lastIndexOf('.') ? s.replace(/\./g,'').replace(',','.') : s.replace(/,/g,'');
+      } else if (hasComma && !hasDot) {
+        cleaned = s.replace(',', '.');
+      } else {
+        cleaned = s;
+      }
+      const n = parseFloat(cleaned);
       return isNaN(n) ? null : n;
     };
     const toS = v => v != null ? String(v).trim() : '';
@@ -6566,9 +6580,11 @@
     if (!container || !_opAnlData.length) { if (container) container.innerHTML = ''; return; }
 
     const tipoFilt = (document.getElementById('op-anl-tipo')?.value  || '').toUpperCase();
-    const diasMax  = parseFloat(document.getElementById('op-anl-dias-max')?.value)  || 45;
-    const deltaMax = parseFloat(document.getElementById('op-anl-delta-max')?.value) || 0.30;
-    const distMin  = parseFloat(document.getElementById('op-anl-dist-min')?.value)  || 5;
+    // parse locale-aware: aceita "0,40" e "0.40"
+    const pFilt = id => { const v = (document.getElementById(id)?.value||'').replace(',','.'); return parseFloat(v) || 0; };
+    const diasMax  = pFilt('op-anl-dias-max')  || 45;
+    const deltaMax = pFilt('op-anl-delta-max') || 0.40;
+    const distMin  = pFilt('op-anl-dist-min');   // 0 é válido
 
     const fN = (v, dec = 2) => v != null ? v.toFixed(dec).replace('.', ',') : '—';
 
@@ -6579,7 +6595,13 @@
       return                               { cor: '#ef4444', label: '🔴 Cuidado' };
     };
 
-    const isOTM = r => !r.otmInd || r.otmInd.includes('OTM') || r.otmInd === 'F' || r.otmInd === '';
+    // exclui opções claramente ITM (delta muito alto ou dist negativo)
+    const isOTMorNeutro = r => {
+      if (r.dist < 0) return false;   // dist negativo = ITM com certeza
+      const dAbs = Math.abs(r.delta ?? 0);
+      if (dAbs > 0.70) return false;  // delta alto demais = ITM
+      return true;
+    };
 
     const filtered = _opAnlData
       .filter(r => r.ticker)
@@ -6587,7 +6609,7 @@
       .filter(r => r.dias == null || r.dias <= diasMax)
       .filter(r => r.delta == null || Math.abs(r.delta) <= deltaMax)
       .filter(r => r.dist >= distMin)
-      .filter(isOTM)
+      .filter(isOTMorNeutro)
       .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
       .slice(0, 50);
 
