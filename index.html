@@ -6474,13 +6474,38 @@
     const reader = new FileReader();
     reader.onload = ev => {
       try {
-        const wb   = XLSX.read(ev.target.result, { type: 'array' });
-        const ws   = wb.Sheets[wb.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
-        if (!rows.length) { opAnlSetStatus('⚠️ Planilha vazia ou sem dados reconhecíveis.'); return; }
+        const wb  = XLSX.read(ev.target.result, { type: 'array' });
+        const ws  = wb.Sheets[wb.SheetNames[0]];
+        // lê como array de arrays para detectar linha de cabeçalho
+        const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+        if (!raw.length) { opAnlSetStatus('⚠️ Planilha vazia.'); return; }
+
+        // encontra a linha que contém os cabeçalhos (procura por palavras-chave)
+        const hkw = ['ticker','strike','delta','vencimento','último','ultimo','prêmio','premio','série','serie','opcao','opção'];
+        let headerIdx = raw.findIndex(row =>
+          row.filter(c => c !== '').some(c =>
+            hkw.some(k => String(c).toLowerCase().replace(/[\sÀ-ɏ]/g, m => m.normalize('NFD').replace(/[̀-ͯ]/g,'')).includes(k.normalize('NFD').replace(/[̀-ͯ]/g,'')))
+          )
+        );
+        if (headerIdx === -1) {
+          opAnlSetStatus('⚠️ Cabeçalhos não encontrados. Colunas identificadas: ' + (raw[0]||[]).slice(0,6).filter(Boolean).join(', ') + '...');
+          return;
+        }
+
+        const headers  = raw[headerIdx].map(h => String(h));
+        const dataRows = raw.slice(headerIdx + 1).filter(r => r.some(c => c !== ''));
+        const rows     = dataRows.map(r => {
+          const obj = {};
+          headers.forEach((h, i) => { obj[h] = r[i] !== undefined ? r[i] : ''; });
+          return obj;
+        });
+
+        if (!rows.length) { opAnlSetStatus('⚠️ Nenhuma linha de dados encontrada após o cabeçalho.'); return; }
         _opAnlData = opAnlNormalizar(rows);
         const total = _opAnlData.filter(r => r.ticker).length;
-        opAnlSetStatus(total ? '✅ ' + total + ' opções importadas. Ajuste os filtros abaixo.' : '⚠️ Nenhuma linha com Ticker reconhecida. Verifique se a primeira linha da planilha contém os cabeçalhos.');
+        opAnlSetStatus(total
+          ? '✅ ' + total + ' opções importadas. Ajuste os filtros abaixo.'
+          : '⚠️ Dados importados mas Ticker não reconhecido. Colunas: ' + headers.slice(0,8).join(', '));
         document.getElementById('op-anl-filtros').style.display = '';
         opAnlRenderResults();
       } catch(err) {
