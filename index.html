@@ -1435,6 +1435,9 @@
       <!-- VISÃO GERAL — DIRETORIA (treemaps, patrimônio, estratégias) -->
       <div id="acoes-visao-geral"></div>
 
+      <!-- ANÁLISE DE CARTEIRA — médio e longo prazo -->
+      <div id="acoes-analise-carteira"></div>
+
       <!-- TABELA: Minhas Carteiras — largura total -->
       <div style="background:var(--card);border-radius:14px;padding:16px;margin-bottom:14px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
@@ -5189,6 +5192,319 @@
           'Estratégias geradas automaticamente com base nos dados atuais · σ=30% assumido nas probabilidades · Não constitui recomendação de investimento' +
         '</div>' +
       '</div>';
+
+    // dispara análise de carteira em paralelo
+    try { _renderAnaliseCarteira(acoesInfo, rvAtual); } catch(e) { console.error('analise carteira:', e); }
+  }
+
+  // ─── ANÁLISE DE CARTEIRA — MÉDIO E LONGO PRAZO ────────────────────────────
+
+  const _SETORES_B3 = {
+    ITUB:'Bancos', ITSA:'Bancos', BBDC:'Bancos', BBAS:'Bancos', SANB:'Bancos',
+    BPAC:'Bancos', BRSR:'Bancos', BMGB:'Bancos', PINE:'Bancos', BIDI:'Bancos', INTER:'Bancos',
+    PETR:'Petróleo & Gás', PRIO:'Petróleo & Gás', RECV:'Petróleo & Gás',
+    CSAN:'Petróleo & Gás', VBBR:'Petróleo & Gás', RRRP:'Petróleo & Gás',
+    VALE:'Mineração', CMIN:'Mineração',
+    CSNA:'Siderurgia', GGBR:'Siderurgia', USIM:'Siderurgia', FESA:'Siderurgia',
+    EGIE:'Energia Elétrica', TAEE:'Energia Elétrica', ELET:'Energia Elétrica',
+    CPFE:'Energia Elétrica', CPLE:'Energia Elétrica', ENGI:'Energia Elétrica',
+    ENEV:'Energia Elétrica', EQTL:'Energia Elétrica', CMIG:'Energia Elétrica',
+    AURE:'Energia Elétrica', CESP:'Energia Elétrica', TRPL:'Energia Elétrica',
+    VIVT:'Telecomunicações', TIMS:'Telecomunicações', TELB:'Telecomunicações',
+    RDOR:'Saúde', HAPV:'Saúde', FLRY:'Saúde', QUAL:'Saúde', GNDI:'Saúde', ONCO:'Saúde',
+    HYPE:'Farmacêutico', PNVL:'Farmacêutico', RAPT:'Farmacêutico',
+    LREN:'Varejo', MGLU:'Varejo', VIIA:'Varejo', AMER:'Varejo',
+    ARZZ:'Varejo', SOMA:'Varejo', AMAR:'Varejo', ALPA:'Varejo', NTCO:'Higiene',
+    SLCE:'Agronegócio', AGRO:'Agronegócio', SMTO:'Agronegócio', LAND:'Agronegócio',
+    JBSS:'Proteínas Animal', MRFG:'Proteínas Animal', BRFS:'Proteínas Animal',
+    BEEF:'Proteínas Animal', TTEN:'Proteínas Animal', CAML:'Proteínas Animal',
+    WEGE:'Ind. Elétrica', LEVE:'Autopeças', MOVI:'Autopeças', TUPY:'Autopeças',
+    EMBR:'Aviação / Defesa', AZUL:'Aviação', GOLL:'Aviação',
+    RAIL:'Logística', CCRO:'Infraestrutura', ECOR:'Infraestrutura', POMO:'Veículos',
+    B3SA:'Finanças', CIEL:'Finanças', IRBR:'Seguros', SULA:'Seguros',
+    SUZB:'Papel & Celulose', KLBN:'Papel & Celulose',
+    MRVE:'Construção Civil', CYRE:'Construção Civil', TEND:'Construção Civil',
+    EVEN:'Construção Civil', DIRR:'Construção Civil', JHSF:'Construção Civil',
+    ABEV:'Bebidas', MDIA:'Alimentos', AMBP:'Embalagens', DXCO:'Embalagens',
+    YDUQ:'Educação', COGN:'Educação', SEER:'Educação',
+    UNIP:'Químico', BRKM:'Químico',
+    MULT:'Shoppings', BRML:'Shoppings', ALOS:'Shoppings',
+    POSI:'Tecnologia', TOTVS:'Tecnologia', INTB:'Tecnologia', LWSA:'Tecnologia',
+  };
+
+  function _anlSetor(ticker) {
+    const base = (ticker || '').replace(/\d+$/, '').replace('.SA','').toUpperCase().slice(0, 4);
+    return _SETORES_B3[base] || 'Outros';
+  }
+
+  function _renderAnaliseCarteira(acoesInfo, rvAtual) {
+    const el = document.getElementById('acoes-analise-carteira');
+    if (!el) return;
+
+    const posicoes  = acoesInfo.filter(a => !a.monitorar && (a.precoAtual || a.custo) && a.qtd > 0);
+    const monitores = acoesInfo.filter(a => a.monitorar);
+
+    if (posicoes.length < 2 && !monitores.length) { el.innerHTML = ''; return; }
+
+    const totalRV = posicoes.reduce((s, a) => s + a.atu, 0);
+    if (totalRV <= 0) { el.innerHTML = ''; return; }
+
+    const fN  = (v, d=2) => v != null ? Number(v).toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d}) : '—';
+    const fR  = v => 'R$ ' + fN(v);
+    const fP  = v => fN(v) + '%';
+
+    // ── 1. Cálculos por ativo ──────────────────────────────────────────────
+    const n        = posicoes.length;
+    const targetPct= n > 0 ? 100 / n : 0;    // peso igual ideal
+
+    const porAtivo = posicoes.map(a => {
+      const pct   = totalRV > 0 ? a.atu / totalRV * 100 : 0;
+      const setor = _anlSetor(a.ticker);
+      const delta = pct - targetPct;              // + = acima do ideal, - = abaixo
+      const nearMin3m = a.precoAtual && a.min3m && a.precoAtual <= a.min3m * 1.03;
+      const nearMax52 = a.precoAtual && a.max52 && a.precoAtual >= a.max52 * 0.97;
+      // recomendação
+      let rec, recCor, recBg;
+      if (a.lp < -15) {
+        rec='⚠️ ATENÇÃO'; recCor='#ef4444'; recBg='rgba(239,68,68,.12)';
+      } else if (delta < -targetPct * 0.4 && a.lp >= -5) {
+        rec='⬆️ AUMENTAR'; recCor='#22c55e'; recBg='rgba(34,197,94,.12)';
+      } else if (delta > targetPct * 0.6) {
+        rec='⬇️ REDUZIR';  recCor='#f97316'; recBg='rgba(249,115,22,.12)';
+      } else {
+        rec='➡️ MANTER';   recCor='#64748b'; recBg='rgba(100,116,139,.08)';
+      }
+      return { ...a, pct, setor, delta, nearMin3m, nearMax52, rec, recCor, recBg };
+    });
+
+    // ── 2. Setores ────────────────────────────────────────────────────────
+    const setorMap = {};
+    porAtivo.forEach(a => {
+      if (!setorMap[a.setor]) setorMap[a.setor] = { pct: 0, ativos: [] };
+      setorMap[a.setor].pct += a.pct;
+      setorMap[a.setor].ativos.push(a.ticker);
+    });
+    const setores = Object.entries(setorMap).sort((a,b) => b[1].pct - a[1].pct);
+    const nSetores = setores.length;
+    const maxSetorPct = setores[0]?.[1].pct ?? 0;
+
+    // ── 3. Score de Saúde ─────────────────────────────────────────────────
+    let scoreDiv  = n >= 8 ? 25 : n >= 5 ? 20 : n >= 3 ? 12 : 5;
+    let scoreConc = maxSetorPct <= 25 ? 25 : maxSetorPct <= 35 ? 18 : maxSetorPct <= 50 ? 10 : 5;
+    let scoreSet  = nSetores >= 4 ? 25 : nSetores === 3 ? 18 : nSetores === 2 ? 12 : 5;
+    let scoreSau  = 25;
+    porAtivo.forEach(a => {
+      if (a.lp < -25) scoreSau = Math.max(0, scoreSau - 8);
+      else if (a.lp < -15) scoreSau = Math.max(0, scoreSau - 4);
+      else if (a.lp < -8) scoreSau = Math.max(0, scoreSau - 1);
+    });
+    const score = scoreDiv + scoreConc + scoreSet + scoreSau;
+    const scoreCor = score >= 75 ? '#22c55e' : score >= 50 ? '#f59e0b' : '#ef4444';
+    const scoreLabel = score >= 75 ? 'Boa' : score >= 50 ? 'Regular' : 'Fraca';
+
+    // ── 4. Ranking de oportunidades ──────────────────────────────────────
+    const ordenado = [...porAtivo].sort((a, b) => {
+      const prioA = a.rec.includes('AUMENTAR') ? 0 : a.rec.includes('ATENÇÃO') ? 1 : a.rec.includes('MANTER') ? 2 : 3;
+      const prioB = b.rec.includes('AUMENTAR') ? 0 : b.rec.includes('ATENÇÃO') ? 1 : b.rec.includes('MANTER') ? 2 : 3;
+      if (prioA !== prioB) return prioA - prioB;
+      return a.delta - b.delta; // mais abaixo do ideal primeiro
+    });
+
+    // ── 5. Render ─────────────────────────────────────────────────────────
+
+    // 5a. Score gauge
+    const gaugeDash = 2 * Math.PI * 54;
+    const gaugeOffset = gaugeDash * (1 - score / 100);
+    const scoreGauge = `<svg viewBox="0 0 120 120" width="120" height="120">
+      <circle cx="60" cy="60" r="54" fill="none" stroke="var(--border)" stroke-width="10"/>
+      <circle cx="60" cy="60" r="54" fill="none" stroke="${scoreCor}" stroke-width="10"
+        stroke-dasharray="${gaugeDash.toFixed(1)}" stroke-dashoffset="${gaugeOffset.toFixed(1)}"
+        stroke-linecap="round" transform="rotate(-90 60 60)"/>
+      <text x="60" y="56" text-anchor="middle" font-size="26" font-weight="900" fill="${scoreCor}">${score}</text>
+      <text x="60" y="72" text-anchor="middle" font-size="11" fill="var(--text-muted)">${scoreLabel}</text>
+    </svg>`;
+
+    // 5b. Barras do score
+    const barScore = (label, val, max=25) => {
+      const pct = val / max * 100;
+      const cor = pct >= 80 ? '#22c55e' : pct >= 48 ? '#f59e0b' : '#ef4444';
+      return `<div style="margin-bottom:8px;">
+        <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px;">
+          <span style="color:var(--text-muted)">${label}</span>
+          <span style="font-weight:700;color:${cor}">${val}/${max}</span>
+        </div>
+        <div style="height:5px;background:var(--border);border-radius:99px;overflow:hidden;">
+          <div style="height:100%;width:${pct}%;background:${cor};border-radius:99px;"></div>
+        </div>
+      </div>`;
+    };
+
+    // 5c. Barras setoriais
+    const setorCores = ['#6366f1','#22c55e','#f59e0b','#ef4444','#3b82f6','#a855f7','#14b8a6','#f97316','#ec4899','#84cc16'];
+    const setorBars  = setores.map(([nome, d], i) => {
+      const cor = setorCores[i % setorCores.length];
+      const warn = d.pct > 40;
+      return `<div style="margin-bottom:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;margin-bottom:3px;">
+          <span style="color:var(--text)">${nome} <span style="color:var(--text-muted);font-size:10px;">(${d.ativos.join(', ')})</span></span>
+          <span style="font-weight:700;color:${warn?'#ef4444':'var(--text)'};">${fP(d.pct)}${warn?' ⚠️':''}</span>
+        </div>
+        <div style="height:6px;background:var(--border);border-radius:99px;overflow:hidden;">
+          <div style="height:100%;width:${Math.min(d.pct,100)}%;background:${cor};border-radius:99px;"></div>
+        </div>
+      </div>`;
+    }).join('');
+
+    // 5d. Tabela de recomendações
+    const linhasRec = ordenado.map(a => {
+      const barW    = Math.min(Math.abs(a.pct), 100);
+      const corBarra= a.pct >= targetPct * 1.4 ? '#f97316' : a.pct <= targetPct * 0.6 ? '#22c55e' : '#3b82f6';
+      const lpCor   = a.lp >= 0 ? '#22c55e' : a.lp > -10 ? '#f59e0b' : '#ef4444';
+      const oport   = a.nearMin3m ? '<span title="Próximo da mínima 3m — oportunidade de compra" style="margin-left:4px;background:#ef4444;color:#fff;border-radius:4px;padding:1px 5px;font-size:9px;font-weight:800;">🔻 MIN</span>' : '';
+      const apex    = a.nearMax52 ? '<span title="Próximo da máxima 52 semanas" style="margin-left:4px;background:#f59e0b;color:#fff;border-radius:4px;padding:1px 5px;font-size:9px;font-weight:800;">🔺 MAX</span>' : '';
+      return `<tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:8px 8px;">
+          <div style="font-size:13px;font-weight:800;">${a.ticker}${oport}${apex}</div>
+          <div style="font-size:10px;color:var(--text-muted);">${a.setor}${a.nomeEmpresa ? ' · '+a.nomeEmpresa.split(' ').slice(0,3).join(' ') : ''}</div>
+        </td>
+        <td style="padding:8px 8px;text-align:right;">
+          <div style="font-size:12px;font-weight:700;">${fR(a.atu)}</div>
+          <div style="font-size:10px;color:var(--text-muted);">${fP(a.pct)} da RV</div>
+        </td>
+        <td style="padding:8px 8px;min-width:120px;">
+          <div style="display:flex;align-items:center;gap:6px;">
+            <div style="flex:1;height:6px;background:var(--border);border-radius:99px;overflow:hidden;">
+              <div style="height:100%;width:${barW}%;background:${corBarra};border-radius:99px;"></div>
+            </div>
+            <span style="font-size:10px;color:var(--text-muted);white-space:nowrap;">${fP(targetPct)} ideal</span>
+          </div>
+          <div style="font-size:10px;color:${a.delta > 0 ? '#f97316':'#22c55e'};margin-top:2px;">${a.delta > 0 ? '+':''}${fP(a.delta)} vs ideal</div>
+        </td>
+        <td style="padding:8px 8px;text-align:right;">
+          <div style="font-size:12px;font-weight:700;color:${lpCor};">${a.lp >= 0 ? '+' : ''}${fP(a.lp)}</div>
+          <div style="font-size:10px;color:var(--text-muted);">${fR(a.lucro)}</div>
+        </td>
+        <td style="padding:8px 8px;">
+          <span style="display:inline-block;padding:4px 10px;border-radius:7px;font-size:11px;font-weight:800;background:${a.recBg};color:${a.recCor};">${a.rec}</span>
+        </td>
+      </tr>`;
+    }).join('');
+
+    // 5e. Monitor items
+    const linhasMon = monitores.map(m => {
+      const p   = m.precoAtual || 0;
+      const lpCor = m.lp >= 0 ? '#22c55e' : '#ef4444';
+      const oport = m.precoAtual && m.min3m && m.precoAtual <= m.min3m * 1.03
+        ? '<span style="margin-left:4px;background:#ef4444;color:#fff;border-radius:4px;padding:1px 5px;font-size:9px;font-weight:800;">🔻 MIN</span>' : '';
+      return `<tr style="border-bottom:1px solid var(--border);opacity:.85;">
+        <td style="padding:8px 8px;">
+          <div style="font-size:13px;font-weight:800;">${m.ticker}${oport}</div>
+          <div style="font-size:10px;color:var(--text-muted);">${_anlSetor(m.ticker)}${m.nomeEmpresa ? ' · '+m.nomeEmpresa.split(' ').slice(0,3).join(' ') : ''}</div>
+        </td>
+        <td style="padding:8px 8px;text-align:right;">
+          <div style="font-size:12px;font-weight:700;">${p ? fR(p) : '—'}</div>
+          <div style="font-size:10px;color:var(--text-muted);">Em observação</div>
+        </td>
+        <td style="padding:8px 8px;">
+          <div style="font-size:10px;color:var(--text-muted);">Ainda não na carteira</div>
+        </td>
+        <td style="padding:8px 8px;text-align:right;">
+          ${m.varDiaPct != null ? `<div style="font-size:11px;color:${m.varDiaPct>=0?'#22c55e':'#ef4444'};">${m.varDiaPct>=0?'+':''}${fP(m.varDiaPct)} hoje</div>` : '<div style="font-size:11px;color:var(--text-muted);">—</div>'}
+          ${m.min3m && p ? `<div style="font-size:10px;color:var(--text-muted);">Mín 3m: ${fR(m.min3m)}</div>` : ''}
+        </td>
+        <td style="padding:8px 8px;">
+          <span style="display:inline-block;padding:4px 10px;border-radius:7px;font-size:11px;font-weight:800;background:rgba(100,116,139,.08);color:#64748b;">👁️ MONITORAR</span>
+        </td>
+      </tr>`;
+    }).join('');
+
+    // ── 6. Insight automático ─────────────────────────────────────────────
+    const aumentar = ordenado.filter(a => a.rec.includes('AUMENTAR'));
+    const reduzir  = ordenado.filter(a => a.rec.includes('REDUZIR'));
+    const atencao  = ordenado.filter(a => a.rec.includes('ATENÇÃO'));
+    const oports   = [...porAtivo, ...monitores.map(m => ({...m, nearMin3m: m.precoAtual && m.min3m && m.precoAtual <= m.min3m * 1.03}))].filter(a => a.nearMin3m);
+
+    const insights = [];
+    if (atencao.length) insights.push(`<strong>⚠️ Revisão necessária:</strong> ${atencao.map(a=>a.ticker).join(', ')} com perda acima de 15% — avalie fundamentos antes de aportar mais.`);
+    if (aumentar.length) insights.push(`<strong>⬆️ Subponderados:</strong> ${aumentar.map(a=>a.ticker).join(', ')} estão abaixo do peso ideal — são candidatos naturais para o próximo aporte.`);
+    if (reduzir.length) insights.push(`<strong>⬇️ Sobreponderados:</strong> ${reduzir.map(a=>a.ticker).join(', ')} excedem 40% acima do peso ideal — considere realizar parcial se houver ganho.`);
+    if (oports.length) insights.push(`<strong>🔻 Oportunidade de preço:</strong> ${oports.map(a=>a.ticker).join(', ')} ${oports.length===1?'está':'estão'} na mínima dos últimos 3 meses — janela histórica de entrada.`);
+    if (nSetores < 3 && n >= 4) insights.push(`<strong>🗂️ Concentração setorial:</strong> carteira em apenas ${nSetores} setor${nSetores>1?'es':''} — diversificar em energia, bancos, saúde ou agro pode reduzir o risco sistêmico.`);
+
+    el.innerHTML = `
+    <div style="background:var(--card);border-radius:14px;padding:18px;margin-bottom:14px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+        <div>
+          <div style="font-size:15px;font-weight:800;">📐 Análise de Carteira — Médio e Longo Prazo</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${n} posições ativas · ${nSetores} setor${nSetores!==1?'es':''} · peso ideal: ${fP(targetPct)} por ativo</div>
+        </div>
+        <div style="font-size:10px;color:var(--text-muted);background:var(--bg);border-radius:8px;padding:6px 10px;">
+          Não constitui recomendação de investimento
+        </div>
+      </div>
+
+      <!-- Score + Setores lado a lado -->
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:20px;margin-bottom:20px;align-items:start;">
+        <!-- Score gauge -->
+        <div style="background:var(--bg);border-radius:12px;padding:14px;min-width:200px;">
+          <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:10px;letter-spacing:.5px;">SAÚDE DA CARTEIRA</div>
+          <div style="display:flex;align-items:center;gap:14px;">
+            ${scoreGauge}
+            <div style="flex:1;">
+              ${barScore('Diversificação', scoreDiv)}
+              ${barScore('Concentração Setorial', scoreConc)}
+              ${barScore('Nº de Setores', scoreSet)}
+              ${barScore('Saúde das Posições', scoreSau)}
+            </div>
+          </div>
+        </div>
+
+        <!-- Setores -->
+        <div style="background:var(--bg);border-radius:12px;padding:14px;">
+          <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:10px;letter-spacing:.5px;">DISTRIBUIÇÃO SETORIAL</div>
+          ${setorBars || '<div style="font-size:12px;color:var(--text-muted);">Setores não mapeados (tickers desconhecidos)</div>'}
+        </div>
+      </div>
+
+      <!-- Insights -->
+      ${insights.length ? `
+      <div style="margin-bottom:16px;display:flex;flex-direction:column;gap:7px;">
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.5px;">INSIGHTS AUTOMÁTICOS</div>
+        ${insights.map(t => `<div style="background:rgba(59,130,246,.07);border-left:3px solid var(--primary);border-radius:0 8px 8px 0;padding:9px 12px;font-size:12px;line-height:1.6;color:var(--text);">${t}</div>`).join('')}
+      </div>` : ''}
+
+      <!-- Tabela por ativo -->
+      <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:6px;letter-spacing:.5px;">POSIÇÕES — DISTRIBUIÇÃO vs IDEAL (igual peso)</div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;">
+          <thead>
+            <tr style="border-bottom:2px solid var(--border);">
+              <th style="padding:5px 8px;font-size:10px;color:var(--text-muted);font-weight:600;text-align:left;">Ativo</th>
+              <th style="padding:5px 8px;font-size:10px;color:var(--text-muted);font-weight:600;text-align:right;">Valor Atual</th>
+              <th style="padding:5px 8px;font-size:10px;color:var(--text-muted);font-weight:600;">Posição vs Ideal</th>
+              <th style="padding:5px 8px;font-size:10px;color:var(--text-muted);font-weight:600;text-align:right;">Resultado</th>
+              <th style="padding:5px 8px;font-size:10px;color:var(--text-muted);font-weight:600;">Ação Sugerida</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${linhasRec}
+            ${linhasMon ? `<tr><td colspan="5" style="padding:6px 8px;font-size:10px;font-weight:700;color:var(--text-muted);letter-spacing:.5px;background:var(--bg);">EM MONITORAMENTO</td></tr>${linhasMon}` : ''}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Legenda -->
+      <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px;font-size:11px;">
+        <span style="padding:3px 9px;border-radius:6px;background:rgba(34,197,94,.12);color:#22c55e;font-weight:700;">⬆️ AUMENTAR</span>
+        <span style="color:var(--text-muted)">Subponderado (≤60% do peso ideal), sem perdas graves — candidato ao próximo aporte</span>
+        <span style="padding:3px 9px;border-radius:6px;background:rgba(100,116,139,.08);color:#64748b;font-weight:700;">➡️ MANTER</span>
+        <span style="color:var(--text-muted)">Dentro do peso ideal (60–140%)</span>
+        <span style="padding:3px 9px;border-radius:6px;background:rgba(249,115,22,.12);color:#f97316;font-weight:700;">⬇️ REDUZIR</span>
+        <span style="color:var(--text-muted)">Sobreponderado (≥160% do ideal) — considere realizar parcial se houver ganho</span>
+        <span style="padding:3px 9px;border-radius:6px;background:rgba(239,68,68,.12);color:#ef4444;font-weight:700;">⚠️ ATENÇÃO</span>
+        <span style="color:var(--text-muted)">Perda acima de 15% — revisar tese antes de novos aportes</span>
+      </div>
+    </div>`;
   }
 
   function _rfBarLinha(cor, nome, valor, total, fmt, fmtPct, sub) {
