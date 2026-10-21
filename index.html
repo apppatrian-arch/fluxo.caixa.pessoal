@@ -5431,6 +5431,39 @@
     if (oports.length) insights.push(`<strong>🔻 Oportunidade de preço:</strong> ${oports.map(a=>a.ticker).join(', ')} ${oports.length===1?'está':'estão'} na mínima dos últimos 3 meses — janela histórica de entrada.`);
     if (nSetores < 3 && n >= 4) insights.push(`<strong>🗂️ Concentração setorial:</strong> carteira em apenas ${nSetores} setor${nSetores>1?'es':''} — diversificar em energia, bancos, saúde ou agro pode reduzir o risco sistêmico.`);
 
+    // ── 6b. Ranqueamento dos ativos em Monitor para balancear carteira ─────
+    const monitorCompra = monitores.map(m => {
+      const setor = _anlSetor(m.ticker);
+      const pctSetor = setorMap[setor]?.pct ?? 0;
+      const setorPresente = !!setorMap[setor];
+      const nearMin3m = m.precoAtual && m.min3m && m.precoAtual <= m.min3m * 1.05;
+      const nearMax52 = m.precoAtual && m.max52 && m.precoAtual >= m.max52 * 0.93;
+
+      // Score de balanceamento: quanto este ativo contribui para diversificar a carteira
+      let balScore = 0;
+      if (!setorPresente)                           balScore += 50; // setor ausente
+      else if (pctSetor < targetPct * 0.5)          balScore += 30; // muito subponderado
+      else if (pctSetor < targetPct)                balScore += 15; // levemente subponderado
+      else                                          balScore -= 10; // já bem representado
+      if (nearMin3m)  balScore += 25; // bom ponto de entrada
+      if (!nearMax52) balScore += 10; // não está na máxima histórica
+
+      let prioLabel, prioCor, prioBg;
+      if (balScore >= 60)      { prioLabel = '🟢 Alta Prioridade';  prioCor = '#22c55e'; prioBg = 'rgba(34,197,94,.12)'; }
+      else if (balScore >= 30) { prioLabel = '🟡 Média Prioridade'; prioCor = '#f59e0b'; prioBg = 'rgba(245,158,11,.12)'; }
+      else                     { prioLabel = '⚪ Baixa Prioridade'; prioCor = '#64748b'; prioBg = 'rgba(100,116,139,.08)'; }
+
+      const motivos = [];
+      if (!setorPresente)                  motivos.push(`Setor "${setor}" ainda não está na carteira — adiciona diversificação real`);
+      else if (pctSetor < targetPct * 0.5) motivos.push(`Setor "${setor}" muito subponderado (${fP(pctSetor)}% — ideal ${fP(targetPct)}%)`);
+      else if (pctSetor < targetPct)       motivos.push(`Reforça setor "${setor}" que está levemente abaixo do ideal (${fP(pctSetor)}%)`);
+      else                                 motivos.push(`Setor "${setor}" já está bem representado na carteira (${fP(pctSetor)}%)`);
+      if (nearMin3m) motivos.push('Preço próximo da mínima de 3 meses — janela de entrada favorável');
+      if (nearMax52) motivos.push('⚠️ Próximo da máxima de 52 semanas — aguardar eventual correção');
+
+      return { ...m, setor, pctSetor, setorPresente, nearMin3m, nearMax52, balScore, prioLabel, prioCor, prioBg, motivos };
+    }).sort((a, b) => b.balScore - a.balScore);
+
     el.innerHTML = `
     <div style="background:var(--card);border-radius:14px;padding:18px;margin-bottom:14px;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
@@ -5504,6 +5537,41 @@
         <span style="padding:3px 9px;border-radius:6px;background:rgba(239,68,68,.12);color:#ef4444;font-weight:700;">⚠️ ATENÇÃO</span>
         <span style="color:var(--text-muted)">Perda acima de 15% — revisar tese antes de novos aportes</span>
       </div>
+
+      ${monitorCompra.length ? `
+      <!-- Recomendações de compra do Monitor -->
+      <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);">
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.5px;margin-bottom:12px;">🛒 MONITOR — QUAIS COMPRAR PARA BALANCEAR A CARTEIRA</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px;line-height:1.5;">
+          Ranqueamento baseado em: lacunas setoriais da carteira atual + ponto de entrada (preço vs mínima de 3 meses).
+          ${n > 0 ? `Com ${n} posições ativas em ${nSetores} setor${nSetores!==1?'es':''}, os ativos abaixo preencheriam as maiores lacunas:` : ''}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          ${monitorCompra.map((m, idx) => `
+          <div style="background:var(--bg);border-radius:10px;padding:12px 14px;border-left:3px solid ${m.prioCor};">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+              <div style="flex:1;min-width:180px;">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                  <span style="font-size:13px;font-weight:800;">${idx===0?'🥇':idx===1?'🥈':idx===2?'🥉':'#'+(idx+1)} ${m.ticker}</span>
+                  <span style="font-size:10px;color:var(--text-muted);">${m.setor}</span>
+                  ${m.nearMin3m ? '<span style="background:#ef4444;color:#fff;border-radius:4px;padding:1px 5px;font-size:9px;font-weight:800;">🔻 ENTRADA</span>' : ''}
+                </div>
+                <div style="display:flex;flex-direction:column;gap:3px;">
+                  ${m.motivos.map(mot => `<div style="font-size:11px;color:var(--text);line-height:1.5;">• ${mot}</div>`).join('')}
+                </div>
+              </div>
+              <div style="text-align:right;flex-shrink:0;">
+                <span style="display:inline-block;padding:4px 10px;border-radius:7px;font-size:10px;font-weight:800;background:${m.prioBg};color:${m.prioCor};">${m.prioLabel}</span>
+                ${m.precoAtual ? `<div style="font-size:12px;font-weight:700;margin-top:4px;">${fR(m.precoAtual)}</div>` : ''}
+                ${m.min3m && m.precoAtual ? `<div style="font-size:10px;color:var(--text-muted);">Mín 3m: ${fR(m.min3m)}</div>` : ''}
+              </div>
+            </div>
+          </div>`).join('')}
+        </div>
+        <div style="margin-top:10px;font-size:10px;color:var(--text-muted);line-height:1.5;">
+          * Prioridade calculada automaticamente com base nas lacunas setoriais e no preço relativo. Não constitui recomendação de investimento.
+        </div>
+      </div>` : ''}
     </div>`;
   }
 
