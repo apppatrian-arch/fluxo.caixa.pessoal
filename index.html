@@ -5232,9 +5232,61 @@
     POSI:'Tecnologia', TOTVS:'Tecnologia', INTB:'Tecnologia', LWSA:'Tecnologia',
   };
 
+  // Perfil de investimento por ticker (médio/longo prazo)
+  // Renda = dividendos consistentes | Crescimento = valorização capital | Valor = cíclico descontado | Defensivo = baixa volatilidade
+  const _PERFIL_B3 = {
+    // Renda (dividendos sólidos, fluxo previsível)
+    ITUB:'Renda', ITSA:'Renda', BBDC:'Renda', BBAS:'Renda', SANB:'Renda', BPAC:'Renda', BRSR:'Renda',
+    EGIE:'Renda', TAEE:'Renda', ELET:'Renda', CPFE:'Renda', CPLE:'Renda', ENGI:'Renda',
+    CMIG:'Renda', AURE:'Renda', CESP:'Renda', TRPL:'Renda', EQTL:'Renda',
+    VIVT:'Renda', TIMS:'Renda',
+    SUZB:'Renda', KLBN:'Renda',
+    B3SA:'Renda', IRBR:'Renda', SULA:'Renda',
+    SBSP:'Renda', SAPR:'Renda',
+    // Crescimento (expansão de receita, reinvestimento, valorização no longo prazo)
+    WEGE:'Crescimento', RDOR:'Crescimento', HAPV:'Crescimento', FLRY:'Crescimento',
+    TOTVS:'Crescimento', POSI:'Crescimento', LWSA:'Crescimento',
+    SOMA:'Crescimento', ARZZ:'Crescimento', NTCO:'Crescimento',
+    RENT:'Crescimento', RAIL:'Crescimento',
+    MOVI:'Crescimento', TUPY:'Crescimento',
+    MULT:'Crescimento', ALOS:'Crescimento',
+    YDUQ:'Crescimento', SLCE:'Crescimento', AGRO:'Crescimento',
+    // Valor (cíclicos, descontados pelo mercado, retorno no médio prazo)
+    VALE:'Valor', CMIN:'Valor',
+    PETR:'Valor', PRIO:'Valor', RECV:'Valor', CSAN:'Valor', VBBR:'Valor', RRRP:'Valor',
+    CSNA:'Valor', GGBR:'Valor', USIM:'Valor',
+    JBSS:'Valor', MRFG:'Valor', BRFS:'Valor', BEEF:'Valor', CAML:'Valor',
+    EMBR:'Valor', POMO:'Valor',
+    BRKM:'Valor', UNIP:'Valor',
+    // Defensivo (resiliência em crises, baixa correlação com ciclo econômico)
+    ABEV:'Defensivo', MDIA:'Defensivo',
+    HYPE:'Defensivo', PNVL:'Defensivo',
+    LREN:'Defensivo', CCRO:'Defensivo', ECOR:'Defensivo',
+    SMTO:'Defensivo', MRVE:'Defensivo',
+  };
+
+  const _PERFIL_COR = {
+    'Renda':      { bg:'rgba(59,130,246,.13)',  cor:'#3b82f6',  icone:'💰' },
+    'Crescimento':{ bg:'rgba(34,197,94,.13)',   cor:'#22c55e',  icone:'📈' },
+    'Valor':      { bg:'rgba(245,158,11,.13)',  cor:'#f59e0b',  icone:'⚖️' },
+    'Defensivo':  { bg:'rgba(168,85,247,.13)',  cor:'#a855f7',  icone:'🛡️' },
+  };
+
   function _anlSetor(ticker) {
     const base = (ticker || '').replace(/\d+$/, '').replace('.SA','').toUpperCase().slice(0, 4);
     return _SETORES_B3[base] || 'Outros';
+  }
+
+  function _anlPerfil(ticker) {
+    const base = (ticker || '').replace(/\d+$/, '').replace('.SA','').toUpperCase().slice(0, 4);
+    return _PERFIL_B3[base] || null;
+  }
+
+  function _anlPerfilBadge(ticker) {
+    const p = _anlPerfil(ticker);
+    if (!p) return '';
+    const c = _PERFIL_COR[p];
+    return `<span style="display:inline-block;padding:2px 7px;border-radius:5px;font-size:9px;font-weight:800;background:${c.bg};color:${c.cor};margin-left:4px;">${c.icone} ${p.toUpperCase()}</span>`;
   }
 
   function _renderAnaliseCarteira(acoesInfo, rvAtual) {
@@ -5364,7 +5416,7 @@
       const apex    = a.nearMax52 ? '<span title="Próximo da máxima 52 semanas" style="margin-left:4px;background:#f59e0b;color:#fff;border-radius:4px;padding:1px 5px;font-size:9px;font-weight:800;">🔺 MAX</span>' : '';
       return `<tr style="border-bottom:1px solid var(--border);">
         <td style="padding:8px 8px;">
-          <div style="font-size:13px;font-weight:800;">${a.ticker}${oport}${apex}</div>
+          <div style="font-size:13px;font-weight:800;">${a.ticker}${oport}${apex}${_anlPerfilBadge(a.ticker)}</div>
           <div style="font-size:10px;color:var(--text-muted);">${a.setor}${a.nomeEmpresa ? ' · '+a.nomeEmpresa.split(' ').slice(0,3).join(' ') : ''}</div>
         </td>
         <td style="padding:8px 8px;text-align:right;">
@@ -5398,7 +5450,7 @@
         ? '<span style="margin-left:4px;background:#ef4444;color:#fff;border-radius:4px;padding:1px 5px;font-size:9px;font-weight:800;">🔻 MIN</span>' : '';
       return `<tr style="border-bottom:1px solid var(--border);opacity:.85;">
         <td style="padding:8px 8px;">
-          <div style="font-size:13px;font-weight:800;">${m.ticker}${oport}</div>
+          <div style="font-size:13px;font-weight:800;">${m.ticker}${oport}${_anlPerfilBadge(m.ticker)}</div>
           <div style="font-size:10px;color:var(--text-muted);">${_anlSetor(m.ticker)}${m.nomeEmpresa ? ' · '+m.nomeEmpresa.split(' ').slice(0,3).join(' ') : ''}</div>
         </td>
         <td style="padding:8px 8px;text-align:right;">
@@ -5430,6 +5482,18 @@
     if (reduzir.length) insights.push(`<strong>⬇️ Sobreponderados:</strong> ${reduzir.map(a=>a.ticker).join(', ')} excedem 40% acima do peso ideal — considere realizar parcial se houver ganho.`);
     if (oports.length) insights.push(`<strong>🔻 Oportunidade de preço:</strong> ${oports.map(a=>a.ticker).join(', ')} ${oports.length===1?'está':'estão'} na mínima dos últimos 3 meses — janela histórica de entrada.`);
     if (nSetores < 3 && n >= 4) insights.push(`<strong>🗂️ Concentração setorial:</strong> carteira em apenas ${nSetores} setor${nSetores>1?'es':''} — diversificar em energia, bancos, saúde ou agro pode reduzir o risco sistêmico.`);
+    // Insights de perfil (médio/longo prazo)
+    const perfisCnt = {};
+    porAtivo.forEach(a => { const p = _anlPerfil(a.ticker); if (p) perfisCnt[p] = (perfisCnt[p]||0) + 1; });
+    const totalComPerfil = Object.values(perfisCnt).reduce((s,v)=>s+v,0);
+    if (totalComPerfil >= 2) {
+      const rendaPct = ((perfisCnt['Renda']||0) / totalComPerfil * 100).toFixed(0);
+      const crecPct  = ((perfisCnt['Crescimento']||0) / totalComPerfil * 100).toFixed(0);
+      if ((perfisCnt['Renda']||0) === 0) insights.push(`<strong>💰 Sem Renda na carteira:</strong> nenhum ativo classificado como Renda (dividendos) — para médio/longo prazo, considere bancos, elétricas ou telecom.`);
+      if ((perfisCnt['Crescimento']||0) === 0) insights.push(`<strong>📈 Sem Crescimento na carteira:</strong> todos os ativos são cíclicos ou de renda — WEGE, RDOR, TOTVS ou FLRY agregariam valorização de longo prazo.`);
+      if (rendaPct > 70) insights.push(`<strong>💰 Carteira muito conservadora:</strong> ${rendaPct}% dos ativos mapeados são de Renda — considere adicionar algum ativo de Crescimento para potencializar o patrimônio no longo prazo.`);
+      if (crecPct > 70) insights.push(`<strong>📈 Carteira muito agressiva:</strong> ${crecPct}% dos ativos mapeados são de Crescimento — balancear com ativos de Renda (dividendos) reduz a volatilidade.`);
+    }
 
     // ── 6b. Ranqueamento dos ativos em Monitor para balancear carteira ─────
     const monitorCompra = monitores.map(m => {
@@ -5537,6 +5601,14 @@
         <span style="padding:3px 9px;border-radius:6px;background:rgba(239,68,68,.12);color:#ef4444;font-weight:700;">⚠️ ATENÇÃO</span>
         <span style="color:var(--text-muted)">Perda acima de 15% — revisar tese antes de novos aportes</span>
       </div>
+      <!-- Legenda de perfis -->
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+        <span style="font-size:10px;font-weight:700;color:var(--text-muted);letter-spacing:.4px;">PERFIL MÉDIO/LONGO PRAZO:</span>
+        <span style="padding:2px 8px;border-radius:5px;font-size:10px;font-weight:800;background:rgba(59,130,246,.13);color:#3b82f6;">💰 RENDA — dividendos consistentes (bancos, elétricas, telecom)</span>
+        <span style="padding:2px 8px;border-radius:5px;font-size:10px;font-weight:800;background:rgba(34,197,94,.13);color:#22c55e;">📈 CRESCIMENTO — valorização de capital (tech, saúde, industrial)</span>
+        <span style="padding:2px 8px;border-radius:5px;font-size:10px;font-weight:800;background:rgba(245,158,11,.13);color:#f59e0b;">⚖️ VALOR — cíclicos descontados (mineração, petróleo, proteínas)</span>
+        <span style="padding:2px 8px;border-radius:5px;font-size:10px;font-weight:800;background:rgba(168,85,247,.13);color:#a855f7;">🛡️ DEFENSIVO — baixa volatilidade (alimentos, pharma, concessões)</span>
+      </div>
 
       ${monitorCompra.length ? `
       <!-- Recomendações de compra do Monitor -->
@@ -5551,9 +5623,10 @@
           <div style="background:var(--bg);border-radius:10px;padding:12px 14px;border-left:3px solid ${m.prioCor};">
             <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;">
               <div style="flex:1;min-width:180px;">
-                <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap;">
                   <span style="font-size:13px;font-weight:800;">${idx===0?'🥇':idx===1?'🥈':idx===2?'🥉':'#'+(idx+1)} ${m.ticker}</span>
                   <span style="font-size:10px;color:var(--text-muted);">${m.setor}</span>
+                  ${_anlPerfilBadge(m.ticker)}
                   ${m.nearMin3m ? '<span style="background:#ef4444;color:#fff;border-radius:4px;padding:1px 5px;font-size:9px;font-weight:800;">🔻 ENTRADA</span>' : ''}
                 </div>
                 <div style="display:flex;flex-direction:column;gap:3px;">
