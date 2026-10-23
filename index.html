@@ -5159,30 +5159,6 @@
           )
         : '') +
 
-        (atencoes.length ?
-          sep('PONTOS DE ATENÇÃO') +
-          '<div style="display:flex;flex-direction:column;gap:8px;">' +
-            atencoes.map(a =>
-              '<div style="background:' + bgN[a.n] + ';border-left:3px solid ' + corN[a.n] + ';border-radius:0 8px 8px 0;padding:10px 14px;font-size:12px;line-height:1.6;">' +
-                icN[a.n] + ' ' + a.t +
-              '</div>'
-            ).join('') +
-          '</div>'
-        : '') +
-
-        sep('ESTRATÉGIAS SUGERIDAS') +
-        '<div style="display:flex;flex-direction:column;gap:8px;">' +
-          est.map((e, i) =>
-            '<div style="display:flex;gap:10px;align-items:flex-start;background:var(--bg);border-radius:8px;padding:10px 12px;">' +
-              '<div style="min-width:22px;height:22px;border-radius:50%;background:var(--primary);color:white;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">' + (i+1) + '</div>' +
-              '<div style="font-size:12px;color:var(--text);line-height:1.7;">' + e + '</div>' +
-            '</div>'
-          ).join('') +
-        '</div>' +
-
-        '<div style="margin-top:14px;font-size:10px;color:var(--text-muted);text-align:center;line-height:1.5;">' +
-          'Estratégias geradas automaticamente com base nos dados atuais · σ=30% assumido nas probabilidades · Não constitui recomendação de investimento' +
-        '</div>' +
       '</div>';
 
     // dispara análise de carteira em paralelo
