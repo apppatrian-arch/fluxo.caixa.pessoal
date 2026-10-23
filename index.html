@@ -5118,16 +5118,83 @@
     return _SETORES_B3[base] || 'Outros';
   }
 
+  // Overrides manuais de núcleo salvos pelo usuário (localStorage)
+  function _getNucleoOverrides() {
+    try { return JSON.parse(localStorage.getItem('_nucleoOverrides') || '{}'); } catch { return {}; }
+  }
+  function _setNucleoOverride(ticker, perfil) {
+    try {
+      const ov = _getNucleoOverrides();
+      if (perfil) ov[ticker] = perfil; else delete ov[ticker];
+      localStorage.setItem('_nucleoOverrides', JSON.stringify(ov));
+    } catch {}
+  }
+
   function _anlPerfil(ticker) {
     const base = (ticker || '').replace(/\d+$/, '').replace('.SA','').toUpperCase().slice(0, 4);
-    return _PERFIL_B3[base] || null;
+    const ov = _getNucleoOverrides();
+    return ov[base] || _PERFIL_B3[base] || null;
   }
 
   function _anlPerfilBadge(ticker) {
     const p = _anlPerfil(ticker);
-    if (!p) return '';
-    const c = _PERFIL_COR[p];
-    return `<span style="display:inline-block;padding:2px 7px;border-radius:5px;font-size:9px;font-weight:800;background:${c.bg};color:${c.cor};margin-left:4px;">${c.icone} ${p.toUpperCase()}</span>`;
+    if (p) {
+      const c = _PERFIL_COR[p];
+      return `<span onclick="abrirNucleoModal('${ticker}')" title="Clique para alterar" style="display:inline-block;padding:2px 7px;border-radius:5px;font-size:9px;font-weight:800;background:${c.bg};color:${c.cor};margin-left:4px;cursor:pointer;">${c.icone} ${p.toUpperCase()}</span>`;
+    }
+    return `<span onclick="abrirNucleoModal('${ticker}')" title="Classificar núcleo" style="display:inline-block;padding:2px 7px;border-radius:5px;font-size:9px;font-weight:700;background:var(--bg);color:var(--text-muted);margin-left:4px;cursor:pointer;border:1px dashed var(--border);">＋ Núcleo</span>`;
+  }
+
+  // Abre o modal de classificação de núcleo para um ticker
+  function abrirNucleoModal(ticker) {
+    const base = (ticker || '').replace(/\d+$/, '').replace('.SA','').toUpperCase().slice(0, 4);
+    const atual = _anlPerfil(ticker);
+    const opts = ['Renda','Crescimento','Valor','Defensivo'];
+    const icones = { Renda:'💰', Crescimento:'📈', Valor:'⚖️', Defensivo:'🛡️' };
+    const descricoes = {
+      Renda: 'Dividendos consistentes — bancos, elétricas, telecom',
+      Crescimento: 'Valorização de capital — tech, saúde, industrial',
+      Valor: 'Cíclicos descontados — mineração, petróleo, proteínas',
+      Defensivo: 'Baixa volatilidade — alimentos, pharma, concessões',
+    };
+    let el = document.getElementById('nucleo-modal');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'nucleo-modal';
+      el.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);backdrop-filter:blur(3px);';
+      el.onclick = e => { if (e.target === el) el.remove(); };
+      document.body.appendChild(el);
+    }
+    el.innerHTML = `
+      <div style="background:var(--card);border-radius:16px;padding:22px;width:340px;max-width:92vw;box-shadow:0 20px 60px rgba(0,0,0,.4);">
+        <div style="font-size:15px;font-weight:800;margin-bottom:4px;">🏷️ Classificar Núcleo</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:16px;">Ticker: <strong>${base}</strong>${atual ? ' · atual: '+atual : ' · sem classificação'}</div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
+          ${opts.map(o => {
+            const cfg = _PERFIL_COR[o];
+            const sel = atual === o;
+            return `<button onclick="salvarNucleo('${base}','${o}')"
+              style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;border:2px solid ${sel ? cfg.cor : 'var(--border)'};background:${sel ? cfg.bg : 'var(--bg)'};cursor:pointer;text-align:left;width:100%;">
+              <span style="font-size:18px;">${icones[o]}</span>
+              <div>
+                <div style="font-size:13px;font-weight:800;color:${cfg.cor};">${o}</div>
+                <div style="font-size:10px;color:var(--text-muted);">${descricoes[o]}</div>
+              </div>
+              ${sel ? '<span style="margin-left:auto;font-size:14px;">✓</span>' : ''}
+            </button>`;
+          }).join('')}
+        </div>
+        ${atual ? `<button onclick="salvarNucleo('${base}',null)" style="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:8px;background:transparent;color:var(--text-muted);font-size:12px;cursor:pointer;margin-bottom:10px;">🗑 Remover classificação</button>` : ''}
+        <button onclick="document.getElementById('nucleo-modal').remove()" style="width:100%;padding:8px;border:none;border-radius:8px;background:var(--bg);color:var(--text-muted);font-size:12px;cursor:pointer;">Cancelar</button>
+      </div>`;
+  }
+
+  function salvarNucleo(base, perfil) {
+    _setNucleoOverride(base, perfil);
+    const el = document.getElementById('nucleo-modal');
+    if (el) el.remove();
+    renderCarteiras();
+    renderVisaoGeral();
   }
 
   function _renderAnaliseCarteira(acoesInfo, rvAtual) {
@@ -7762,8 +7829,8 @@
         const _nucleo = _anlPerfil(a.ticker);
         const _nCfg = _nucleo ? _PERFIL_COR[_nucleo] : null;
         const _nucleoBadge = _nCfg
-          ? '<span style="display:inline-block;margin-left:4px;font-size:9px;font-weight:800;padding:1px 5px;border-radius:4px;background:' + _nCfg.bg + ';color:' + _nCfg.cor + ';vertical-align:middle;">' + _nCfg.icone + ' ' + _nucleo.toUpperCase() + '</span>'
-          : '';
+          ? '<span onclick="abrirNucleoModal(\'' + a.ticker + '\')" title="Clique para alterar o núcleo" style="display:inline-block;margin-left:4px;font-size:9px;font-weight:800;padding:1px 5px;border-radius:4px;background:' + _nCfg.bg + ';color:' + _nCfg.cor + ';vertical-align:middle;cursor:pointer;">' + _nCfg.icone + ' ' + _nucleo.toUpperCase() + '</span>'
+          : '<span onclick="abrirNucleoModal(\'' + a.ticker + '\')" title="Classificar núcleo" style="display:inline-block;margin-left:4px;font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;background:var(--bg);color:var(--text-muted);vertical-align:middle;cursor:pointer;border:1px dashed var(--border);">＋ Núcleo</span>';
         return '<tr' + classTr + ' style="border-bottom:' + borderAlert + ';' + (bgFinal ? 'background:' + bgFinal + ';' : '') + '">' +
           '<td style="padding:8px;font-size:12px;font-weight:700;white-space:nowrap;">' +
             a.ticker +
