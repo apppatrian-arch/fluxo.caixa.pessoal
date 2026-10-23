@@ -7575,6 +7575,13 @@
       const acoesPos     = c.acoes.filter(a => !a.monitorar);
       const totalCusto   = acoesPos.reduce((s, a) => s + a.qtd * a.custo * _fatorUSD(a), 0);
       const totalAtual   = acoesPos.reduce((s, a) => s + a.qtd * (a.precoAtual || a.custo) * _fatorUSD(a), 0);
+      // Núcleo de Renda vs Crescimento — soma por perfil
+      const _nucleoTotais = {};
+      acoesPos.forEach(a => {
+        const p = _anlPerfil(a.ticker) || 'Outros';
+        const v = a.qtd * (a.precoAtual || a.custo) * _fatorUSD(a);
+        _nucleoTotais[p] = (_nucleoTotais[p] || 0) + v;
+      });
       const varTotal     = totalCusto > 0 ? ((totalAtual - totalCusto) / totalCusto * 100) : 0;
       const corVar       = varTotal >= 0 ? 'var(--success)' : 'var(--danger)';
       const sinalVar     = varTotal >= 0 ? '+' : '';
@@ -7752,10 +7759,16 @@
         const bgFinal = trigMin3m ? '' : (bgAlert || bgMon);
         const classTr = trigMin3m ? ' class="alerta-min3m"' : '';
         const tdM   = '<td style="padding:8px;text-align:right;color:var(--text-muted);font-size:12px;">—</td>';
+        const _nucleo = _anlPerfil(a.ticker);
+        const _nCfg = _nucleo ? _PERFIL_COR[_nucleo] : null;
+        const _nucleoBadge = _nCfg
+          ? '<span style="display:inline-block;margin-left:4px;font-size:9px;font-weight:800;padding:1px 5px;border-radius:4px;background:' + _nCfg.bg + ';color:' + _nCfg.cor + ';vertical-align:middle;">' + _nCfg.icone + ' ' + _nucleo.toUpperCase() + '</span>'
+          : '';
         return '<tr' + classTr + ' style="border-bottom:' + borderAlert + ';' + (bgFinal ? 'background:' + bgFinal + ';' : '') + '">' +
           '<td style="padding:8px;font-size:12px;font-weight:700;white-space:nowrap;">' +
             a.ticker +
             (isMon ? ' <span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;background:rgba(139,92,246,0.15);color:#8b5cf6;vertical-align:middle;">👁 Monitor</span>' : '') +
+            _nucleoBadge +
           '</td>' +
           (isMon ? tdM : '<td style="padding:8px;font-size:12px;text-align:right;">' + Number(a.qtd).toLocaleString('pt-BR') + '</td>') +
           (isMon ? tdM : '<td style="padding:8px;font-size:12px;text-align:right;">' + fmtUSD(a.custo) + (isUSD ? ' <span style="font-size:9px;background:#dbeafe;color:#1d4ed8;border-radius:4px;padding:1px 4px;font-weight:700;">USD</span>' : '') + '</td>') +
@@ -7863,6 +7876,29 @@
             '<div style="font-size:13px;font-weight:800;color:' + corVar + ';">' + fmtPct(varTotal) + '</div>' +
           '</div>' +
         '</div>' : '') +
+        // Barra resumo de Núcleo (apenas em modo tabela com posições ativas)
+        (viewMode !== 'chart' && acoesPos.length && totalAtual > 0 ? (() => {
+          const _ordemNucleo = ['Renda','Crescimento','Valor','Defensivo','Outros'];
+          const _nucleoRows = _ordemNucleo.filter(k => _nucleoTotais[k] > 0).map(k => {
+            const pct = _nucleoTotais[k] / totalAtual * 100;
+            const cfg = _PERFIL_COR[k] || { bg:'rgba(100,116,139,.12)', cor:'#64748b', icone:'○' };
+            return { k, pct, cfg };
+          });
+          if (!_nucleoRows.length) return '';
+          return '<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--bg);border-bottom:1px solid var(--border);flex-wrap:wrap;">' +
+            '<span style="font-size:10px;font-weight:700;color:var(--text-muted);white-space:nowrap;letter-spacing:.4px;">NÚCLEO DA CARTEIRA</span>' +
+            '<div style="flex:1;min-width:200px;height:10px;border-radius:99px;overflow:hidden;display:flex;">' +
+              _nucleoRows.map(r => '<div style="flex:' + r.pct.toFixed(2) + ';background:' + r.cfg.cor + ';opacity:.85;transition:flex .4s;"></div>').join('') +
+            '</div>' +
+            _nucleoRows.map(r =>
+              '<div style="display:flex;align-items:center;gap:4px;white-space:nowrap;">' +
+                '<span style="width:9px;height:9px;border-radius:50%;background:' + r.cfg.cor + ';display:inline-block;flex-shrink:0;"></span>' +
+                '<span style="font-size:11px;font-weight:700;color:' + r.cfg.cor + ';">' + r.cfg.icone + ' ' + r.k + '</span>' +
+                '<span style="font-size:11px;color:var(--text-muted);">' + r.pct.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}) + '%</span>' +
+              '</div>'
+            ).join('') +
+          '</div>';
+        })() : '') +
         // Tabela ou gráfico
         (viewMode === 'chart' ? grafico :
         '<div style="overflow-x:auto;">' +
