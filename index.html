@@ -833,8 +833,8 @@
     <div class="tabs-wrapper">
       <button class="tabs-arrow" id="tabs-prev" onclick="scrollTabs(-1)" title="Anterior">‹</button>
       <div class="tabs" id="tabs-bar">
-        <button class="tab tab-destaque active" id="tab-paulistinha" onclick="setTab('paulistinha')" style="white-space:nowrap;">🚬 Indústria P</button>
-        <button class="tab tab-secundaria" id="tab-acoes" onclick="setTab('acoes')" style="white-space:nowrap;display:none;">📈 Ações</button>
+        <button class="tab tab-destaque active" id="tab-acoes" onclick="setTab('acoes')" style="white-space:nowrap;">📈 Ações</button>
+        <button class="tab tab-secundaria" id="tab-paulistinha" onclick="setTab('paulistinha')" style="white-space:nowrap;display:none;">🚬 Indústria P</button>
         <button class="tab tab-secundaria" id="tab-opcoes" onclick="setTab('opcoes')" style="white-space:nowrap;display:none;">🎯 Opções</button>
         <button class="tab tab-secundaria" id="tab-pessoal" onclick="setTab('pessoal')" style="white-space:nowrap;display:none;">💼 Financeiro</button>
       </div>
@@ -845,7 +845,7 @@
 
     <!-- Dropdown de abas secundárias (position:fixed para não ser cortado por overflow) -->
     <div id="tabs-dropdown" style="display:none;position:fixed;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,0.18);z-index:9999;min-width:160px;overflow:hidden;">
-      <button onclick="_escolherTabMenu('acoes')" style="display:flex;align-items:center;gap:8px;width:100%;padding:10px 14px;background:none;border:none;color:var(--text);font-size:13px;cursor:pointer;text-align:left;" onmouseenter="this.style.background='var(--surface2)'" onmouseleave="this.style.background='none'">📈 Ações</button>
+      <button onclick="_escolherTabMenu('paulistinha')" style="display:flex;align-items:center;gap:8px;width:100%;padding:10px 14px;background:none;border:none;color:var(--text);font-size:13px;cursor:pointer;text-align:left;" onmouseenter="this.style.background='var(--surface2)'" onmouseleave="this.style.background='none'">🚬 Indústria P</button>
       <button onclick="_escolherTabMenu('opcoes')" style="display:flex;align-items:center;gap:8px;width:100%;padding:10px 14px;background:none;border:none;color:var(--text);font-size:13px;cursor:pointer;text-align:left;" onmouseenter="this.style.background='var(--surface2)'" onmouseleave="this.style.background='none'">🎯 Opções</button>
       <button onclick="_escolherTabMenu('pessoal')" style="display:flex;align-items:center;gap:8px;width:100%;padding:10px 14px;background:none;border:none;color:var(--text);font-size:13px;cursor:pointer;text-align:left;" onmouseenter="this.style.background='var(--surface2)'" onmouseleave="this.style.background='none'">💼 Financeiro</button>
     </div>
@@ -2068,7 +2068,7 @@
     document.getElementById('menu-username').textContent = currentUser;
 
     await carregarLancamentos();
-    setTab('paulistinha');
+    setTab('acoes');
 
     const hoje = new Date().toISOString().split('T')[0];
     document.getElementById('novo-data').value = hoje;
