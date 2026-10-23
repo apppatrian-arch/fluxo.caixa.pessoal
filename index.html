@@ -7831,44 +7831,110 @@
         const _nucleoBadge = _nCfg
           ? '<span onclick="abrirNucleoModal(\'' + a.ticker + '\')" title="Clique para alterar o núcleo" style="display:inline-block;margin-left:4px;font-size:9px;font-weight:800;padding:1px 5px;border-radius:4px;background:' + _nCfg.bg + ';color:' + _nCfg.cor + ';vertical-align:middle;cursor:pointer;">' + _nCfg.icone + ' ' + _nucleo.toUpperCase() + '</span>'
           : '<span onclick="abrirNucleoModal(\'' + a.ticker + '\')" title="Classificar núcleo" style="display:inline-block;margin-left:4px;font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;background:var(--bg);color:var(--text-muted);vertical-align:middle;cursor:pointer;border:1px dashed var(--border);">＋ Núcleo</span>';
-        return '<tr' + classTr + ' style="border-bottom:' + borderAlert + ';' + (bgFinal ? 'background:' + bgFinal + ';' : '') + '">' +
-          '<td style="padding:8px;font-size:12px;font-weight:700;white-space:nowrap;">' +
-            a.ticker +
-            (isMon ? ' <span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;background:rgba(139,92,246,0.15);color:#8b5cf6;vertical-align:middle;">👁 Monitor</span>' : '') +
-            _nucleoBadge +
-          '</td>' +
-          (isMon ? tdM : '<td style="padding:8px;font-size:12px;text-align:right;">' + Number(a.qtd).toLocaleString('pt-BR') + '</td>') +
-          (isMon ? tdM : '<td style="padding:8px;font-size:12px;text-align:right;">' + fmtUSD(a.custo) + (isUSD ? ' <span style="font-size:9px;background:#dbeafe;color:#1d4ed8;border-radius:4px;padding:1px 4px;font-weight:700;">USD</span>' : '') + '</td>') +
-          '<td style="padding:8px;font-size:12px;text-align:right;font-weight:700;color:' + (a.precoAtual ? '#3b82f6' : 'var(--text-muted)') + ';">' + (a.precoAtual ? fmtUSD(a.precoAtual) : (isMon ? '<span title="Ticker não encontrado na brapi.dev — verifique o código">N/D</span>' : '—')) + '</td>' +
-          '<td style="padding:8px;font-size:12px;text-align:right;">' +
+        // Célula 3m: min↕max empilhados com % abaixo de cada valor
+        const cell3m = '<td style="padding:6px 8px;text-align:right;">' +
+          '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px;">' +
             (a.min3m
-              ? (trigMin3m
-                  ? '<div style="display:inline-flex;flex-direction:column;align-items:flex-end;gap:2px;">' +
-                      '<span style="font-weight:800;color:#ef4444;">' + fmtUSD(a.min3m) + '</span>' +
-                      '<span style="font-size:9px;font-weight:800;letter-spacing:0.5px;padding:1px 5px;border-radius:4px;background:#ef4444;color:#fff;white-space:nowrap;">🔻 NA MÍNIMA</span>' +
-                    '</div>'
-                  : '<span style="color:var(--text-muted);">' + fmtUSD(a.min3m) + '</span>')
-              : '—') +
+              ? '<div>' +
+                  (trigMin3m
+                    ? '<span style="font-weight:800;color:#ef4444;font-size:11px;">🔻 ' + fmtUSD(a.min3m) + '</span>'
+                    : '<span style="color:var(--danger);font-size:11px;">↓ ' + fmtUSD(a.min3m) + '</span>') +
+                '</div>'
+              : '<span style="color:var(--text-muted);font-size:11px;">—</span>') +
+            (a.max3m ? '<div style="color:var(--success);font-size:11px;">↑ ' + fmtUSD(a.max3m) + '</div>' : '') +
+          '</div>' +
+        '</td>';
+        // Célula 52sem: min↕max com % vs cada extremo
+        const cell52 = '<td style="padding:6px 8px;text-align:right;">' +
+          '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px;">' +
+            (a.min52
+              ? '<div style="display:flex;align-items:center;gap:4px;justify-content:flex-end;">' +
+                  '<span style="color:var(--danger);font-size:11px;">↓ ' + fmtUSD(a.min52) + '</span>' +
+                  (vsMin52 != null ? '<span style="font-size:10px;font-weight:700;color:' + corVsMin + ';">(' + fmtPct2(vsMin52) + ')</span>' : '') +
+                '</div>'
+              : '<span style="color:var(--text-muted);font-size:11px;">—</span>') +
+            (a.max52
+              ? '<div style="display:flex;align-items:center;gap:4px;justify-content:flex-end;">' +
+                  '<span style="color:var(--success);font-size:11px;">↑ ' + fmtUSD(a.max52) + '</span>' +
+                  (vsMáx52 != null ? '<span style="font-size:10px;font-weight:700;color:' + corVsMax + ';">(' + fmtPct2(vsMáx52) + ')</span>' : '') +
+                '</div>'
+              : '') +
+          '</div>' +
+        '</td>';
+        // Célula variações: dia% ↕ 7d empilhados
+        const cellVar = '<td style="padding:6px 8px;text-align:right;">' +
+          '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">' +
+            '<div style="display:flex;align-items:center;gap:3px;">' +
+              '<span style="font-size:9px;color:var(--text-muted);">Dia</span>' +
+              '<span style="font-size:11px;font-weight:700;color:' + corDia + ';">' + (temDia ? prefDia + fmtPct(a.varDiaPct) : '—') + '</span>' +
+            '</div>' +
+            '<div style="display:flex;align-items:center;gap:3px;">' +
+              '<span style="font-size:9px;color:var(--text-muted);">7d</span>' +
+              '<span style="font-size:11px;font-weight:700;color:' + cor7d + ';">' + (tem7d ? pref7d + fmtPct(a.var7dPct) : '—') + '</span>' +
+            '</div>' +
+          '</div>' +
+        '</td>';
+        // Célula Saldo / Part
+        const cellSaldo = isMon ? tdM :
+          '<td style="padding:6px 8px;text-align:right;">' +
+            '<div style="font-size:12px;font-weight:700;color:' + (a.precoAtual ? 'var(--text)' : 'var(--text-muted)') + ';">' + fmt(saldoAcao) + '</div>' +
+            '<div style="font-size:10px;color:var(--text-muted);">' + Number(partPct).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}) + '% da carteira</div>' +
+          '</td>';
+        // Célula Lucro / Var%
+        const cellLucro = isMon ? tdM :
+          '<td style="padding:6px 8px;text-align:right;">' +
+            '<div style="font-size:12px;font-weight:700;color:' + (a.precoAtual ? corLucro : 'var(--text-muted)') + ';">' + (a.precoAtual ? prefLucro + fmt(lucroAcao) : '—') + '</div>' +
+            '<div style="font-size:11px;font-weight:700;color:' + corAcao + ';">' + fmtPct(varAcao) + '</div>' +
+          '</td>';
+        // Célula Dia R$ / 7d
+        const cellDiaRS = isMon ? tdM :
+          '<td style="padding:6px 8px;text-align:right;">' +
+            '<div style="font-size:11px;font-weight:700;color:' + corDia + ';">' + (temDia ? prefDia + fmtUSD(a.varDiaVal) : '—') + '</div>' +
+            '<div style="font-size:10px;color:' + corSaldoDia + ';">' + (saldoDia != null ? prefSaldoDia + fmt(saldoDia * fUSD) : '—') + '</div>' +
+          '</td>';
+        // Célula Qtd / Custo
+        const cellQtdCusto = isMon ? tdM :
+          '<td style="padding:6px 8px;text-align:right;">' +
+            '<div style="font-size:12px;">' + Number(a.qtd).toLocaleString('pt-BR') + '</div>' +
+            '<div style="font-size:10px;color:var(--text-muted);">' + fmtUSD(a.custo) + (isUSD ? ' <span style="font-size:9px;background:#dbeafe;color:#1d4ed8;border-radius:3px;padding:0 3px;font-weight:700;">USD</span>' : '') + '</div>' +
+          '</td>';
+        return '<tr' + classTr + ' style="border-bottom:' + borderAlert + ';' + (bgFinal ? 'background:' + bgFinal + ';' : '') + '">' +
+          // Ativo: ticker, badges (monitor, núcleo), nome empresa
+          '<td style="padding:8px;white-space:nowrap;">' +
+            '<div style="font-size:13px;font-weight:800;">' + a.ticker + '</div>' +
+            '<div style="margin-top:3px;display:flex;flex-wrap:wrap;gap:3px;align-items:center;">' +
+              (isMon ? '<span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;background:rgba(139,92,246,0.15);color:#8b5cf6;">👁 Monitor</span>' : '') +
+              _nucleoBadge +
+            '</div>' +
           '</td>' +
-          '<td style="padding:8px;font-size:12px;text-align:right;color:var(--text-muted);">' + (a.max3m ? fmtUSD(a.max3m) : '—') + '</td>' +
+          // Qtd / Custo
+          cellQtdCusto +
+          // Preço Atual
+          '<td style="padding:8px;font-size:12px;text-align:right;font-weight:700;color:' + (a.precoAtual ? '#3b82f6' : 'var(--text-muted)') + ';">' + (a.precoAtual ? fmtUSD(a.precoAtual) : (isMon ? '<span title="Ticker não encontrado">N/D</span>' : '—')) + '</td>' +
+          // Sparkline
           '<td style="padding:4px 8px;text-align:center;vertical-align:middle;">' + _sparklineSVG((_precosGlobal[a.ticker.replace('.SA','').toUpperCase()] || {}).hist3m || null, a.ticker) + '</td>' +
-          '<td style="padding:8px;font-size:11px;text-align:right;color:' + (a.min52 ? 'var(--danger)' : 'var(--text-muted)') + ';">' + (a.min52 ? fmtUSD(a.min52) : '—') + '</td>' +
-          '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + corVsMin + ';">' + (vsMin52 != null ? fmtPct2(vsMin52) : '—') + '</td>' +
-          '<td style="padding:8px;font-size:11px;text-align:right;color:' + (a.max52 ? 'var(--success)' : 'var(--text-muted)') + ';">' + (a.max52 ? fmtUSD(a.max52) : '—') + '</td>' +
-          '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + corVsMax + ';">' + (vsMáx52 != null ? fmtPct2(vsMáx52) : '—') + '</td>' +
-          '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + cor7d + ';">' + (tem7d ? pref7d + fmtPct(a.var7dPct) : '—') + '</td>' +
-          '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + corDia + ';">' + (temDia ? prefDia + fmtPct(a.varDiaPct) : '—') + '</td>' +
-          '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + corDia + ';">' + (temDia ? prefDia + fmtUSD(a.varDiaVal) : '—') + '</td>' +
-          (isMon ? tdM : '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + corSaldoDia + ';">' + (saldoDia != null ? prefSaldoDia + fmt(saldoDia * fUSD) : '—') + '</td>') +
-          (isMon ? tdM : '<td style="padding:8px;font-size:12px;font-weight:700;text-align:right;color:' + (a.precoAtual ? 'var(--text)' : 'var(--text-muted)') + ';">' + fmt(saldoAcao) + '</td>') +
-          (isMon ? tdM : '<td style="padding:8px;font-size:12px;font-weight:700;text-align:right;color:var(--text-muted);">' + Number(partPct).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}) + '%</td>') +
-          (isMon ? tdM : '<td style="padding:8px;font-size:12px;font-weight:700;text-align:right;color:' + (a.precoAtual ? corLucro : 'var(--text-muted)') + ';">' + (a.precoAtual ? prefLucro + fmt(lucroAcao) : '—') + '</td>') +
-          (isMon ? tdM : '<td style="padding:8px;font-size:11px;font-weight:700;text-align:right;color:' + corAcao + ';">' + fmtPct(varAcao) + '</td>') +
-          '<td style="padding:6px 8px;text-align:center;">' + cellAlerta + '</td>' +
-          '<td style="padding:6px 8px;text-align:right;">' + cellProb + '</td>' +
+          // Mín / Máx 3m
+          cell3m +
+          // Mín / Máx 52sem com %
+          cell52 +
+          // Variações (Dia% / 7d)
+          cellVar +
+          // Saldo / Part%
+          cellSaldo +
+          // Lucro / Var%
+          cellLucro +
+          // Dia R$ / Saldo Dia
+          cellDiaRS +
+          // Alerta + Prob empilhados
+          '<td style="padding:6px 8px;text-align:center;">' +
+            '<div style="display:flex;flex-direction:column;align-items:center;gap:3px;">' +
+              cellAlerta +
+              (aComp || aVend ? '<div style="font-size:10px;color:var(--text-muted);">' + cellProb + '</div>' : '') +
+            '</div>' +
+          '</td>' +
           '<td style="padding:8px;">' + acoes + '</td>' +
         '</tr>';
-      }).join('') : '<tr><td colspan="20" style="padding:12px;text-align:center;color:var(--text-muted);font-size:12px;">Nenhuma ação. Adicione abaixo.</td></tr>';
+      }).join('') : '<tr><td colspan="12" style="padding:12px;text-align:center;color:var(--text-muted);font-size:12px;">Nenhuma ação. Adicione abaixo.</td></tr>';
 
       const lucroTotal   = totalAtual - totalCusto;
       const corLucroTot  = lucroTotal >= 0 ? 'var(--success)' : 'var(--danger)';
@@ -7877,17 +7943,14 @@
       const temDiaTot    = acoesPos.some(a => a.varDiaVal != null);
       const corDiaTot    = saldoDiaTotal >= 0 ? 'var(--success)' : 'var(--danger)';
       const prefDiaTot   = saldoDiaTotal >= 0 ? '+' : '';
-      const rodape = c.acoes.length ? '<tr style="background:var(--bg);">' +
-        '<td colspan="2" style="padding:8px;font-size:12px;font-weight:700;">Total</td>' +
-        '<td style="padding:8px;font-size:11px;color:var(--text-muted);text-align:right;">' + fmt(totalCusto) + '</td>' +
-        '<td style="padding:8px;font-size:11px;color:var(--text-muted);text-align:right;">' + fmt(totalAtual) + '</td>' +
-        '<td colspan="4" style="padding:8px;font-size:11px;color:var(--text-muted);text-align:center;">—</td>' +
-        '<td colspan="3" style="padding:8px;font-size:11px;color:var(--text-muted);text-align:center;">—</td>' +
-        '<td style="padding:8px;font-size:12px;font-weight:800;text-align:right;color:' + (temDiaTot ? corDiaTot : 'var(--text-muted)') + ';">' + (temDiaTot ? prefDiaTot + fmt(saldoDiaTotal) : '—') + '</td>' +
+      const rodape = c.acoes.length ? '<tr style="background:var(--bg);border-top:2px solid var(--border);">' +
+        '<td style="padding:8px;font-size:12px;font-weight:800;">Total</td>' +
+        '<td style="padding:8px;font-size:11px;text-align:right;color:var(--text-muted);">' + fmt(totalCusto) + '</td>' +
         '<td style="padding:8px;font-size:12px;font-weight:800;text-align:right;">' + fmt(totalAtual) + '</td>' +
-        '<td style="padding:8px;font-size:12px;font-weight:800;text-align:right;color:var(--text-muted);">100%</td>' +
-        '<td style="padding:8px;font-size:12px;font-weight:800;text-align:right;color:' + corLucroTot + ';">' + prefLucroTot + fmt(lucroTotal) + '</td>' +
-        '<td style="padding:8px;font-size:12px;font-weight:800;text-align:right;color:' + corVar + ';">' + fmtPct(varTotal) + '</td>' +
+        '<td colspan="4" style="padding:8px;text-align:center;color:var(--text-muted);">—</td>' +
+        '<td style="padding:8px;font-size:12px;font-weight:800;text-align:right;color:' + (temDiaTot ? corDiaTot : 'var(--text-muted)') + ';">' + (temDiaTot ? prefDiaTot + fmt(saldoDiaTotal) : '—') + '</td>' +
+        '<td style="padding:8px;font-size:12px;font-weight:800;text-align:right;">' + fmt(totalAtual) + ' <span style="font-size:10px;font-weight:700;color:var(--text-muted);">100%</span></td>' +
+        '<td style="padding:8px;font-size:12px;font-weight:800;text-align:right;color:' + corLucroTot + ';">' + prefLucroTot + fmt(lucroTotal) + ' <span style="font-size:10px;color:' + corVar + ';">' + fmtPct(varTotal) + '</span></td>' +
         '<td></td><td></td><td></td></tr>' : '';
 
       const viewMode = carteiraViewMode[c.id] || 'table';
@@ -7971,27 +8034,17 @@
         '<div style="overflow-x:auto;">' +
         '<table style="width:100%;border-collapse:collapse;">' +
           '<thead><tr style="background:var(--bg);">' +
-            th('ticker',    'Ticker',     'left') +
-            th('qtd',       'Qtd',        'right') +
-            th('custo',     'Custo',      'right') +
-            th('atual',     'Atual',      'right') +
-            th('min3m',     'Mín.3m',     'right') +
-            th('max3m',     'Máx.3m',     'right') +
+            th('ticker',    'Ativo',           'left') +
+            th('qtd',       'Qtd / Custo',     'right') +
+            th('atual',     'Preço Atual',      'right') +
             '<th style="padding:7px 8px;font-size:10px;color:var(--text-muted);text-align:center;font-weight:700;white-space:nowrap;">Gráf.3M</th>' +
-            th('min52',     'Mín.52sem',  'right') +
-            th('vsmin52',   '%vsMin',     'right') +
-            th('max52',     'Máx.52sem',  'right') +
-            th('vsmax52',   '%vsMáx',     'right') +
-            th('var7d',     'Últ.7d',     'right') +
-            th('vardiapct', 'Var.Dia%',   'right') +
-            th('vardiav',   'Var.Dia R$', 'right') +
-            th('saldodia',  'Saldo Dia',  'right') +
-            th('saldo',     'Saldo',      'right') +
-            th('part',      'Part.%',     'right') +
-            th('lucro',     'Lucro/Prej.','right') +
-            th('var',       'Var%',       'right') +
-            th('alerta',  'Alerta 🔔', 'center') +
-            th('prob30d', 'Prob.30d ⓘ','right') +
+            th('min3m',     'Mín / Máx 3m',   'right') +
+            th('min52',     'Mín / Máx 52sem', 'right') +
+            th('vardiapct', 'Variações',        'right') +
+            th('saldo',     'Saldo / Part.%',  'right') +
+            th('lucro',     'Lucro / Var%',    'right') +
+            th('saldodia',  'Dia R$ / 7d',     'right') +
+            th('alerta',    'Alerta 🔔',       'center') +
             '<th style="padding:7px 8px;font-size:10px;color:var(--text-muted);text-align:center;font-weight:700;">Ações</th>' +
           '</tr></thead>' +
           '<tbody>' + linhasAcoes + rodape + '</tbody>' +
