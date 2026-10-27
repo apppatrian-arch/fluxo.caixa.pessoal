@@ -6573,13 +6573,18 @@
   let rendaFixa      = [];  // carteira de renda fixa
   let _precosGlobal  = (() => {
     // Pré-popula com hist3m do localStorage para sparklines ficarem disponíveis sem buscar cotações
+    // Formato sparkCache: { sym: { data: [...], ts: epoch } }  (legado: { sym: [...] })
     try {
       const sc = JSON.parse(localStorage.getItem('_sparkCache') || '{}');
       const out = {};
-      Object.entries(sc).forEach(([sym, hist3m]) => { out[sym] = { hist3m }; });
+      Object.entries(sc).forEach(([sym, entry]) => {
+        const hist3m = Array.isArray(entry) ? entry : (entry && entry.data);
+        const ts     = Array.isArray(entry) ? 0 : (entry && entry.ts || 0);
+        if (hist3m) out[sym] = { hist3m, _histTs: ts };
+      });
       return out;
     } catch(e) { return {}; }
-  })();  // cache de cotações: sym → { preco, nomeEmpresa, hist3m, ... }
+  })();  // cache de cotações: sym → { preco, nomeEmpresa, hist3m, _histTs, ... }
   let _chartAlocacao  = null;
   let _chartOpcoes    = null;
   let opcoes          = [];  // carteira de opções
@@ -7534,14 +7539,45 @@
       if (r.ok) { const d = await r.json(); (d && d.results || []).forEach(_parseBrapiQ); }
     } catch(e) {}
 
-    // Fase 2 — individual com range=5d: garante historicalDataPrice para var7d
-    // Requisições sequenciais com delay de 120ms para evitar rate limit
+    // Fase 2 — histórico 3mo: brapi individual para tickers com hist velho/ausente,
+    //           Bolsai para os que já têm hist fresco (< 6h) — mescla quota entre as duas APIs
+    const _bolsaiTk = _getBolsaiToken();
+    const _HIST_TTL = 6 * 3600 * 1000; // 6 horas em ms
+    const agora2    = Date.now();
     for (const ticker of uniqueTickers) {
-      try {
-        const r = await fetch(brapiUrl('/quote/' + ticker + '?range=3mo&interval=1d&fundamental=false'));
-        if (r.ok) { const d = await r.json(); (d && d.results || []).forEach(_parseBrapiQ); }
-        else erros++;
-      } catch(e) { erros++; }
+      const cached   = _precosGlobal[ticker];
+      const histFresco = cached && cached.hist3m && cached._histTs && (agora2 - cached._histTs) < _HIST_TTL;
+      if (histFresco && _bolsaiTk) {
+        // hist ainda válido: usa Bolsai só para atualizar preço (poupa chamada brapi)
+        try {
+          const r = await fetch('https://api.usebolsai.com/api/v1/fundamentals/' + ticker, {
+            headers: { 'X-API-Key': _bolsaiTk }
+          });
+          if (r.ok) {
+            const d = await r.json();
+            const closePrice = d && (d.close_price || d.closePrice || d.price);
+            if (closePrice) {
+              const existing = precos[ticker] || {};
+              precos[ticker] = Object.assign(existing, {
+                preco: Number(closePrice),
+                moeda: existing.moeda || 'BRL',
+                nomeEmpresa: d.company_name || d.nome || existing.nomeEmpresa || null,
+                dy:  d.dividend_yield != null ? Number(d.dividend_yield) : (d.dy != null ? Number(d.dy) : existing.dy ?? null),
+                pl:  d.pl  != null ? Number(d.pl)  : (existing.pl  ?? null),
+                pvp: d.pvp != null ? Number(d.pvp) : (existing.pvp ?? null),
+                _src: 'bolsai',
+              });
+            }
+          }
+        } catch(e) {}
+      } else {
+        // hist ausente ou velho: chama brapi individual para obter histórico completo
+        try {
+          const r = await fetch(brapiUrl('/quote/' + ticker + '?range=3mo&interval=1d&fundamental=false'));
+          if (r.ok) { const d = await r.json(); (d && d.results || []).forEach(_parseBrapiQ); }
+          else erros++;
+        } catch(e) { erros++; }
+      }
       await new Promise(res => setTimeout(res, 120));
     }
 
@@ -7610,10 +7646,20 @@
     Object.assign(_precosGlobal, precos);
     // Persiste hist3m no localStorage para ficar disponível após reload
     // (não pode ir ao banco — excede VARCHAR(200))
+    // Formato: { sym: { data: [...], ts: epoch } }
     try {
+      const now3 = Date.now();
       let sc = JSON.parse(localStorage.getItem('_sparkCache') || '{}');
-      Object.entries(precos).forEach(([sym, p]) => { if (p.hist3m) sc[sym] = p.hist3m; });
+      // migra entradas legadas (plain array) para novo formato
+      Object.keys(sc).forEach(sym => { if (Array.isArray(sc[sym])) sc[sym] = { data: sc[sym], ts: 0 }; });
+      Object.entries(precos).forEach(([sym, p]) => {
+        if (p.hist3m) sc[sym] = { data: p.hist3m, ts: now3 };
+        // preserva ts existente se não houve novo hist (atualização via Bolsai)
+        else if (sc[sym] && !sc[sym].ts) sc[sym] = { data: sc[sym].data || sc[sym], ts: 0 };
+      });
       localStorage.setItem('_sparkCache', JSON.stringify(sc));
+      // Propaga _histTs para _precosGlobal (usado na próxima decisão de roteamento)
+      Object.entries(precos).forEach(([sym, p]) => { if (p.hist3m) { (_precosGlobal[sym] = _precosGlobal[sym] || p)._histTs = now3; } });
     } catch(e) {}
     const bolsaiFilled = falhas.filter(t => precos[t.replace('.SA','').toUpperCase()]?._src === 'bolsai');
     const aindaFalhas  = falhas.filter(t => !precos[t.replace('.SA','').toUpperCase()]);
