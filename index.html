@@ -6243,61 +6243,95 @@
 
   function _getBrapiDate()  { return localStorage.getItem(_apiLsKey('bdate')) || ''; }
 
+  function _getBolsaiToken() { return localStorage.getItem(_apiLsKey('bolsai')) || ''; }
+  function _getBolsaiDate()  { return localStorage.getItem(_apiLsKey('bolsaidate')) || ''; }
+
   function _maskToken(t) {
     if (!t) return '';
     return t.length > 12 ? t.slice(0, 6) + '••••••••' + t.slice(-4) : '••••••••';
+  }
+
+  function _apiTokenCard(opts) {
+    // opts: { id, label, color, token, date, inputId, source, editFn }
+    const { id, label, color, token, date, inputId, source, editFn } = opts;
+    const borderColor = color || '#f59e0b';
+    const textColor   = color === '#6366f1' ? '#3730a3' : '#92400e';
+    const textSub     = color === '#6366f1' ? '#4338ca' : '#78350f';
+    const bg          = color === '#6366f1' ? '#eef2ff' : '#fffbeb';
+    if (token) {
+      return '<div style="background:' + bg + ';border:1.5px solid ' + borderColor + ';border-radius:10px;padding:10px 12px;margin-bottom:8px;" id="' + id + '-row">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">' +
+          '<div>' +
+            '<div style="font-size:12px;font-weight:700;color:' + textColor + ';">✅ ' + label + (date ? ' · ' + date : '') + '</div>' +
+            '<div style="font-size:11px;font-family:monospace;color:' + textSub + ';margin-top:3px;">' + _maskToken(token) + '</div>' +
+          '</div>' +
+          '<div style="display:flex;gap:6px;">' +
+            '<button onclick="navigator.clipboard.writeText(\'' + token.replace(/'/g,"&#39;") + '\').then(()=>{})" style="padding:5px 10px;background:' + borderColor + ';color:white;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;">📋</button>' +
+            '<button onclick="' + editFn + '()" style="padding:5px 10px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;color:var(--text);">✏️</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    }
+    return '<div style="margin-bottom:8px;" id="' + id + '-row">' +
+      '<div style="font-size:11px;color:var(--text-muted);margin-bottom:5px;">' + label + '</div>' +
+      '<div style="display:flex;gap:8px;">' +
+        '<input type="text" id="' + inputId + '" placeholder="Cole seu token ' + label + '..." style="flex:1;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text);" />' +
+        '<button onclick="salvarTokenAcoes(\'' + source + '\')" style="padding:9px 14px;background:var(--primary);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">Salvar</button>' +
+      '</div>' +
+    '</div>';
   }
 
   function renderTokenAcoes() {
     const card = document.getElementById('acoes-api-card');
     if (!card) return;
 
-    const btoken = _getBrapiToken();
-    const bdate  = _getBrapiDate();
+    const btoken  = _getBrapiToken();
+    const bdate   = _getBrapiDate();
+    const bltoken = _getBolsaiToken();
+    const bldate  = _getBolsaiDate();
 
     card.innerHTML =
       '<div style="background:var(--card);border-radius:14px;padding:14px 16px;">' +
         '<div style="font-size:13px;font-weight:700;margin-bottom:10px;">🔑 API de Cotações</div>' +
-        (btoken
-          ? '<div style="background:#fffbeb;border:1.5px solid #f59e0b;border-radius:10px;padding:10px 12px;">' +
-              '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">' +
-                '<div>' +
-                  '<div style="font-size:12px;font-weight:700;color:#92400e;">✅ brapi.dev' + (bdate ? ' · ' + bdate : '') + '</div>' +
-                  '<div style="font-size:11px;font-family:monospace;color:#78350f;margin-top:3px;">' + _maskToken(btoken) + '</div>' +
-                '</div>' +
-                '<div style="display:flex;gap:6px;">' +
-                  '<button onclick="navigator.clipboard.writeText(\'' + btoken + '\').then(()=>{})" style="padding:5px 10px;background:#f59e0b;color:white;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;">📋</button>' +
-                  '<button onclick="renderTokenAcoes._edit()" style="padding:5px 10px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;color:var(--text);">✏️ Alterar</button>' +
-                '</div>' +
-              '</div>' +
-            '</div>'
-          : '<div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">Acesse <strong>brapi.dev</strong>, crie uma conta gratuita e cole seu token abaixo.</div>' +
-            '<div style="display:flex;gap:8px;">' +
-              '<input type="text" id="token-input-brapi" placeholder="Cole seu token brapi.dev..." style="flex:1;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text);" />' +
-              '<button onclick="salvarTokenAcoes(\'brapi\')" style="padding:9px 14px;background:var(--primary);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">Salvar</button>' +
-            '</div>'
-        ) +
+        _apiTokenCard({ id:'brapi', label:'brapi.dev', color:'#f59e0b', token:btoken, date:bdate, inputId:'token-input-brapi', source:'brapi', editFn:'renderTokenAcoes._editBrapi' }) +
+        _apiTokenCard({ id:'bolsai', label:'Bolsai', color:'#6366f1', token:bltoken, date:bldate, inputId:'token-input-bolsai', source:'bolsai', editFn:'renderTokenAcoes._editBolsai' }) +
       '</div>';
   }
 
-  renderTokenAcoes._edit = function() {
-    const card = document.getElementById('acoes-api-card');
-    if (!card) return;
-    const curToken = _getBrapiToken();
-    const existing = card.querySelector('div[style*="border:1.5px solid"]');
-    if (existing) {
-      existing.outerHTML =
-        '<div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">Acesse <strong>brapi.dev</strong>, crie uma conta gratuita e cole seu token abaixo.</div>' +
+  renderTokenAcoes._editBrapi = function() {
+    const row = document.getElementById('brapi-row');
+    if (!row) { renderTokenAcoes(); return; }
+    const cur = _getBrapiToken();
+    row.outerHTML =
+      '<div style="margin-bottom:8px;" id="brapi-row">' +
+        '<div style="font-size:11px;color:var(--text-muted);margin-bottom:5px;">brapi.dev</div>' +
         '<div style="display:flex;gap:8px;">' +
-          '<input type="text" id="token-input-brapi" placeholder="Cole seu token brapi.dev..." value="' + curToken + '" style="flex:1;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text);" />' +
+          '<input type="text" id="token-input-brapi" value="' + cur.replace(/"/g,'&quot;') + '" placeholder="Token brapi.dev..." style="flex:1;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text);" />' +
           '<button onclick="salvarTokenAcoes(\'brapi\')" style="padding:9px 14px;background:var(--primary);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">Salvar</button>' +
-        '</div>';
-      const inp = card.querySelector('#token-input-brapi');
-      if (inp) { inp.focus(); inp.select(); }
-    } else {
-      renderTokenAcoes();
-    }
+        '</div>' +
+      '</div>';
+    const inp = document.getElementById('token-input-brapi');
+    if (inp) { inp.focus(); inp.select(); }
   };
+
+  renderTokenAcoes._editBolsai = function() {
+    const row = document.getElementById('bolsai-row');
+    if (!row) { renderTokenAcoes(); return; }
+    const cur = _getBolsaiToken();
+    row.outerHTML =
+      '<div style="margin-bottom:8px;" id="bolsai-row">' +
+        '<div style="font-size:11px;color:var(--text-muted);margin-bottom:5px;">Bolsai</div>' +
+        '<div style="display:flex;gap:8px;">' +
+          '<input type="text" id="token-input-bolsai" value="' + cur.replace(/"/g,'&quot;') + '" placeholder="Token Bolsai..." style="flex:1;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text);" />' +
+          '<button onclick="salvarTokenAcoes(\'bolsai\')" style="padding:9px 14px;background:#6366f1;color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">Salvar</button>' +
+        '</div>' +
+      '</div>';
+    const inp = document.getElementById('token-input-bolsai');
+    if (inp) { inp.focus(); inp.select(); }
+  };
+
+  // mantém compatibilidade com chamadas antigas
+  renderTokenAcoes._edit = renderTokenAcoes._editBrapi;
 
 
   function _buildNome(me, overrides) {
@@ -6311,11 +6345,21 @@
   }
 
   function salvarTokenAcoes(source) {
+    const agora = new Date();
+    const dataStr = agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
+    if (source === 'bolsai') {
+      const inp = document.getElementById('token-input-bolsai');
+      const token = inp ? inp.value.trim() : '';
+      if (!token) { alert('Cole o token antes de salvar.'); return; }
+      localStorage.setItem(_apiLsKey('bolsai'),     token);
+      localStorage.setItem(_apiLsKey('bolsaidate'), dataStr);
+      renderTokenAcoes();
+      return;
+    }
+    // brapi (default)
     const inp = document.getElementById('token-input-brapi');
     const token = inp ? inp.value.trim() : '';
     if (!token) { alert('Cole o token antes de salvar.'); return; }
-    const agora = new Date();
-    const dataStr = agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
     localStorage.setItem(_apiLsKey('btoken'), token);
     localStorage.setItem(_apiLsKey('bdate'),  dataStr);
     localStorage.setItem(_apiLsKey('src'),    'brapi');
@@ -7501,6 +7545,43 @@
       await new Promise(res => setTimeout(res, 120));
     }
 
+    // Fase 3 — Bolsai: fallback para tickers sem preço na brapi
+    const bolsaiToken = _getBolsaiToken();
+    if (bolsaiToken) {
+      const missing = uniqueTickers.filter(sym => !precos[sym] || !precos[sym].preco);
+      for (const ticker of missing) {
+        try {
+          const r = await fetch('https://api.usebolsai.com/api/v1/fundamentals/' + ticker, {
+            headers: { 'X-API-Key': bolsaiToken }
+          });
+          if (r.ok) {
+            const d = await r.json();
+            const closePrice = d && (d.close_price || d.closePrice || d.price);
+            if (closePrice) {
+              precos[ticker] = Object.assign(precos[ticker] || {}, {
+                preco:      Number(closePrice),
+                moeda:      'BRL',
+                varDiaPct:  precos[ticker]?.varDiaPct  ?? null,
+                varDiaVal:  precos[ticker]?.varDiaVal  ?? null,
+                var7dPct:   precos[ticker]?.var7dPct   ?? null,
+                min52:      precos[ticker]?.min52      ?? null,
+                max52:      precos[ticker]?.max52      ?? null,
+                min3m:      precos[ticker]?.min3m      ?? null,
+                max3m:      precos[ticker]?.max3m      ?? null,
+                hist3m:     precos[ticker]?.hist3m     ?? null,
+                nomeEmpresa:d.company_name || d.nome    || precos[ticker]?.nomeEmpresa || null,
+                dy:  d.dividend_yield != null ? Number(d.dividend_yield) : (d.dy  != null ? Number(d.dy)  : null),
+                pl:  d.pl             != null ? Number(d.pl)             : null,
+                pvp: d.pvp            != null ? Number(d.pvp)            : null,
+                _src: 'bolsai',
+              });
+            }
+          }
+        } catch(e) {}
+        await new Promise(res => setTimeout(res, 200));
+      }
+    }
+
     if (Object.keys(precos).length === 0) {
       if (elBtn) { elBtn.textContent = '❌'; elBtn.disabled = false; setTimeout(() => { if (elBtn) elBtn.textContent = '🔄'; }, 3000); }
       renderCarteiras();
@@ -7534,8 +7615,13 @@
       Object.entries(precos).forEach(([sym, p]) => { if (p.hist3m) sc[sym] = p.hist3m; });
       localStorage.setItem('_sparkCache', JSON.stringify(sc));
     } catch(e) {}
-    if (falhas.length) {
-      _setSyncStatus('⚠️ Cotação não encontrada na brapi.dev: ' + falhas.join(', ') + ' — verifique se os tickers estão corretos', false);
+    const bolsaiFilled = falhas.filter(t => precos[t.replace('.SA','').toUpperCase()]?._src === 'bolsai');
+    const aindaFalhas  = falhas.filter(t => !precos[t.replace('.SA','').toUpperCase()]);
+    if (aindaFalhas.length) {
+      const bolsaiExtra = bolsaiFilled.length ? ' (Bolsai cobriu: ' + bolsaiFilled.join(', ') + ')' : '';
+      _setSyncStatus('⚠️ Cotação não encontrada: ' + aindaFalhas.join(', ') + bolsaiExtra, false);
+    } else if (bolsaiFilled.length) {
+      _setSyncStatus('✅ Cotações atualizadas (' + Object.keys(precos).length + ' ticker(s)) — Bolsai cobriu: ' + bolsaiFilled.join(', '), true);
     } else {
       _setSyncStatus('✅ Cotações atualizadas (' + Object.keys(precos).length + ' ticker(s))', true);
     }
