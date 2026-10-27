@@ -8124,20 +8124,29 @@
           '</div>' +
         '</div>' +
         // Resumo rápido
-        (c.acoes.length ? '<div style="display:flex;gap:0;border-bottom:1px solid var(--border);">' +
-          '<div style="flex:1;padding:10px 14px;text-align:center;border-right:1px solid var(--border);">' +
-            '<div style="font-size:10px;color:var(--text-muted);">Custo Total</div>' +
-            '<div style="font-size:13px;font-weight:800;">' + fmt(totalCusto) + '</div>' +
-          '</div>' +
-          '<div style="flex:1;padding:10px 14px;text-align:center;border-right:1px solid var(--border);">' +
-            '<div style="font-size:10px;color:var(--text-muted);">Valor Atual</div>' +
-            '<div style="font-size:13px;font-weight:800;">' + fmt(totalAtual) + '</div>' +
-          '</div>' +
-          '<div style="flex:1;padding:10px 14px;text-align:center;">' +
-            '<div style="font-size:10px;color:var(--text-muted);">Variação</div>' +
-            '<div style="font-size:13px;font-weight:800;color:' + corVar + ';">' + fmtPct(varTotal) + '</div>' +
-          '</div>' +
-        '</div>' : '') +
+        (c.acoes.length ? (() => {
+          const resultado   = totalAtual - totalCusto;
+          const corRes      = resultado >= 0 ? 'var(--green)' : 'var(--red)';
+          const fmtRes      = (resultado >= 0 ? '+' : '') + resultado.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
+          return '<div style="display:flex;gap:0;border-bottom:1px solid var(--border);">' +
+            '<div style="flex:1;padding:10px 14px;text-align:center;border-right:1px solid var(--border);">' +
+              '<div style="font-size:10px;color:var(--text-muted);">Custo Total</div>' +
+              '<div style="font-size:13px;font-weight:800;">' + fmt(totalCusto) + '</div>' +
+            '</div>' +
+            '<div style="flex:1;padding:10px 14px;text-align:center;border-right:1px solid var(--border);">' +
+              '<div style="font-size:10px;color:var(--text-muted);">Valor Atual</div>' +
+              '<div style="font-size:13px;font-weight:800;">' + fmt(totalAtual) + '</div>' +
+            '</div>' +
+            '<div style="flex:1;padding:10px 14px;text-align:center;border-right:1px solid var(--border);">' +
+              '<div style="font-size:10px;color:var(--text-muted);">Resultado</div>' +
+              '<div style="font-size:13px;font-weight:800;color:' + corRes + ';">' + fmtRes + '</div>' +
+            '</div>' +
+            '<div style="flex:1;padding:10px 14px;text-align:center;">' +
+              '<div style="font-size:10px;color:var(--text-muted);">Variação</div>' +
+              '<div style="font-size:13px;font-weight:800;color:' + corVar + ';">' + fmtPct(varTotal) + '</div>' +
+            '</div>' +
+          '</div>';
+        })() : '') +
         // Barra resumo de Núcleo (apenas em modo tabela com posições ativas)
         (viewMode !== 'chart' && acoesPos.length && totalAtual > 0 ? (() => {
           const _ordemNucleo = ['Renda','Crescimento','Valor','Defensivo','Outros'];
