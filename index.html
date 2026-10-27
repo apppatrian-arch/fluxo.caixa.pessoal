@@ -7836,12 +7836,15 @@
         return ss.dir === 'asc' ? cmp : -cmp;
       }) : c.acoes;
 
+      const acoesOrdPos = acoesOrd.filter(a => !a.monitorar);
+      const acoesOrdMon = acoesOrd.filter(a =>  a.monitorar);
+
       const thStyle  = 'padding:7px 8px;font-size:10px;color:var(--text-muted);font-weight:700;cursor:pointer;user-select:none;white-space:nowrap;';
       const thActive = 'padding:7px 8px;font-size:10px;color:var(--primary);font-weight:700;cursor:pointer;user-select:none;white-space:nowrap;';
       const arrow = col => !ss || ss.col !== col ? ' ↕' : ss.dir === 'asc' ? ' ↑' : ' ↓';
       const th = (col, label, align) => '<th onclick="sortCarteira(\'' + c.id + '\',\'' + col + '\')" style="' + (ss && ss.col === col ? thActive : thStyle) + 'text-align:' + align + ';">' + label + arrow(col) + '</th>';
 
-      const linhasAcoes = acoesOrd.length ? acoesOrd.map((a, idx) => {
+      const _renderRow = (a, idx) => {
         const fUSD    = a.moeda === 'USD' ? _dolarAtual : 1;
         const isUSD   = a.moeda === 'USD';
         const isMon   = !!a.monitorar;
@@ -8066,7 +8069,11 @@
           '</td>' +
           '<td style="padding:8px;">' + acoes + '</td>' +
         '</tr>';
-      }).join('') : '<tr><td colspan="12" style="padding:12px;text-align:center;color:var(--text-muted);font-size:12px;">Nenhuma ação. Adicione abaixo.</td></tr>';
+      };
+      const linhasPos = acoesOrdPos.length
+        ? acoesOrdPos.map(_renderRow).join('')
+        : '<tr><td colspan="12" style="padding:12px;text-align:center;color:var(--text-muted);font-size:12px;">Nenhuma ação. Adicione abaixo.</td></tr>';
+      const linhasMon = acoesOrdMon.map(_renderRow).join('');
 
       const lucroTotal   = totalAtual - totalCusto;
       const corLucroTot  = lucroTotal >= 0 ? 'var(--success)' : 'var(--danger)';
@@ -8172,24 +8179,42 @@
         })() : '') +
         // Tabela ou gráfico
         (viewMode === 'chart' ? grafico :
-        '<div style="overflow-x:auto;">' +
-        '<table style="width:100%;border-collapse:collapse;">' +
-          '<thead><tr style="background:var(--bg);">' +
-            th('ticker',    'Ativo',           'left') +
-            th('qtd',       'Qtd / Custo',     'right') +
-            th('atual',     'Preço Atual',      'right') +
+        (() => {
+          const thead = '<thead><tr style="background:var(--bg);">' +
+            th('ticker',    'Ativo',            'left') +
+            th('qtd',       'Qtd / Custo',      'right') +
+            th('atual',     'Preço Atual',       'right') +
             '<th style="padding:7px 8px;font-size:10px;color:var(--text-muted);text-align:center;font-weight:700;white-space:nowrap;">Gráf.3M</th>' +
-            th('min3m',     'Mín / Máx 3m',   'right') +
-            th('min52',     'Mín / Máx 52sem', 'right') +
-            th('vardiapct', 'Variações',        'right') +
-            th('saldo',     'Saldo / Part.%',  'right') +
-            th('lucro',     'Lucro / Var%',    'right') +
-            th('saldodia',  'Dia R$ / 7d',     'right') +
-            th('alerta',    'Alerta 🔔',       'center') +
+            th('min3m',     'Mín / Máx 3m',    'right') +
+            th('min52',     'Mín / Máx 52sem',  'right') +
+            th('vardiapct', 'Variações',         'right') +
+            th('saldo',     'Saldo / Part.%',   'right') +
+            th('lucro',     'Lucro / Var%',     'right') +
+            th('saldodia',  'Dia R$ / 7d',      'right') +
+            th('alerta',    'Alerta 🔔',        'center') +
             '<th style="padding:7px 8px;font-size:10px;color:var(--text-muted);text-align:center;font-weight:700;">Ações</th>' +
-          '</tr></thead>' +
-          '<tbody>' + linhasAcoes + rodape + '</tbody>' +
-        '</table></div>') +
+          '</tr></thead>';
+          const tabelaPos =
+            '<div style="overflow-x:auto;">' +
+            '<table style="width:100%;border-collapse:collapse;">' +
+              thead +
+              '<tbody>' + linhasPos + rodape + '</tbody>' +
+            '</table></div>';
+          const tabelaMon = acoesOrdMon.length
+            ? '<div style="border-top:2px solid rgba(139,92,246,0.25);">' +
+                '<div style="padding:8px 14px;background:rgba(139,92,246,0.06);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;">' +
+                  '<span style="font-size:11px;font-weight:800;color:#8b5cf6;">👁 Em Monitoramento</span>' +
+                  '<span style="font-size:10px;color:var(--text-muted);">' + acoesOrdMon.length + ' ticker(s) acompanhados — não contam no resumo</span>' +
+                '</div>' +
+                '<div style="overflow-x:auto;">' +
+                '<table style="width:100%;border-collapse:collapse;">' +
+                  thead +
+                  '<tbody>' + linhasMon + '</tbody>' +
+                '</table></div>' +
+              '</div>'
+            : '';
+          return tabelaPos + tabelaMon;
+        })()) +
         // Form adicionar / editar ação
         '<div id="ci-form-' + c.id + '" style="padding:12px 14px;background:var(--bg);border-top:1px solid var(--border);">' +
           '<div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:8px;">+ Adicionar / Editar ação</div>' +
