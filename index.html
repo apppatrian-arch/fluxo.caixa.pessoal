@@ -7533,48 +7533,32 @@
       };
     }
 
-    // Fase 1 — lote único sem range: pega preço atual de todos rapidamente
+    // Cotações: brapi individual por ticker (plano free não suporta batch com >1 ativo)
+    // Se hist ainda fresco (< 6h): chama sem range (só preço, resposta leve)
+    // Se hist velho/ausente: chama com range=3mo (preço + histórico para sparklines)
     let fase1Status = '';
-    try {
-      const r = await fetch(brapiUrl('/quote/' + uniqueTickers.join(',') + '?fundamental=false'));
-      fase1Status = 'HTTP ' + r.status;
-      if (r.ok) {
-        const d = await r.json();
-        const results = (d && d.results) || [];
-        results.forEach(_parseBrapiQ);
-        fase1Status += ' (' + results.length + ' resultados)';
-        if (results.length === 0 && d && d.message) fase1Status += ' — ' + d.message;
-      } else {
-        let errMsg = '';
-        try { const de = await r.json(); errMsg = de.message || de.error || ''; } catch(_) {}
-        fase1Status += (errMsg ? ' — ' + errMsg : '');
-        _setSyncStatus('❌ brapi.dev retornou ' + fase1Status, false);
-      }
-    } catch(e) { fase1Status = 'erro de rede: ' + (e.message || e); }
-
-    if (Object.keys(precos).length === 0 && fase1Status) {
-      _setSyncStatus('⚠️ brapi.dev Fase 1: ' + fase1Status + ' — verifique o token e o plano', false);
-    }
-
-    // Fase 2 — histórico 3mo: pula tickers com hist fresco (< 6h), pois a Fase 1 já trouxe o
-    //           preço real-time. Chama brapi individual apenas para hist ausente/velho.
-    //           Isso poupa quota sem sobrescrever o preço real-time com close_price do Bolsai.
     const _HIST_TTL = 6 * 3600 * 1000; // 6 horas em ms
     const agora2    = Date.now();
     for (const ticker of uniqueTickers) {
       const cached     = _precosGlobal[ticker];
       const histFresco = cached && cached.hist3m && cached._histTs && (agora2 - cached._histTs) < _HIST_TTL;
-      if (histFresco) {
-        // hist ainda válido e preço real-time já veio da Fase 1 → pula chamada individual
-        continue;
-      }
-      // hist ausente ou velho → brapi individual para obter histórico completo
+      const endpoint   = histFresco
+        ? brapiUrl('/quote/' + ticker + '?fundamental=false')
+        : brapiUrl('/quote/' + ticker + '?range=3mo&interval=1d&fundamental=false');
       try {
-        const r = await fetch(brapiUrl('/quote/' + ticker + '?range=3mo&interval=1d&fundamental=false'));
-        if (r.ok) { const d = await r.json(); (d && d.results || []).forEach(_parseBrapiQ); }
-        else erros++;
-      } catch(e) { erros++; }
-      await new Promise(res => setTimeout(res, 120));
+        const r = await fetch(endpoint);
+        if (r.ok) {
+          const d = await r.json();
+          (d && d.results || []).forEach(_parseBrapiQ);
+        } else {
+          let errMsg = '';
+          try { const de = await r.json(); errMsg = de.message || de.error || ''; } catch(_) {}
+          fase1Status = 'HTTP ' + r.status + (errMsg ? ' — ' + errMsg : '');
+          erros++;
+          if (r.status === 400 || r.status === 401 || r.status === 403) break; // erro fatal → para
+        }
+      } catch(e) { erros++; fase1Status = 'erro de rede: ' + (e.message || e); }
+      await new Promise(res => setTimeout(res, 150));
     }
 
     // Fase 3 — Bolsai: fallback para tickers sem preço na brapi
@@ -7615,13 +7599,10 @@
     }
 
     if (Object.keys(precos).length === 0) {
-      // Nenhum preço obtido — diagnostica o motivo
       const msgFalha = fase1Status
-        ? '❌ brapi.dev: ' + fase1Status + ' — verifique o token ou o plano'
+        ? '❌ brapi.dev: ' + fase1Status
         : '❌ Nenhuma cotação obtida — verifique o token brapi.dev';
       _setSyncStatus(msgFalha, false);
-      const elBtnFail = document.getElementById('cbtn-atualizar-' + carteiraId);
-      if (elBtnFail) { elBtnFail.textContent = '❌'; setTimeout(() => { const b = document.getElementById('cbtn-atualizar-' + carteiraId); if (b) b.textContent = '🔄'; }, 4000); }
       renderCarteiras();
       return;
     }
