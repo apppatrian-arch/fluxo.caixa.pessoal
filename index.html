@@ -7534,10 +7534,27 @@
     }
 
     // Fase 1 — lote único sem range: pega preço atual de todos rapidamente
+    let fase1Status = '';
     try {
       const r = await fetch(brapiUrl('/quote/' + uniqueTickers.join(',') + '?fundamental=false'));
-      if (r.ok) { const d = await r.json(); (d && d.results || []).forEach(_parseBrapiQ); }
-    } catch(e) {}
+      fase1Status = 'HTTP ' + r.status;
+      if (r.ok) {
+        const d = await r.json();
+        const results = (d && d.results) || [];
+        results.forEach(_parseBrapiQ);
+        fase1Status += ' (' + results.length + ' resultados)';
+        if (results.length === 0 && d && d.message) fase1Status += ' — ' + d.message;
+      } else {
+        let errMsg = '';
+        try { const de = await r.json(); errMsg = de.message || de.error || ''; } catch(_) {}
+        fase1Status += (errMsg ? ' — ' + errMsg : '');
+        _setSyncStatus('❌ brapi.dev retornou ' + fase1Status, false);
+      }
+    } catch(e) { fase1Status = 'erro de rede: ' + (e.message || e); }
+
+    if (Object.keys(precos).length === 0 && fase1Status) {
+      _setSyncStatus('⚠️ brapi.dev Fase 1: ' + fase1Status + ' — verifique o token e o plano', false);
+    }
 
     // Fase 2 — histórico 3mo: pula tickers com hist fresco (< 6h), pois a Fase 1 já trouxe o
     //           preço real-time. Chama brapi individual apenas para hist ausente/velho.
@@ -7598,7 +7615,13 @@
     }
 
     if (Object.keys(precos).length === 0) {
-      if (elBtn) { elBtn.textContent = '❌'; elBtn.disabled = false; setTimeout(() => { if (elBtn) elBtn.textContent = '🔄'; }, 3000); }
+      // Nenhum preço obtido — diagnostica o motivo
+      const msgFalha = fase1Status
+        ? '❌ brapi.dev: ' + fase1Status + ' — verifique o token ou o plano'
+        : '❌ Nenhuma cotação obtida — verifique o token brapi.dev';
+      _setSyncStatus(msgFalha, false);
+      const elBtnFail = document.getElementById('cbtn-atualizar-' + carteiraId);
+      if (elBtnFail) { elBtnFail.textContent = '❌'; setTimeout(() => { const b = document.getElementById('cbtn-atualizar-' + carteiraId); if (b) b.textContent = '🔄'; }, 4000); }
       renderCarteiras();
       return;
     }
@@ -7642,13 +7665,15 @@
     } catch(e) {}
     const bolsaiFilled = falhas.filter(t => precos[t.replace('.SA','').toUpperCase()]?._src === 'bolsai');
     const aindaFalhas  = falhas.filter(t => !precos[t.replace('.SA','').toUpperCase()]);
+    const _agora = new Date();
+    const _hhmm  = _agora.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
     if (aindaFalhas.length) {
       const bolsaiExtra = bolsaiFilled.length ? ' (Bolsai cobriu: ' + bolsaiFilled.join(', ') + ')' : '';
-      _setSyncStatus('⚠️ Cotação não encontrada: ' + aindaFalhas.join(', ') + bolsaiExtra, false);
+      _setSyncStatus('⚠️ Cotação não encontrada: ' + aindaFalhas.join(', ') + bolsaiExtra + ' · ' + _hhmm, false);
     } else if (bolsaiFilled.length) {
-      _setSyncStatus('✅ Cotações atualizadas (' + Object.keys(precos).length + ' ticker(s)) — Bolsai cobriu: ' + bolsaiFilled.join(', '), true);
+      _setSyncStatus('✅ Cotações atualizadas (' + Object.keys(precos).length + ' ticker(s)) — Bolsai cobriu: ' + bolsaiFilled.join(', ') + ' · ' + _hhmm, true);
     } else {
-      _setSyncStatus('✅ Cotações atualizadas (' + Object.keys(precos).length + ' ticker(s))', true);
+      _setSyncStatus('✅ Cotações atualizadas (' + Object.keys(precos).length + ' ticker(s)) · ' + _hhmm, true);
     }
     salvarCarteiras();
     renderCarteiras();
