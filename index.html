@@ -758,7 +758,9 @@
     ══════════════════════════════════════════════ */
     #painel-acoes {
       background: #f1f5f9;
-      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      font-family: 'Segoe UI', Roboto, Arial, sans-serif;
+      font-size: 14px;
+      color: #0f172a;
       font-variant-numeric: tabular-nums;
     }
 
@@ -773,10 +775,9 @@
 
     /* Wrapper "Minhas Carteiras" — título */
     #painel-acoes > div:first-child > div:first-child > div:first-child {
-      font-size: 14px !important;
-      font-weight: 600 !important;
+      font-size: 15px !important;
+      font-weight: 500 !important;
       color: #0f172a !important;
-      letter-spacing: -.01em !important;
     }
 
     /* Cada carteira (card individual) */
@@ -788,26 +789,26 @@
       overflow: hidden;
     }
 
-    /* Barra do núcleo — subtítulo */
-    #carteiras-lista [style*="NÚCLEO DA CARTEIRA"] span,
-    #carteiras-lista span[style*="letter-spacing:.4px"] {
-      font-size: 9px !important;
-      letter-spacing: .7px !important;
-      font-weight: 700 !important;
-    }
-
     /* Cabeçalho de tabela */
     #carteiras-lista thead tr {
       background: #f8fafc !important;
     }
     #carteiras-lista thead th {
       color: #64748b !important;
-      font-size: 10px !important;
-      font-weight: 700 !important;
+      font-size: 11px !important;
+      font-weight: 500 !important;
       letter-spacing: .3px !important;
       text-transform: uppercase !important;
       border-bottom: 1.5px solid #e2e8f0 !important;
       padding: 8px 8px !important;
+      font-family: 'Segoe UI', Roboto, Arial, sans-serif !important;
+    }
+
+    /* Células de dados */
+    #carteiras-lista tbody td {
+      font-size: 14px !important;
+      font-family: 'Segoe UI', Roboto, Arial, sans-serif !important;
+      font-variant-numeric: tabular-nums !important;
     }
 
     /* Linhas de tabela — separadores mais suaves */
@@ -823,16 +824,21 @@
       background: #f8fafc !important;
       border-top-color: #cbd5e1 !important;
     }
+    #carteiras-lista tbody tr[style*="border-top:2px solid"] td {
+      font-size: 14px !important;
+      font-weight: 500 !important;
+    }
 
     /* Cards superiores (API, Cotação, Selic, Dólar) */
     .acoes-top-cards > div {
       border: 1px solid #cbd5e1 !important;
       border-radius: 12px !important;
       box-shadow: 0 1px 3px rgba(15,23,42,.06) !important;
+      font-family: 'Segoe UI', Roboto, Arial, sans-serif !important;
     }
     .acoes-top-cards > div > div:first-child {
-      font-size: 13px !important;
-      font-weight: 600 !important;
+      font-size: 15px !important;
+      font-weight: 500 !important;
       color: #0f172a !important;
     }
 
@@ -841,6 +847,7 @@
       border: 1px solid #cbd5e1 !important;
       border-radius: 12px !important;
       box-shadow: 0 1px 3px rgba(15,23,42,.06) !important;
+      font-family: 'Segoe UI', Roboto, Arial, sans-serif !important;
     }
 
     /* API card inner wrapper */
@@ -848,6 +855,7 @@
       border: 1px solid #cbd5e1 !important;
       border-radius: 12px !important;
       box-shadow: 0 1px 3px rgba(15,23,42,.06) !important;
+      font-family: 'Segoe UI', Roboto, Arial, sans-serif !important;
     }
 
     /* Seção "Em Monitoramento" — cabeçalho roxo */
@@ -856,12 +864,17 @@
       border-bottom: 1px solid #e9d5ff !important;
     }
 
-    /* Tickers na tabela — fonte um pouco menor e mais limpa */
+    /* Tickers na tabela */
     #carteiras-lista td:first-child > div:first-child {
-      font-size: 13px !important;
-      font-weight: 700 !important;
+      font-size: 14px !important;
+      font-weight: 500 !important;
       color: #0f172a !important;
-      letter-spacing: -.01em !important;
+    }
+    /* Nome da empresa abaixo do ticker */
+    #carteiras-lista td:first-child > div:nth-child(2) {
+      font-size: 12px !important;
+      color: #64748b !important;
+      font-weight: 400 !important;
     }
 
     /* Resumo rápido (Custo Total / Valor Atual / Resultado / Variação) */
@@ -872,15 +885,16 @@
       border-right-color: #e2e8f0 !important;
     }
     #carteiras-lista > div > div[style*="display:flex;gap:0;border-bottom"] > div > div:first-child {
-      font-size: 10px !important;
-      font-weight: 500 !important;
+      font-size: 11px !important;
+      font-weight: 400 !important;
       color: #64748b !important;
       text-transform: uppercase !important;
       letter-spacing: .4px !important;
     }
     #carteiras-lista > div > div[style*="display:flex;gap:0;border-bottom"] > div > div:last-child {
       font-size: 15px !important;
-      font-weight: 600 !important;
+      font-weight: 500 !important;
+      font-variant-numeric: tabular-nums !important;
       margin-top: 2px !important;
     }
 
@@ -888,6 +902,7 @@
     #carteiras-lista [id^="ci-form-"] {
       background: #f8fafc !important;
       border-top: 1px solid #e2e8f0 !important;
+      font-size: 13px !important;
     }
 
   </style>
