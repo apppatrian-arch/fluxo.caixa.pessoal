@@ -1605,6 +1605,9 @@
       <!-- ANÁLISE DE CARTEIRA — médio e longo prazo -->
       <div id="acoes-analise-carteira"></div>
 
+      <!-- RECOMENDAÇÕES DE COMPRA -->
+      <div id="acoes-recomendacoes" style="margin-bottom:14px;"></div>
+
       <!-- RENDA FIXA -->
       <div style="background:var(--card);border-radius:14px;padding:16px;margin-bottom:14px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
@@ -4149,6 +4152,7 @@
     // Token brapi — carrega do banco se não há token local
     if (!_getBrapiToken()) await _brapiCarregarDB();
     renderTokenAcoes();
+    renderRecomendacoes();
     // Garante renderização da visão geral mesmo se renderGraficoAlocacao não chegou lá
     renderVisaoGeral();
   }
@@ -4304,6 +4308,93 @@
     } finally {
       if (btn) btn.style.opacity = '1';
     }
+  }
+
+  // ══════════════════════════════════════════
+  //  RECOMENDAÇÕES DE COMPRA
+  // ══════════════════════════════════════════
+
+  function _recChave() { return '_recomendacoes_' + (currentUser || '').toLowerCase(); }
+
+  function _getRecs() {
+    try { return JSON.parse(localStorage.getItem(_recChave()) || '[]'); } catch(e) { return []; }
+  }
+  function _salvarRecs(arr) {
+    localStorage.setItem(_recChave(), JSON.stringify(arr));
+  }
+
+  function renderRecomendacoes() {
+    const el = document.getElementById('acoes-recomendacoes');
+    if (!el) return;
+    const recs = _getRecs();
+
+    const inpS = 'width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;font-family:\'Segoe UI\',Roboto,Arial,sans-serif;background:#fff;color:#0f172a;box-sizing:border-box;';
+
+    const listaHtml = recs.length
+      ? recs.map(r =>
+          '<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;background:#fefce8;border:1px solid #fcd34d;margin-bottom:6px;flex-wrap:wrap;">' +
+            '<span style="font-size:12px;font-weight:700;color:#0f172a;min-width:60px;">' + r.ticker + '</span>' +
+            (r.valorJusto ? '<span style="font-size:12px;color:#475569;">Justo: <strong style="color:#0f172a;">R$ ' + Number(r.valorJusto).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</strong></span>' : '') +
+            (r.fonte ? '<span style="font-size:11px;color:#64748b;background:#f1f5f9;border-radius:5px;padding:1px 7px;">' + r.fonte + '</span>' : '') +
+            (r.mes ? '<span style="font-size:11px;color:#64748b;">' + r.mes + '</span>' : '') +
+            '<button onclick="removerRecomendacao(\'' + r.ticker + '\')" title="Remover" style="margin-left:auto;background:#fee2e2;border:none;border-radius:6px;color:#dc2626;font-size:12px;cursor:pointer;padding:3px 8px;">🗑</button>' +
+          '</div>'
+        ).join('')
+      : '<div style="font-size:13px;color:#94a3b8;padding:4px 0 8px;">Nenhuma recomendação cadastrada.</div>';
+
+    el.innerHTML =
+      '<div style="background:#ffffff;border:1px solid #cbd5e1;border-radius:12px;padding:16px 20px;font-family:\'Segoe UI\',Roboto,Arial,sans-serif;">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">' +
+          '<div style="font-size:15px;font-weight:500;color:#0f172a;">⭐ Recomendações de Compra</div>' +
+          '<span style="font-size:11px;color:#64748b;background:#f1f5f9;border-radius:6px;padding:2px 8px;">' + recs.length + ' ativo(s)</span>' +
+        '</div>' +
+        '<div id="rec-lista">' + listaHtml + '</div>' +
+        // Formulário de adição
+        '<details style="margin-top:10px;">' +
+          '<summary style="cursor:pointer;font-size:13px;font-weight:500;color:#475569;user-select:none;list-style:none;display:flex;align-items:center;gap:6px;">' +
+            '<span style="font-size:16px;line-height:1;">＋</span> Adicionar recomendação' +
+          '</summary>' +
+          '<div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:8px;align-items:end;">' +
+            '<div>' +
+              '<div style="font-size:11px;color:#64748b;margin-bottom:3px;">Ticker *</div>' +
+              '<input id="rec-ticker" type="text" placeholder="Ex: PETR4" maxlength="10" style="' + inpS + '" />' +
+            '</div>' +
+            '<div>' +
+              '<div style="font-size:11px;color:#64748b;margin-bottom:3px;">Valor Justo (R$)</div>' +
+              '<input id="rec-justo" type="number" placeholder="0,00" min="0" step="0.01" style="' + inpS + '" />' +
+            '</div>' +
+            '<div>' +
+              '<div style="font-size:11px;color:#64748b;margin-bottom:3px;">Fonte</div>' +
+              '<input id="rec-fonte" type="text" placeholder="Ex: Investidor10" maxlength="30" style="' + inpS + '" />' +
+            '</div>' +
+            '<div>' +
+              '<div style="font-size:11px;color:#64748b;margin-bottom:3px;">Mês</div>' +
+              '<input id="rec-mes" type="text" placeholder="Ex: Nov/26" maxlength="10" style="' + inpS + '" />' +
+            '</div>' +
+            '<button onclick="adicionarRecomendacao()" style="padding:7px 14px;background:#d97706;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;font-family:\'Segoe UI\',Roboto,Arial,sans-serif;">+ Adicionar</button>' +
+          '</div>' +
+        '</details>' +
+      '</div>';
+  }
+
+  function adicionarRecomendacao() {
+    const ticker = (document.getElementById('rec-ticker')?.value || '').trim().toUpperCase().replace('.SA','');
+    if (!ticker) { alert('Informe o ticker.'); return; }
+    const justo  = parseFloat(document.getElementById('rec-justo')?.value || '') || null;
+    const fonte  = (document.getElementById('rec-fonte')?.value || '').trim() || null;
+    const mes    = (document.getElementById('rec-mes')?.value || '').trim() || null;
+    const recs   = _getRecs();
+    if (recs.find(r => r.ticker === ticker)) { alert('Ticker já cadastrado.'); return; }
+    recs.push({ ticker, valorJusto: justo, fonte, mes });
+    _salvarRecs(recs);
+    renderRecomendacoes();
+    renderCarteiras();
+  }
+
+  function removerRecomendacao(ticker) {
+    _salvarRecs(_getRecs().filter(r => r.ticker !== ticker));
+    renderRecomendacoes();
+    renderCarteiras();
   }
 
   // ══════════════════════════════════════════
@@ -8033,6 +8124,7 @@
       const arrow = col => !ss || ss.col !== col ? ' ↕' : ss.dir === 'asc' ? ' ↑' : ' ↓';
       const th = (col, label, align) => '<th onclick="sortCarteira(\'' + c.id + '\',\'' + col + '\')" style="' + (ss && ss.col === col ? thActive : thStyle) + 'text-align:' + align + ';">' + label + arrow(col) + '</th>';
 
+      const _allRecs = _getRecs();
       const _renderRow = (a, idx) => {
         const fUSD    = a.moeda === 'USD' ? _dolarAtual : 1;
         const isUSD   = a.moeda === 'USD';
@@ -8155,6 +8247,12 @@
         const _nucleoBadge = _nCfg
           ? '<span onclick="abrirNucleoModal(\'' + a.ticker + '\')" title="Clique para alterar o núcleo" style="display:inline-block;margin-left:4px;font-size:9px;font-weight:800;padding:1px 5px;border-radius:4px;background:' + _nCfg.bg + ';color:' + _nCfg.cor + ';vertical-align:middle;cursor:pointer;">' + _nCfg.icone + ' ' + _nucleo.toUpperCase() + '</span>'
           : '<span onclick="abrirNucleoModal(\'' + a.ticker + '\')" title="Classificar núcleo" style="display:inline-block;margin-left:4px;font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;background:var(--bg);color:var(--text-muted);vertical-align:middle;cursor:pointer;border:1px dashed var(--border);">＋ Núcleo</span>';
+        const _symClean = a.ticker.replace('.SA','').toUpperCase();
+        const _rec = _allRecs.find(r => r.ticker === _symClean);
+        const _recTitle = _rec ? [_rec.fonte, _rec.valorJusto ? 'Justo: R$ ' + Number(_rec.valorJusto).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) : '', _rec.mes].filter(Boolean).join(' · ') : '';
+        const _recBadge = _rec
+          ? '<span title="' + _recTitle + '" style="display:inline-block;margin-left:4px;font-size:9px;font-weight:700;padding:1px 6px;border-radius:4px;background:#fef3c7;color:#92400e;vertical-align:middle;border:1px solid #fcd34d;cursor:default;">⭐ COMPRAR</span>'
+          : '';
         // Célula 3m: min↕max empilhados com % abaixo de cada valor
         const cell3m = '<td style="padding:6px 8px;text-align:right;">' +
           '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px;">' +
@@ -8223,12 +8321,13 @@
             '<div style="font-size:10px;color:var(--text-muted);">' + fmtUSD(a.custo) + (isUSD ? ' <span style="font-size:9px;background:#dbeafe;color:#1d4ed8;border-radius:3px;padding:0 3px;font-weight:700;">USD</span>' : '') + '</div>' +
           '</td>';
         return '<tr' + classTr + ' style="border-bottom:' + borderAlert + ';' + (bgFinal ? 'background:' + bgFinal + ';' : '') + '">' +
-          // Ativo: ticker, badges (monitor, núcleo), nome empresa
+          // Ativo: ticker, badges (monitor, núcleo, recomendação), nome empresa
           '<td style="padding:8px;white-space:nowrap;">' +
             '<div style="font-size:13px;font-weight:800;">' + a.ticker + '</div>' +
             '<div style="margin-top:3px;display:flex;flex-wrap:wrap;gap:3px;align-items:center;">' +
               (isMon ? '<span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;background:rgba(139,92,246,0.15);color:#8b5cf6;">👁 Monitor</span>' : '') +
               _nucleoBadge +
+              _recBadge +
             '</div>' +
           '</td>' +
           // Qtd / Custo
