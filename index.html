@@ -6944,6 +6944,7 @@
     salvarCarteiras();
     fecharModalCarteira();
     renderCarteiras();
+    renderVisaoGeral();
   }
 
   function excluirCarteira(id) {
@@ -6951,6 +6952,7 @@
     carteiras = carteiras.filter(x => x.id !== id);
     salvarCarteiras();
     renderCarteiras();
+    renderVisaoGeral();
   }
 
   function _csvRow(cols) {
@@ -7636,6 +7638,7 @@
     c.acoes = c.acoes.filter(a => a.id !== acaoId);
     salvarCarteiras();
     renderCarteiras();
+    renderVisaoGeral();
   }
 
   function editarAcaoCarteira(carteiraId, acaoId) {
@@ -7858,6 +7861,7 @@
     }
     salvarCarteiras();
     renderCarteiras();
+    renderVisaoGeral();
   }
 
   // Estado de ordenação e modo de visualização por carteira
