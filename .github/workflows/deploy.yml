@@ -24,8 +24,30 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Gerar config.js com variáveis de ambiente
+        env:
+          GH_TOKEN_VAL:  ${{ secrets.GH_TOKEN }}
+          GH_OWNER_VAL:  ${{ secrets.GH_OWNER }}
+          GH_REPO_VAL:   ${{ secrets.GH_REPO }}
+          GH_BRANCH_VAL: ${{ secrets.GH_BRANCH }}
+          PAUL_API_VAL:  ${{ secrets.PAUL_API_URL }}
+          PAUL_USER_VAL: ${{ secrets.PAUL_USER }}
+          PAUL_PASS_VAL: ${{ secrets.PAUL_PASS }}
+        run: |
+          cat > config.js << EOF
+          window.APP_CONFIG = {
+            ghToken:    "${GH_TOKEN_VAL}",
+            ghOwner:    "${GH_OWNER_VAL}",
+            ghRepo:     "${GH_REPO_VAL}",
+            ghBranch:   "${GH_BRANCH_VAL:-main}",
+            paulApiUrl: "${PAUL_API_VAL}",
+            paulUser:   "${PAUL_USER_VAL}",
+            paulPass:   "${PAUL_PASS_VAL}"
+          };
+          EOF
+
       - name: Setup Pages
-        uses: actions/configure-pages@v4
+        uses: actions/configure-pages@v5
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
